@@ -40,7 +40,7 @@ export default function PaymentStep({ bookingId, totalPrice }: PaymentStepProps)
       queryClient.invalidateQueries({ queryKey: ['/api/bookings', bookingId] });
       
       // هدایت به صفحه تایید نهایی
-      navigate("/booking-confirmation");
+      setLocation("/booking-confirmation");
     },
     onError: (error: Error) => {
       toast({
@@ -164,7 +164,7 @@ export default function PaymentStep({ bookingId, totalPrice }: PaymentStepProps)
       <div className="flex justify-between mt-8">
         <Button
           variant="outline"
-          onClick={() => navigate(`/booking/${bookingId}/step3`)}
+          onClick={() => setLocation(`/booking/${bookingId}/step3`)}
         >
           بازگشت به مرحله قبل
         </Button>

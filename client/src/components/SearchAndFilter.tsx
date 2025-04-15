@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { useBookingModal } from "@/hooks/use-booking-modal";
+import { useLocation } from "wouter";
 
 interface Caravan {
   id: number;
@@ -36,7 +36,7 @@ export default function SearchAndFilter() {
     priceRange: "",
   });
   
-  const { setCaravan } = useBookingModal();
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
   
   const {
@@ -59,8 +59,8 @@ export default function SearchAndFilter() {
     refetch();
   };
   
-  // Open booking modal with selected caravan
-  const openBookingModal = (caravan: Caravan) => {
+  // هدایت به صفحه رزرو کاروان
+  const redirectToBooking = (caravan: Caravan) => {
     if (caravan.remainingCapacity <= 0) {
       toast({
         title: "خطا در رزرو",
@@ -70,7 +70,8 @@ export default function SearchAndFilter() {
       return;
     }
     
-    setCaravan(caravan);
+    // هدایت به صفحه رزرو کاروان
+    setLocation(`/booking/${caravan.id}`);
   };
   
   // Format price to Persian format with commas
@@ -256,11 +257,11 @@ export default function SearchAndFilter() {
                           {formatPrice(caravan.price)} <span className="text-sm">تومان</span>
                         </div>
                         <Button 
-                          onClick={() => openBookingModal(caravan)}
+                          onClick={() => redirectToBooking(caravan)}
                           className="bg-primary-500 hover:bg-primary-600 text-white"
                           disabled={caravan.remainingCapacity <= 0}
                         >
-                          رزرو کاروان
+                          مشاهده و رزرو کاروان
                         </Button>
                       </div>
                     </div>
