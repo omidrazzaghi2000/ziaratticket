@@ -1,0 +1,14 @@
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --font-vazir: 'Vazirmatn', sans-serif;
+}
+
+html {
+  font-family: var(--font-vazir);
+}
+
+body {
+  direction: rtl;
+  text-align: right;
+}
