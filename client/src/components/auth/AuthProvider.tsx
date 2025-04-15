@@ -1,0 +1,89 @@
+import { createContext, useContext, ReactNode, useState, useEffect } from "react";
+import { apiRequest } from "@/lib/queryClient";
+
+interface User {
+  id: number;
+  phone: string;
+  fullName: string | null;
+}
+
+interface AuthContextType {
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export function AuthProvider({ children }: AuthProviderProps) {
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // بررسی وضعیت احراز هویت کاربر
+  const checkAuthStatus = async () => {
+    try {
+      setIsLoading(true);
+      // بررسی وضعیت احراز هویت
+      const statusResponse = await apiRequest("GET", "/api/auth/status");
+      const statusData = await statusResponse.json();
+
+      if (statusData.isAuthenticated) {
+        // دریافت اطلاعات کاربر
+        const userResponse = await apiRequest("GET", "/api/user");
+        const userData = await userResponse.json();
+        setUser(userData);
+      } else {
+        setUser(null);
+      }
+    } catch (error) {
+      console.error("Error checking auth status:", error);
+      setUser(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // خروج کاربر
+  const logout = async () => {
+    try {
+      await apiRequest("POST", "/api/auth/logout");
+      setUser(null);
+    } catch (error) {
+      console.error("Error logging out:", error);
+    }
+  };
+
+  // به‌روزرسانی اطلاعات کاربر
+  const refreshUser = async () => {
+    await checkAuthStatus();
+  };
+
+  // بررسی وضعیت احراز هویت هنگام بارگذاری کامپوننت
+  useEffect(() => {
+    checkAuthStatus();
+  }, []);
+
+  const value = {
+    user,
+    isAuthenticated: !!user,
+    isLoading,
+    logout,
+    refreshUser,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+}

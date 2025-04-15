@@ -58,7 +58,8 @@ export default function PrayerTimes() {
           </div>
         </div>
       </div>
-      <style jsx>{`
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .prayer-time::after {
           content: "";
           position: absolute;
@@ -68,7 +69,8 @@ export default function PrayerTimes() {
           height: 1px;
           background: linear-gradient(to left, transparent, #E5E7EB, transparent);
         }
-      `}</style>
+        `
+      }} />
     </section>
   );
 }

@@ -248,6 +248,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // ذخیره مرحله سوم رزرو
       const updatedBooking = await storage.saveBookingStep3(bookingId, step3Data);
       
+      if (!updatedBooking) {
+        return res.status(404).json({ message: "رزرو مورد نظر یافت نشد." });
+      }
+      
       res.json({ 
         message: "مرحله سوم رزرو با موفقیت ثبت شد.",
         bookingId,
@@ -301,6 +305,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/bookings/user", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId;
+      
+      if (typeof userId !== 'number') {
+        return res.status(401).json({ message: "لطفا ابتدا وارد شوید." });
+      }
+      
       const bookings = await storage.getBookingsByUserId(userId);
       
       res.json(bookings);
