@@ -46,9 +46,29 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
 
+  // تعریف اینترفیس کاروان
+  interface Caravan {
+    id: number;
+    name: string;
+    departureDate: string;
+    duration: number;
+    transportationType: string;
+    price: number;
+    capacity: number;
+    remainingCapacity: number;
+    accommodationType: string;
+    accommodationDistance: number;
+    manager: string;
+    description?: string;
+  }
+  
   // دریافت اطلاعات کاروان
-  const { data: caravan, isLoading: isLoadingCaravan } = useQuery({
+  const { data: caravan, isLoading: isLoadingCaravan } = useQuery<Caravan>({
     queryKey: ['/api/caravans', caravanId],
+    queryFn: async () => {
+      const response = await apiRequest("GET", `/api/caravans/${caravanId}`);
+      return response.json();
+    },
     enabled: !isNaN(caravanId),
   });
 
