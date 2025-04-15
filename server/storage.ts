@@ -209,7 +209,23 @@ export class MemStorage implements IStorage {
   
   async createCaravan(insertCaravan: InsertCaravan): Promise<Caravan> {
     const id = this.currentCaravanId++;
-    const caravan: Caravan = { ...insertCaravan, id };
+    const caravan: Caravan = { 
+      id,
+      name: insertCaravan.name,
+      departureDate: insertCaravan.departureDate,
+      duration: insertCaravan.duration,
+      transportationType: insertCaravan.transportationType,
+      price: insertCaravan.price,
+      capacity: insertCaravan.capacity,
+      remainingCapacity: insertCaravan.remainingCapacity,
+      accommodationType: insertCaravan.accommodationType,
+      accommodationDistance: insertCaravan.accommodationDistance,
+      manager: insertCaravan.manager,
+      description: insertCaravan.description || null,
+      popular: insertCaravan.popular || false,
+      specialTag: insertCaravan.specialTag || null,
+      imageUrl: insertCaravan.imageUrl || null
+    };
     this.caravans.set(id, caravan);
     return caravan;
   }
