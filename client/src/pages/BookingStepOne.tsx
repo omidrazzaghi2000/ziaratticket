@@ -26,8 +26,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 const bookingStep1Schema = z.object({
   caravanId: z.coerce.number(),
   passengerCount: z.coerce.number().min(1, { message: "حداقل تعداد مسافر باید ۱ نفر باشد" }),
-  termsAccepted: z.literal(true, {
-    errorMap: () => ({ message: "پذیرش قوانین و مقررات الزامی است" }),
+  termsAccepted: z.boolean().refine(val => val === true, {
+    message: "پذیرش قوانین و مقررات الزامی است",
   }),
 });
 
