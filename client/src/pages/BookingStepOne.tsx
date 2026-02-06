@@ -26,6 +26,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 const bookingStep1Schema = z.object({
   caravanId: z.coerce.number(),
   passengerCount: z.coerce.number().min(1, { message: "حداقل تعداد مسافر باید ۱ نفر باشد" }),
+  mainPassengerName: z.string().min(3, { message: "نام و نام خانوادگی الزامی است" }),
+  mainPassengerId: z.string().min(10, { message: "کد ملی معتبر نیست" }),
+  mainPassengerPhone: z.string().min(10, { message: "شماره موبایل معتبر نیست" }),
+  mainPassengerBirthdate: z.string().min(5, { message: "تاریخ تولد الزامی است" }),
   termsAccepted: z.boolean().refine(val => val === true, {
     message: "پذیرش قوانین و مقررات الزامی است",
   }),
@@ -78,6 +82,10 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
     defaultValues: {
       caravanId: caravanId,
       passengerCount: 1,
+      mainPassengerName: "",
+      mainPassengerId: "",
+      mainPassengerPhone: "",
+      mainPassengerBirthdate: "",
       termsAccepted: false,
     },
   });
@@ -85,7 +93,10 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
   // ارسال فرم مرحله اول
   const bookingStep1Mutation = useMutation({
     mutationFn: async (data: BookingStep1FormValues) => {
-      const response = await apiRequest("POST", "/api/bookings/step1", data);
+      const response = await apiRequest("POST", "/api/bookings/step1", {
+        ...data,
+        passengerCount: data.passengerCount // اطمینان از ارسال تعداد مسافرین
+      });
       return response.json();
     },
     onSuccess: (data) => {
@@ -115,7 +126,9 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
     }
     
     // ارسال فرم
+    console.log(data);
     bookingStep1Mutation.mutate(data);
+
   };
 
   // هندلر بستن مودال احراز هویت
@@ -185,6 +198,64 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-10 -mt-10"></div>
                 <div className="relative">
                   <h2 className="text-2xl font-heading font-bold mb-6 border-b pb-4">اطلاعات مسافرین</h2>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <FormField
+                      control={form.control}
+                      name="mainPassengerName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>نام و نام خانوادگی سرپرست</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="mainPassengerId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>کد ملی سرپرست</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="mainPassengerPhone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>شماره موبایل سرپرست</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="mainPassengerBirthdate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>تاریخ تولد سرپرست</FormLabel>
+                          <FormControl>
+                            <Input placeholder="مثال: ۱۳۶۵/۰۶/۱۰" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
                   <FormField
                     control={form.control}

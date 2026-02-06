@@ -24,10 +24,12 @@ const phoneSchema = z.object({
 });
 
 const verifySchema = z.object({
-  phone: z.string().min(11),
   code: z.string()
-    .min(4, { message: "کد تایید باید حداقل ۴ رقم باشد" })
+    .min(4, { message: "کد تایید باید حداقل ۴ رقم باشد"  })
     .max(5, { message: "کد تایید باید حداکثر ۵ رقم باشد" })
+}).refine((data) => {
+  console.log('Validating verification code:', data);
+  return true;
 });
 
 type PhoneFormData = z.infer<typeof phoneSchema>;
@@ -40,6 +42,8 @@ interface LoginFormProps {
 export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
   const [step, setStep] = useState<"phone" | "verify">("phone");
   const [phone, setPhone] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  
   const { toast } = useToast();
 
   // فرم ارسال کد تایید به شماره موبایل
@@ -54,9 +58,9 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
   const verifyForm = useForm<VerifyFormData>({
     resolver: zodResolver(verifySchema),
     defaultValues: {
-      phone: "",
       code: "",
     },
+    mode: "onChange"
   });
 
   // ارسال کد تایید به شماره موبایل
@@ -71,8 +75,9 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         description: "کد تایید با موفقیت به شماره موبایل شما ارسال شد.",
       });
       setPhone(data.phone);
+      setVerificationCode("");
       setStep("verify");
-      verifyForm.setValue("phone", data.phone);
+      
     },
     onError: (error: Error) => {
       toast({
@@ -85,8 +90,12 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
 
   // تایید کد و ورود
   const verifyCodeMutation = useMutation({
-    mutationFn: async (data: VerifyFormData) => {
-      const response = await apiRequest("POST", "/api/auth/verify", data);
+    mutationFn: async (data: { code: string }) => {
+      console.log('Sending to API:', { phone, code: data.code });
+      const response = await apiRequest("POST", "/api/auth/verify", {
+        phone: phone,
+        code: data.code
+      });
       return response.json();
     },
     onSuccess: () => {
@@ -114,7 +123,10 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
 
   // ارسال فرم کد تایید
   const onSubmitVerify = (data: VerifyFormData) => {
-    verifyCodeMutation.mutate(data);
+    console.log('Submitting verification code:', verificationCode);
+    verifyCodeMutation.mutate({
+      code: verificationCode
+    });
   };
 
   return (
@@ -177,8 +189,18 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                     <FormLabel>کد تایید</FormLabel>
                     <FormControl>
                       <Input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={4}
                         placeholder="کد تایید را وارد کنید"
-                        {...field}
+                        value={verificationCode}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/[^0-9]/g, '');
+                          setVerificationCode(value);
+                          field.onChange(value);
+                          verifyForm.setValue("code", value);
+                        }}
                         disabled={verifyCodeMutation.isPending}
                       />
                     </FormControl>

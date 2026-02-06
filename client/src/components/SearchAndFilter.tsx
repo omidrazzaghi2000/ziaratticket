@@ -199,7 +199,7 @@ export default function SearchAndFilter() {
             <div className="flex items-end">
               <Button 
                 type="submit" 
-                className="w-full bg-gradient-to-l from-primary-600 to-primary hover:opacity-90 transition-all shadow-md text-base py-6"
+                className="w-full bg-green-800 hover:opacity-90 transition-all shadow-md text-base py-6"
               >
                 <Search className="h-5 w-5 ml-2" strokeWidth={2} />
                 جستجوی کاروان
@@ -344,7 +344,7 @@ export default function SearchAndFilter() {
                           className={`
                             ${caravan.remainingCapacity <= 0 
                               ? 'bg-gray-400 hover:bg-gray-500' 
-                              : 'bg-gradient-to-l from-primary-600 to-primary hover:opacity-90'} 
+                              : 'bg-green-800 hover:bg-green-700'} 
                             transition-all shadow-md text-white font-medium`
                           }
                           disabled={caravan.remainingCapacity <= 0}

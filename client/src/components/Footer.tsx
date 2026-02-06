@@ -50,7 +50,7 @@ export default function Footer() {
   };
 
   return (
-    <footer className="bg-primary-700 text-white py-10">
+    <footer className="bg-green-800 text-white py-10">
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
@@ -89,14 +89,14 @@ export default function Footer() {
               <input 
                 type="email" 
                 placeholder="ایمیل خود را وارد کنید" 
-                className="bg-primary-600 border border-primary-500 text-white placeholder-white/50 px-4 py-2 rounded-r-lg flex-grow focus:outline-none"
+                className="bg-green-700 border border-green-600 text-white placeholder-white/50 px-4 py-2 rounded-r-lg flex-grow focus:outline-none"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
               <button 
                 type="submit" 
-                className="bg-accent-700 text-white px-4 py-2 rounded-l-lg hover:bg-accent-800 transition"
+                className="bg-green-600 text-white px-4 py-2 rounded-l-lg hover:bg-green-500 transition"
                 disabled={isPending}
               >
                 {isPending ? "..." : "عضویت"}
@@ -127,7 +127,7 @@ export default function Footer() {
           </div>
         </div>
         
-        <div className="border-t border-primary-600 mt-8 pt-8 text-center">
+        <div className="border-t border-green-700 mt-8 pt-8 text-center">
           <p className="text-white/70 text-sm">
             تمامی حقوق برای سامانه رزرو کاروان کربلا محفوظ است. &copy; ۱۴۰۲
           </p>

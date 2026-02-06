@@ -71,7 +71,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const value = {
     user,
-    isAuthenticated: !!user,
+    isAuthenticated: user!=null,
     isLoading,
     logout,
     refreshUser,

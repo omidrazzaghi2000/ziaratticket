@@ -8,24 +8,26 @@ import {
 
 export interface IStorage {
   // User methods
+  createUser(userData: InsertUser): Promise<User>;
   getUser(id: number): Promise<User | undefined>;
   getUserByPhone(phone: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, userData: UpdateUser): Promise<User | undefined>;
   setVerificationCode(phone: string, code: string): Promise<User | undefined>;
   verifyUser(verifyData: VerifyUser): Promise<User | undefined>;
   
   // Caravan methods
-  getCaravans(): Promise<Caravan[]>;
+  createCaravan(caravanData: InsertCaravan): Promise<Caravan>;
   getCaravan(id: number): Promise<Caravan | undefined>;
-  createCaravan(caravan: InsertCaravan): Promise<Caravan>;
-  updateCaravanCapacity(id: number, capacity: number): Promise<Caravan | undefined>;
+  getCaravans(): Promise<Caravan[]>;
+  updateCaravan(id: number, caravanData: UpdateCaravan): Promise<Caravan | undefined>;
+  updateCaravanCapacity(id: number, newCapacity: number): Promise<Caravan | undefined>;
   
   // Booking methods
-  createBooking(userId: number, booking: InsertBooking): Promise<Booking>;
+  createBooking(userId: number, bookingData: InsertBooking): Promise<Booking>;
   saveBookingStep1(userId: number, step1Data: BookingStep1): Promise<Booking>;
   saveBookingStep2(bookingId: number, step2Data: BookingStep2): Promise<Booking | undefined>;
-  saveBookingStep3(bookingId: number, step3Data: BookingStep3): Promise<Booking | undefined>;
-  completeBooking(bookingId: number): Promise<Booking | undefined>;
+  saveBookingStep3(bookingId: number, data: { address: string; specialRequests?: string; selectedSeats?: number[] }): Promise<Booking | undefined>;
+  completeBooking(bookingId: number, selectedSeats?: number[]): Promise<Booking | undefined>;
   getBookings(): Promise<Booking[]>;
   getBooking(id: number): Promise<Booking | undefined>;
   getBookingsByUserId(userId: number): Promise<Booking[]>;
@@ -88,7 +90,8 @@ export class MemStorage implements IStorage {
         manager: "حاج آقای محمدی",
         description: "کاروان ویژه با امکانات کامل و راهنمایان مجرب",
         popular: true,
-        imageUrl: "https://images.unsplash.com/photo-1570263849386-860e4667f841?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80"
+        imageUrl: "/src/assets/images/lantern1.jpg",
+        specialTag: "ویژه خانواده‌ها",
       },
       {
         name: "کاروان وارثین حسینی",
@@ -103,7 +106,7 @@ export class MemStorage implements IStorage {
         manager: "حاج آقای رضوی",
         description: "کاروان زمینی با قیمت مناسب",
         popular: false,
-        imageUrl: "https://images.unsplash.com/photo-1576482293142-462512b42e91?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80"
+        imageUrl: "/src/assets/images/lantern2.jpg"
       },
       {
         name: "کاروان منتظران نور",
@@ -119,7 +122,7 @@ export class MemStorage implements IStorage {
         description: "کاروان لوکس با اقامت در بهترین هتل‌های کربلا",
         popular: false,
         specialTag: "ویژه خانواده‌ها",
-        imageUrl: "https://images.unsplash.com/photo-1544025162-d76694265947?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80"
+        imageUrl: "/src/assets/images/lantern3.jpg"
       },
     ];
     
@@ -129,16 +132,6 @@ export class MemStorage implements IStorage {
   }
 
   // User methods
-  async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
-  }
-
-  async getUserByPhone(phone: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.phone === phone
-    );
-  }
-
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.currentUserId++;
     const createdAt = new Date();
@@ -153,6 +146,26 @@ export class MemStorage implements IStorage {
     };
     this.users.set(id, user);
     return user;
+  }
+
+  async getUser(id: number): Promise<User | undefined> {
+    return this.users.get(id);
+  }
+
+  async getUserByPhone(phone: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(
+      (user) => user.phone === phone
+    );
+  }
+
+  async updateUser(id: number, userData: UpdateUser): Promise<User | undefined> {
+    const user = await this.getUser(id);
+    if (!user) return undefined;
+    
+    const updatedUser = { ...user, ...userData };
+    this.users.set(id, updatedUser);
+    
+    return updatedUser;
   }
   
   async setVerificationCode(phone: string, code: string): Promise<User | undefined> {
@@ -199,42 +212,52 @@ export class MemStorage implements IStorage {
   }
   
   // Caravan methods
-  async getCaravans(): Promise<Caravan[]> {
-    return Array.from(this.caravans.values());
-  }
-  
-  async getCaravan(id: number): Promise<Caravan | undefined> {
-    return this.caravans.get(id);
-  }
-  
-  async createCaravan(insertCaravan: InsertCaravan): Promise<Caravan> {
+  async createCaravan(caravanData: InsertCaravan): Promise<Caravan> {
     const id = this.currentCaravanId++;
-    const caravan: Caravan = { 
+    const createdAt = new Date();
+    const updatedAt = new Date();
+    
+    const caravan: Caravan = {
       id,
-      name: insertCaravan.name,
-      departureDate: insertCaravan.departureDate,
-      duration: insertCaravan.duration,
-      transportationType: insertCaravan.transportationType,
-      price: insertCaravan.price,
-      capacity: insertCaravan.capacity,
-      remainingCapacity: insertCaravan.remainingCapacity,
-      accommodationType: insertCaravan.accommodationType,
-      accommodationDistance: insertCaravan.accommodationDistance,
-      manager: insertCaravan.manager,
-      description: insertCaravan.description || null,
-      popular: insertCaravan.popular || false,
-      specialTag: insertCaravan.specialTag || null,
-      imageUrl: insertCaravan.imageUrl || null
+      name: caravanData.name,
+      description: caravanData.description,
+      price: caravanData.price,
+      capacity: caravanData.capacity,
+      remainingCapacity: caravanData.capacity,
+      startDate: caravanData.startDate,
+      endDate: caravanData.endDate,
+      transportationType: caravanData.transportationType,
+      createdAt,
+      updatedAt
     };
+    
     this.caravans.set(id, caravan);
     return caravan;
   }
-  
-  async updateCaravanCapacity(id: number, capacity: number): Promise<Caravan | undefined> {
-    const caravan = this.caravans.get(id);
+
+  async getCaravan(id: number): Promise<Caravan | undefined> {
+    return this.caravans.get(id);
+  }
+
+  async getCaravans(): Promise<Caravan[]> {
+    return Array.from(this.caravans.values());
+  }
+
+  async updateCaravan(id: number, caravanData: UpdateCaravan): Promise<Caravan | undefined> {
+    const caravan = await this.getCaravan(id);
     if (!caravan) return undefined;
     
-    const updatedCaravan = { ...caravan, remainingCapacity: capacity };
+    const updatedCaravan = { ...caravan, ...caravanData };
+    this.caravans.set(id, updatedCaravan);
+    
+    return updatedCaravan;
+  }
+
+  async updateCaravanCapacity(id: number, newCapacity: number): Promise<Caravan | undefined> {
+    const caravan = await this.getCaravan(id);
+    if (!caravan) return undefined;
+    
+    const updatedCaravan = { ...caravan, remainingCapacity: newCapacity };
     this.caravans.set(id, updatedCaravan);
     
     return updatedCaravan;
@@ -254,9 +277,11 @@ export class MemStorage implements IStorage {
       mainPassengerId: bookingData.mainPassengerId,
       mainPassengerPhone: bookingData.mainPassengerPhone,
       mainPassengerBirthdate: bookingData.mainPassengerBirthdate,
+      passengerCount: bookingData.passengerCount || 1,
       companions: bookingData.companions || [],
       address: bookingData.address,
       specialRequests: bookingData.specialRequests || null,
+      selectedSeats: [],
       totalPrice: bookingData.totalPrice,
       isPaid: false,
       paymentDate: null,
@@ -264,25 +289,16 @@ export class MemStorage implements IStorage {
       status: "pending",
       currentStep: 1,
       isCompleted: false,
+      transportationType: bookingData.transportationType,
       createdAt,
       updatedAt
     };
     
     this.bookings.set(id, booking);
-    
-    // Update caravan capacity
-    const caravan = await this.getCaravan(bookingData.caravanId);
-    if (caravan) {
-      const companions = bookingData.companions || [];
-      const totalPeople = companions.length + 1; // Main passenger + companions
-      const newCapacity = Math.max(0, caravan.remainingCapacity - totalPeople);
-      await this.updateCaravanCapacity(caravan.id, newCapacity);
-    }
-    
     return booking;
   }
   
-  async saveBookingStep1(userId: number, step1Data: BookingStep1): Promise<Booking> {
+  async saveBookingStep1(userId: number, step1Data: BookingStep1,caravan:Caravan): Promise<Booking> {
     const id = this.currentBookingId++;
     const createdAt = new Date();
     const updatedAt = new Date();
@@ -296,6 +312,7 @@ export class MemStorage implements IStorage {
       mainPassengerId: step1Data.mainPassengerId,
       mainPassengerPhone: step1Data.mainPassengerPhone,
       mainPassengerBirthdate: step1Data.mainPassengerBirthdate,
+      passengerCount: step1Data.passengerCount,
       companions: [],
       address: '',
       specialRequests: null,
@@ -306,6 +323,7 @@ export class MemStorage implements IStorage {
       status: "pending",
       currentStep: 1,
       isCompleted: false,
+      transportationType: caravan.transportationType,
       createdAt,
       updatedAt
     };
@@ -331,58 +349,38 @@ export class MemStorage implements IStorage {
     return updatedBooking;
   }
   
-  async saveBookingStep3(bookingId: number, step3Data: BookingStep3): Promise<Booking | undefined> {
-    const booking = await this.getBooking(bookingId);
+  async saveBookingStep3(bookingId: number, data: { address: string; specialRequests?: string; selectedSeats?: number[] }): Promise<Booking | undefined> {
+    const booking = this.bookings.get(bookingId);
     if (!booking) return undefined;
-    
-    // Get caravan details for price calculation
-    const caravan = await this.getCaravan(booking.caravanId);
-    if (!caravan) return undefined;
-    
-    // Calculate total price based on number of passengers
-    const companions = booking.companions || [];
-    const totalPeople = companions.length + 1; // Main passenger + companions
-    const totalPrice = caravan.price * totalPeople;
-    
-    // Update booking with step 3 data
-    const updatedAt = new Date();
+
     const updatedBooking: Booking = {
       ...booking,
-      address: step3Data.address,
-      specialRequests: step3Data.specialRequests || null,
-      totalPrice,
+      address: data.address,
+      specialRequests: data.specialRequests || null,
+      selectedSeats: data.selectedSeats || [],
       currentStep: 3,
-      updatedAt
+      updatedAt: new Date()
     };
-    
+
     this.bookings.set(bookingId, updatedBooking);
     return updatedBooking;
   }
   
-  async completeBooking(bookingId: number): Promise<Booking | undefined> {
+  async completeBooking(bookingId: number, selectedSeats?: number[]): Promise<Booking | undefined> {
     const booking = await this.getBooking(bookingId);
     if (!booking) return undefined;
     
-    // Set booking as completed
     const updatedAt = new Date();
     const updatedBooking: Booking = {
       ...booking,
-      status: "confirmed",
+      status: "completed",
       isCompleted: true,
+      currentStep: 3,
+      selectedSeats: selectedSeats || [],
       updatedAt
     };
     
     this.bookings.set(bookingId, updatedBooking);
-    
-    // Update caravan capacity
-    const caravan = await this.getCaravan(booking.caravanId);
-    if (caravan) {
-      const companions = booking.companions || [];
-      const totalPeople = companions.length + 1; // Main passenger + companions
-      const newCapacity = Math.max(0, caravan.remainingCapacity - totalPeople);
-      await this.updateCaravanCapacity(caravan.id, newCapacity);
-    }
-    
     return updatedBooking;
   }
   
@@ -395,15 +393,15 @@ export class MemStorage implements IStorage {
   }
   
   async getBookingsByUserId(userId: number): Promise<Booking[]> {
-    return Array.from(this.bookings.values()).filter(
-      booking => booking.userId === userId
-    );
+    return Array.from(this.bookings.values())
+      .filter(booking => booking.userId === userId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
   
   async getBookingsByCaravanId(caravanId: number): Promise<Booking[]> {
-    return Array.from(this.bookings.values()).filter(
-      booking => booking.caravanId === caravanId
-    );
+    return Array.from(this.bookings.values())
+      .filter(booking => booking.caravanId === caravanId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
   
   // Contact methods

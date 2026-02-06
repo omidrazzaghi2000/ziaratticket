@@ -4,7 +4,8 @@ import { storage } from "./storage";
 import { 
   insertUserSchema, verifyUserSchema,
   bookingStep1Schema, bookingStep2Schema, bookingStep3Schema,
-  insertBookingSchema, insertContactSchema, insertNewsletterSchema 
+  insertBookingSchema, insertContactSchema, insertNewsletterSchema,
+  insertCaravanSchema
 } from "@shared/schema";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -33,10 +34,25 @@ function generateVerificationCode() {
 }
 
 // Mock function for Kavenegar SMS service - Replace with actual API call when ready
-async function sendSms(phone: string, message: string) {
-  // In production, replace with actual Kavenegar API call
-  console.log(`Sending SMS to ${phone}: ${message}`);
-  return true;
+async function sendSms(phone: string, verificationCode: string) {
+  // TODO: Implement Kavenegar API integration
+  const apiKey = "376E74796B6A6D7862596C794A61534C374F4E6F494D6667323247416A67706B4A4130665176313575326B3D";
+  console.error(verificationCode)
+  const response = await fetch(`https://api.kavenegar.com/v1/${apiKey}/verify/lookup.json`, {
+    method: 'POST',
+    
+    body: new URLSearchParams({
+      "receptor": phone,
+      "template": "code",
+      "token": verificationCode,
+
+    }),
+    
+  });
+  
+  return response.status;
+  // console.log(`Sending SMS to ${phone}: ${message}`);
+  // return true;
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -61,7 +77,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // ارسال پیامک حاوی کد تایید
       const message = `کد تایید سامانه رزرو کاروان: ${verificationCode}`;
-      await sendSms(phone, message);
+      await sendSms(phone, verificationCode);
       
       res.json({ 
         message: "کد تایید به شماره موبایل شما ارسال شد.",
@@ -182,7 +198,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // ذخیره مرحله اول رزرو
-      const booking = await storage.saveBookingStep1(userId, step1Data);
+      const booking = await storage.saveBookingStep1(userId, step1Data,caravan);
       
       res.status(201).json({ 
         message: "مرحله اول رزرو با موفقیت ثبت شد.",
@@ -192,7 +208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       if (error instanceof ZodError) {
         const validationError = fromZodError(error);
-        return res.status(400).json({ message: validationError.message });
+        return res.status(400).json({ message: validationError.message,stack_trace:error.stack?.toString() });
       }
       
       res.status(500).json({ 
@@ -237,36 +253,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/bookings/:id/step3", isAuthenticated, async (req, res) => {
     try {
       const bookingId = parseInt(req.params.id);
-      const step3Data = bookingStep3Schema.parse(req.body);
-      
-      // بررسی اینکه رزرو متعلق به کاربر جاری باشد
+      const { address, specialRequests, selectedSeats } = req.body;
+
       const booking = await storage.getBooking(bookingId);
-      if (!booking || booking.userId !== req.session.userId) {
-        return res.status(404).json({ message: "رزرو مورد نظر یافت نشد." });
+      if (!booking) {
+        return res.status(404).json({ error: "رزرو یافت نشد" });
       }
-      
-      // ذخیره مرحله سوم رزرو
-      const updatedBooking = await storage.saveBookingStep3(bookingId, step3Data);
-      
+
+      if (booking.userId !== req.session.userId) {
+        return res.status(403).json({ error: "شما دسترسی به این رزرو ندارید" });
+      }
+
+      const updatedBooking = await storage.saveBookingStep3(bookingId, {
+        address,
+        specialRequests,
+        selectedSeats
+      });
+
       if (!updatedBooking) {
-        return res.status(404).json({ message: "رزرو مورد نظر یافت نشد." });
+        return res.status(404).json({ error: "رزرو یافت نشد" });
       }
-      
-      res.json({ 
-        message: "مرحله سوم رزرو با موفقیت ثبت شد.",
-        bookingId,
-        step: 3,
-        totalPrice: updatedBooking.totalPrice
-      });
+
+      res.json(updatedBooking);
     } catch (error) {
-      if (error instanceof ZodError) {
-        const validationError = fromZodError(error);
-        return res.status(400).json({ message: validationError.message });
-      }
-      
-      res.status(500).json({ 
-        message: "خطایی در ثبت مرحله سوم رزرو رخ داده است." 
-      });
+      console.error("Error saving booking step 3:", error);
+      res.status(500).json({ error: "خطا در ذخیره اطلاعات" });
     }
   });
   
@@ -274,30 +285,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/bookings/:id/complete", isAuthenticated, async (req, res) => {
     try {
       const bookingId = parseInt(req.params.id);
-      
-      // بررسی اینکه رزرو متعلق به کاربر جاری باشد
+      const { selectedSeats } = req.body;
+
       const booking = await storage.getBooking(bookingId);
-      if (!booking || booking.userId !== req.session.userId) {
-        return res.status(404).json({ message: "رزرو مورد نظر یافت نشد." });
+      if (!booking) {
+        return res.status(404).json({ error: "رزرو یافت نشد" });
       }
-      
-      if (booking.currentStep < 3) {
-        return res.status(400).json({ 
-          message: "لطفا ابتدا تمام مراحل رزرو را تکمیل کنید." 
-        });
+
+      if (booking.userId !== req.session.userId) {
+        return res.status(403).json({ error: "شما دسترسی به این رزرو ندارید" });
       }
-      
-      // تکمیل رزرو
-      const completedBooking = await storage.completeBooking(bookingId);
-      
-      res.json({ 
-        message: "رزرو شما با موفقیت تکمیل شد.",
-        booking: completedBooking
-      });
+
+      if (booking.transportationType === "زمینی" && (!selectedSeats || selectedSeats.length !== booking.passengerCount)) {
+        return res.status(400).json({ error: "تعداد صندلی‌های انتخاب شده باید با تعداد مسافران برابر باشد" });
+      }
+
+      const completedBooking = await storage.completeBooking(bookingId, selectedSeats);
+      if (!completedBooking) {
+        return res.status(404).json({ error: "رزرو یافت نشد" });
+      }
+
+      res.json(completedBooking);
     } catch (error) {
-      res.status(500).json({ 
-        message: "خطایی در تکمیل رزرو رخ داده است." 
-      });
+      console.error("Error completing booking:", error);
+      res.status(500).json({ error: "خطا در تکمیل رزرو" });
     }
   });
   
@@ -334,6 +345,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       res.status(500).json({ 
         message: "خطایی در دریافت اطلاعات رزرو رخ داده است." 
+      });
+    }
+  });
+  
+  // دریافت وضعیت صندلی‌های یک رزرو
+  app.get("/api/bookings/:id/seats", isAuthenticated, async (req, res) => {
+    try {
+      const bookingId = parseInt(req.params.id);
+      
+      // بررسی اینکه رزرو متعلق به کاربر جاری باشد
+      const booking = await storage.getBooking(bookingId);
+      if (!booking || booking.userId !== req.session.userId) {
+        return res.status(404).json({ message: "رزرو مورد نظر یافت نشد." });
+      }
+
+      // دریافت اطلاعات کاروان
+      const caravan = await storage.getCaravan(booking.caravanId);
+      if (!caravan) {
+        return res.status(404).json({ message: "کاروان مورد نظر یافت نشد." });
+      }
+
+      // اگر نوع حمل و نقل زمینی نیست، صندلی‌ها را برنگردان
+      if (caravan.transportationType !== "زمینی") {
+        return res.json([]);
+      }
+
+      // دریافت تمام رزروهای مربوط به این کاروان
+      const allBookings = await storage.getBookingsByCaravanId(caravan.id);
+      
+      // ایجاد آرایه‌ای از صندلی‌ها
+      const seats = Array.from({ length: 50 }, (_, i) => ({
+        number: i + 1,
+        isOccupied: false,
+        isSelected: false,
+        passengerName: null
+      }));
+
+      // پر کردن اطلاعات صندلی‌های اشغال شده
+      allBookings.forEach(booking => {
+        if (booking.selectedSeats) {
+          booking.selectedSeats.forEach(seatNumber => {
+            const seat = seats.find(s => s.number === seatNumber);
+            if (seat) {
+              seat.isOccupied = true;
+              seat.passengerName = booking.mainPassengerName;
+            }
+          });
+        }
+      });
+
+      res.json(seats);
+    } catch (error) {
+      res.status(500).json({ 
+        message: "خطایی در دریافت اطلاعات صندلی‌ها رخ داده است." 
       });
     }
   });
@@ -416,36 +481,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create a booking (روش قدیمی - فقط برای سازگاری با نسخه قبلی)
   app.post("/api/bookings", isAuthenticated, async (req, res) => {
     try {
-      // Validate the request body
-      const bookingData = insertBookingSchema.parse(req.body);
-      const userId = req.session.userId as number;
+      const step1Data = bookingStep1Schema.parse(req.body);
+      const caravan = await storage.getCaravan(step1Data.caravanId);
       
-      // Check if caravan exists and has capacity
-      const caravan = await storage.getCaravan(bookingData.caravanId);
       if (!caravan) {
-        return res.status(404).json({ message: "کاروان مورد نظر یافت نشد." });
+        return res.status(404).json({ error: "کاروان یافت نشد" });
       }
-      
-      const companionCount = bookingData.companions?.length || 0;
-      const totalPeople = companionCount + 1; // Main passenger + companions
-      
-      if (caravan.remainingCapacity < totalPeople) {
-        return res.status(400).json({ 
-          message: "ظرفیت کاروان برای تعداد مسافران درخواستی کافی نیست." 
-        });
+
+      if (caravan.remainingCapacity < step1Data.passengerCount) {
+        return res.status(400).json({ error: "ظرفیت کاروان تکمیل شده است" });
       }
-      
-      // Create the booking
-      const booking = await storage.createBooking(userId, bookingData);
-      
-      res.status(201).json(booking);
+
+      const booking = await storage.createBooking(req.session.userId!, {
+        ...step1Data,
+        totalPrice: caravan.price * step1Data.passengerCount,
+        transportationType: caravan.transportationType,
+        userId: req.session.userId!,
+        companions: [],
+        address: null,
+        specialRequests: null,
+        selectedSeats: [],
+        isPaid: false,
+        paymentDate: null,
+        paymentReference: null,
+        status: "pending",
+        currentStep: 1,
+        isCompleted: false
+      });
+
+      res.json(booking);
     } catch (error) {
       if (error instanceof ZodError) {
         const validationError = fromZodError(error);
-        return res.status(400).json({ message: validationError.message });
+        return res.status(400).json({ error: validationError.message });
       }
       
-      res.status(500).json({ message: "خطایی در ثبت رزرو رخ داده است." });
+      console.error("Error creating booking:", error);
+      res.status(500).json({ error: "خطا در ایجاد رزرو" });
     }
   });
   
@@ -502,6 +574,204 @@ export async function registerRoutes(app: Express): Promise<Server> {
     };
     
     res.json(prayerTimes);
+  });
+  
+  // ===== مسیرهای مربوط به همراهان رزرو =====
+  
+  // دریافت همراهان یک رزرو
+  app.get("/api/bookings/:id/companions", isAuthenticated, async (req, res) => {
+    try {
+      const bookingId = parseInt(req.params.id);
+      
+      // بررسی اینکه رزرو متعلق به کاربر جاری باشد
+      const booking = await storage.getBooking(bookingId);
+      if (!booking || booking.userId !== req.session.userId) {
+        return res.status(404).json({ message: "رزرو مورد نظر یافت نشد." });
+      }
+      
+      // بازگرداندن لیست همراهان
+      const companions = booking.companions || [];
+      
+      // تبدیل رشته‌های JSON به آبجکت
+      const parsedCompanions = companions.map(companion => {
+        try {
+          return JSON.parse(companion);
+        } catch (e) {
+          return null;
+        }
+      }).filter(Boolean);
+      
+      res.json(parsedCompanions);
+    } catch (error) {
+      res.status(500).json({ 
+        message: "خطایی در دریافت اطلاعات همراهان رخ داده است." 
+      });
+    }
+  });
+  
+  // اضافه کردن همراه جدید
+  app.post("/api/bookings/:id/companions", isAuthenticated, async (req, res) => {
+    try {
+      const bookingId = parseInt(req.params.id);
+      
+      // اعتبارسنجی داده‌های همراه جدید
+      const companionData = bookingStep2Schema.shape.companions.element.parse(req.body);
+      
+      // بررسی اینکه رزرو متعلق به کاربر جاری باشد
+      const booking = await storage.getBooking(bookingId);
+      if (!booking || booking.userId !== req.session.userId) {
+        return res.status(404).json({ message: "رزرو مورد نظر یافت نشد." });
+      }
+      
+      // اضافه کردن همراه جدید
+      const companions = booking.companions || [];
+      const parsedCompanions = companions.map(companion => {
+        try {
+          return JSON.parse(companion);
+        } catch (e) {
+          return null;
+        }
+      }).filter(Boolean);
+      
+      // اضافه کردن همراه جدید
+      parsedCompanions.push(companionData);
+      
+      // بروزرسانی رزرو
+      const updatedBooking = {
+        ...booking,
+        companions: parsedCompanions.map(companion => JSON.stringify(companion)),
+        updatedAt: new Date()
+      };
+      
+      await storage.saveBookingStep2(bookingId, { companions: parsedCompanions });
+      
+      res.status(201).json({ 
+        message: "همراه جدید با موفقیت اضافه شد.",
+        companion: companionData
+      });
+    } catch (error) {
+      if (error instanceof ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.message });
+      }
+      
+      res.status(500).json({ 
+        message: "خطایی در اضافه کردن همراه جدید رخ داده است." 
+      });
+    }
+  });
+  
+  // ویرایش اطلاعات همراه
+  app.put("/api/bookings/:id/companions/:index", isAuthenticated, async (req, res) => {
+    try {
+      const bookingId = parseInt(req.params.id);
+      const companionIndex = parseInt(req.params.index);
+      
+      // اعتبارسنجی داده‌های همراه
+      const companionData = bookingStep2Schema.shape.companions.element.parse(req.body);
+      
+      // بررسی اینکه رزرو متعلق به کاربر جاری باشد
+      const booking = await storage.getBooking(bookingId);
+      if (!booking || booking.userId !== req.session.userId) {
+        return res.status(404).json({ message: "رزرو مورد نظر یافت نشد." });
+      }
+      
+      // دریافت لیست همراهان
+      const companions = booking.companions || [];
+      const parsedCompanions = companions.map(companion => {
+        try {
+          return JSON.parse(companion);
+        } catch (e) {
+          return null;
+        }
+      }).filter(Boolean);
+      
+      // بررسی وجود همراه با ایندکس مورد نظر
+      if (companionIndex < 0 || companionIndex >= parsedCompanions.length) {
+        return res.status(404).json({ message: "همراه مورد نظر یافت نشد." });
+      }
+      
+      // بروزرسانی اطلاعات همراه
+      parsedCompanions[companionIndex] = companionData;
+      
+      // بروزرسانی رزرو
+      await storage.saveBookingStep2(bookingId, { companions: parsedCompanions });
+      
+      res.json({ 
+        message: "اطلاعات همراه با موفقیت بروزرسانی شد.",
+        companion: companionData
+      });
+    } catch (error) {
+      if (error instanceof ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.message });
+      }
+      
+      res.status(500).json({ 
+        message: "خطایی در بروزرسانی اطلاعات همراه رخ داده است." 
+      });
+    }
+  });
+  
+  // حذف همراه
+  app.delete("/api/bookings/:id/companions/:index", isAuthenticated, async (req, res) => {
+    try {
+      const bookingId = parseInt(req.params.id);
+      const companionIndex = parseInt(req.params.index);
+      
+      // بررسی اینکه رزرو متعلق به کاربر جاری باشد
+      const booking = await storage.getBooking(bookingId);
+      if (!booking || booking.userId !== req.session.userId) {
+        return res.status(404).json({ message: "رزرو مورد نظر یافت نشد." });
+      }
+      
+      // دریافت لیست همراهان
+      const companions = booking.companions || [];
+      const parsedCompanions = companions.map(companion => {
+        try {
+          return JSON.parse(companion);
+        } catch (e) {
+          return null;
+        }
+      }).filter(Boolean);
+      
+      // بررسی وجود همراه با ایندکس مورد نظر
+      if (companionIndex < 0 || companionIndex >= parsedCompanions.length) {
+        return res.status(404).json({ message: "همراه مورد نظر یافت نشد." });
+      }
+      
+      // حذف همراه
+      const removedCompanion = parsedCompanions.splice(companionIndex, 1)[0];
+      
+      // بروزرسانی رزرو
+      await storage.saveBookingStep2(bookingId, { companions: parsedCompanions });
+      
+      res.json({ 
+        message: "همراه با موفقیت حذف شد.",
+        companion: removedCompanion
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        message: "خطایی در حذف همراه رخ داده است." 
+      });
+    }
+  });
+  
+  // Create a new caravan
+  app.post("/api/caravans", isAuthenticated, async (req, res) => {
+    try {
+      const caravanData = insertCaravanSchema.parse(req.body);
+      const caravan = await storage.createCaravan(caravanData);
+      res.status(201).json(caravan);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ error: validationError.message });
+      }
+      
+      console.error("Error creating caravan:", error);
+      res.status(500).json({ error: "خطا در ایجاد کاروان" });
+    }
   });
 
   const httpServer = createServer(app);
