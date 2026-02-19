@@ -1,0 +1,37 @@
+version: '3.9'
+services:
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_DB: karvan
+      POSTGRES_USER: karvan
+      POSTGRES_PASSWORD: karvan_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+  backend:
+    build: ./backend
+    command: gunicorn backend_django.wsgi:application --bind 0.0.0.0:8000
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=1
+      - DB_NAME=karvan
+      - DB_USER=karvan
+      - DB_PASSWORD=karvan_password
+      - DB_HOST=db
+      - DB_PORT=5432
+    depends_on:
+      - db
+  frontend:
+    build: ./client
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+volumes:
+  db_data:
