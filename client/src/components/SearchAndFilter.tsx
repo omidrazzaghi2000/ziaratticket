@@ -9,31 +9,31 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-
+import lantern2 from "../assets/images/lantern2.jpg"
 interface Caravan {
   id: number;
   name: string;
-  departureDate: string;
+  departure_date: string;
   duration: number;
-  transportationType: string;
+  transportation_type: string;
   price: number;
   capacity: number;
-  remainingCapacity: number;
-  accommodationType: string;
-  accommodationDistance: number;
+  remaining_capacity: number;
+  accommodation_type: string;
+  accommodation_distance: number;
   manager: string;
   description?: string;
   popular?: boolean;
-  specialTag?: string;
-  imageUrl?: string;
+  special_tag?: string;
+  image_url?: string;
 }
 
 export default function SearchAndFilter() {
   const [filters, setFilters] = useState({
-    departureDate: "",
+    departure_date: "",
     duration: "",
-    transportationType: "",
-    priceRange: "",
+    transportation_type: "",
+    price_range: "",
   });
   
   const [, setLocation] = useLocation();
@@ -61,7 +61,7 @@ export default function SearchAndFilter() {
   
   // هدایت به صفحه رزرو کاروان
   const redirectToBooking = (caravan: Caravan) => {
-    if (caravan.remainingCapacity <= 0) {
+    if (caravan.remaining_capacity <= 0) {
       toast({
         title: "خطا در رزرو",
         description: "متأسفانه ظرفیت این کاروان تکمیل شده است.",
@@ -114,7 +114,7 @@ export default function SearchAndFilter() {
                 <Input 
                   type="text" 
                   placeholder="انتخاب تاریخ" 
-                  value={filters.departureDate}
+                  value={filters.departure_date}
                   onChange={(e) => handleFilterChange("departureDate", e.target.value)}
                   className="border-gray-300 focus:border-primary focus:ring-primary transition-all duration-200 pr-3 hover:border-primary"
                 />
@@ -150,7 +150,7 @@ export default function SearchAndFilter() {
                 نوع حمل و نقل
               </Label>
               <Select 
-                value={filters.transportationType} 
+                value={filters.transportation_type} 
                 onValueChange={(value) => handleFilterChange("transportationType", value)}
               >
                 <SelectTrigger className="border-gray-300 focus:border-primary focus:ring-primary hover:border-primary transition-all duration-200">
@@ -180,7 +180,7 @@ export default function SearchAndFilter() {
                 محدوده قیمت (تومان)
               </Label>
               <Select 
-                value={filters.priceRange} 
+                value={filters.price_range} 
                 onValueChange={(value) => handleFilterChange("priceRange", value)}
               >
                 <SelectTrigger className="border-gray-300 focus:border-primary focus:ring-primary hover:border-primary transition-all duration-200">
@@ -258,11 +258,12 @@ export default function SearchAndFilter() {
                   className={`overflow-hidden border-0 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col animate-fade-in delay-${(index % 3) * 100}`}
                 >
                   <div className="relative">
-                    {caravan.imageUrl ? (
-                      <div className="h-48 w-full bg-center bg-cover" style={{ backgroundImage: `url(${caravan.imageUrl})` }} />
+                    {caravan.image_url ? (
+                      <div className="h-48 w-full bg-center bg-cover" style={{ backgroundImage: `url(${caravan.image_url})` }} />
                     ) : (
-                      <div className="h-48 w-full bg-gradient-to-r from-primary-100 to-primary-200 flex items-center justify-center">
-                        <span className="text-primary-700 font-medium">کاروان {caravan.name}</span>
+                      <div className="h-48 w-full bg-gradient-to-r from-primary-100 to-primary-200 flex items-center justify-center"
+                      style={{ backgroundImage: `url(${lantern2})` }}>
+                        <span className="text-primary-700 font-medium text-white">کاروان {caravan.name}</span>
                       </div>
                     )}
                     
@@ -274,9 +275,9 @@ export default function SearchAndFilter() {
                           پرطرفدار
                         </div>
                       )}
-                      {caravan.specialTag && (
+                      {caravan.special_tag && (
                         <div className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-md">
-                          {caravan.specialTag}
+                          {caravan.special_tag}
                         </div>
                       )}
                     </div>
@@ -285,16 +286,16 @@ export default function SearchAndFilter() {
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-3 flex justify-between items-center">
                       <div className="flex items-center bg-white/90 text-primary-700 text-xs px-2.5 py-1.5 rounded-full font-bold">
                         <Users className="ml-1 h-3.5 w-3.5" />
-                        ظرفیت: {caravan.remainingCapacity} نفر
+                        ظرفیت: {caravan.remaining_capacity} نفر
                       </div>
                       <div className={`
                         flex items-center text-xs font-bold px-2.5 py-1.5 rounded-full shadow-sm
-                        ${caravan.transportationType === 'هوایی' ? 'bg-green-500 text-white' : ''}
-                        ${caravan.transportationType === 'زمینی' ? 'bg-blue-500 text-white' : ''}
-                        ${caravan.transportationType === 'ترکیبی' ? 'bg-purple-500 text-white' : ''}
+                        ${caravan.transportation_type === 'هوایی' ? 'bg-green-500 text-white' : ''}
+                        ${caravan.transportation_type === 'زمینی' ? 'bg-blue-500 text-white' : ''}
+                        ${caravan.transportation_type === 'ترکیبی' ? 'bg-purple-500 text-white' : ''}
                       `}>
-                        {getTransportIcon(caravan.transportationType)}
-                        <span className="mr-1">{caravan.transportationType}</span>
+                        {getTransportIcon(caravan.transportation_type)}
+                        <span className="mr-1">{caravan.transportation_type}</span>
                       </div>
                     </div>
                   </div>
@@ -309,7 +310,7 @@ export default function SearchAndFilter() {
                         <div className="w-8 h-8 bg-primary-50 rounded-full flex items-center justify-center ml-2">
                           <Calendar className="text-primary-600 w-4 h-4" strokeWidth={2} />
                         </div>
-                        <span>تاریخ حرکت: <span className="font-medium">{caravan.departureDate}</span></span>
+                        <span>تاریخ حرکت: <span className="font-medium">{caravan.departure_date}</span></span>
                       </div>
                       <div className="flex items-center">
                         <div className="w-8 h-8 bg-primary-50 rounded-full flex items-center justify-center ml-2">
@@ -321,13 +322,13 @@ export default function SearchAndFilter() {
                         <div className="w-8 h-8 bg-primary-50 rounded-full flex items-center justify-center ml-2">
                           <MapPin className="text-primary-600 w-4 h-4" strokeWidth={2} />
                         </div>
-                        <span>فاصله تا حرم: <span className="font-medium">{caravan.accommodationDistance} متر</span></span>
+                        <span>فاصله تا حرم: <span className="font-medium">{caravan.accommodation_distance} متر</span></span>
                       </div>
                       <div className="flex items-center">
                         <div className="w-8 h-8 bg-primary-50 rounded-full flex items-center justify-center ml-2">
                           <Hotel className="text-primary-600 w-4 h-4" strokeWidth={2} />
                         </div>
-                        <span>اقامت: <span className="font-medium">{caravan.accommodationType}</span></span>
+                        <span>اقامت: <span className="font-medium">{caravan.accommodation_type}</span></span>
                       </div>
                     </div>
                     
@@ -342,12 +343,12 @@ export default function SearchAndFilter() {
                         <Button 
                           onClick={() => redirectToBooking(caravan)}
                           className={`
-                            ${caravan.remainingCapacity <= 0 
+                            ${caravan.remaining_capacity <= 0 
                               ? 'bg-gray-400 hover:bg-gray-500' 
                               : 'bg-green-800 hover:bg-green-700'} 
                             transition-all shadow-md text-white font-medium`
                           }
-                          disabled={caravan.remainingCapacity <= 0}
+                          disabled={caravan.remaining_capacity <= 0}
                         >
                           مشاهده و رزرو
                         </Button>
@@ -367,10 +368,10 @@ export default function SearchAndFilter() {
               <Button 
                 onClick={() => {
                   setFilters({
-                    departureDate: "",
+                    departure_date: "",
                     duration: "",
-                    transportationType: "",
-                    priceRange: "",
+                    transportation_type: "",
+                    price_range: "",
                   });
                   refetch();
                 }}

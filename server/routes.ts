@@ -9,6 +9,9 @@ import {
 } from "@shared/schema";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
+import { apiRequest } from "@/lib/queryClient";
+
+const DjangoBackendURL:string = "http://localhost:8000";
 
 // ضمیمه کردن تعریف مدل با نوع Request
 declare module 'express-serve-static-core' {
@@ -406,14 +409,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all caravans
   app.get("/api/caravans", async (req, res) => {
     try {
-      const caravans = await storage.getCaravans();
+
+      const caravansRes = await fetch(DjangoBackendURL+"/api/caravans") 
+
+      if(caravansRes.status != 200){
+        throw("status : " + caravansRes.status+ " request : "+ DjangoBackendURL+"/api/caravans/");
+      }
+      const caravans = await caravansRes.json();
+
+      
+
+      // const caravans = await storage.getCaravans();
       
       // Apply filters if provided
       let filteredCaravans = [...caravans];
       
-      if (req.query.departureDate) {
+      if (req.query.departure_date) {
         filteredCaravans = filteredCaravans.filter(
-          caravan => caravan.departureDate === req.query.departureDate
+          caravan => caravan.departure_date === req.query.departure_date
         );
       }
       
@@ -423,14 +436,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
       }
       
-      if (req.query.transportationType) {
+      if (req.query.transportation_type) {
         filteredCaravans = filteredCaravans.filter(
-          caravan => caravan.transportationType === req.query.transportationType
+          caravan => caravan.transportation_type === req.query.transportation_type
         );
       }
       
-      if (req.query.priceRange) {
-        const range = req.query.priceRange as string;
+      if (req.query.price_range) {
+        const range = req.query.price_range as string;
         
         switch(range) {
           case "1": // تا ۱۰ میلیون
@@ -457,8 +470,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.json(filteredCaravans);
-    } catch (error) {
-      res.status(500).json({ message: "خطایی در دریافت اطلاعات کاروان‌ها رخ داده است." });
+    } catch (error:any) {
+      res.status(500).json({ message: "خطایی در دریافت اطلاعات کاروان‌ها رخ داده است.",
+        error:error.toString()
+       });
     }
   });
   
@@ -474,7 +489,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(caravan);
     } catch (error) {
-      res.status(500).json({ message: "خطایی در دریافت اطلاعات کاروان رخ داده است." });
+
+      res.status(500).json({ message: "!خطایی در دریافت اطلاعات کاروان رخ داده است.",
+        
+      });
     }
   });
   
