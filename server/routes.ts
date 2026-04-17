@@ -375,7 +375,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allBookings = await storage.getBookingsByCaravanId(caravan.id);
       
       // ایجاد آرایه‌ای از صندلی‌ها
-      const seats = Array.from({ length: 50 }, (_, i) => ({
+      const seats: { number: number; isOccupied: boolean; isSelected: boolean; passengerName: string | null }[] = Array.from({ length: 50 }, (_, i) => ({
         number: i + 1,
         isOccupied: false,
         isSelected: false,
@@ -590,7 +590,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // بازگرداندن لیست همراهان
-      const companions = booking.companions || [];
+      const companions = (booking.companions || []) as unknown as string[];
       
       // تبدیل رشته‌های JSON به آبجکت
       const parsedCompanions = companions.map(companion => {
@@ -624,7 +624,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // اضافه کردن همراه جدید
-      const companions = booking.companions || [];
+      const companions = (booking.companions || []) as unknown as string[];
       const parsedCompanions = companions.map(companion => {
         try {
           return JSON.parse(companion);
@@ -677,7 +677,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // دریافت لیست همراهان
-      const companions = booking.companions || [];
+      const companions = (booking.companions || []) as unknown as string[];
       const parsedCompanions = companions.map(companion => {
         try {
           return JSON.parse(companion);
@@ -726,7 +726,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // دریافت لیست همراهان
-      const companions = booking.companions || [];
+      const companions = (booking.companions || []) as unknown as string[];
       const parsedCompanions = companions.map(companion => {
         try {
           return JSON.parse(companion);
@@ -771,6 +771,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.error("Error creating caravan:", error);
       res.status(500).json({ error: "خطا در ایجاد کاروان" });
+    }
+  });
+
+  app.put("/api/caravans/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const caravanData = insertCaravanSchema.partial().parse(req.body);
+      const updatedCaravan = await storage.updateCaravan(id, caravanData);
+      
+      if (!updatedCaravan) {
+        return res.status(404).json({ message: "کاروان مورد نظر یافت نشد." });
+      }
+      
+      res.json(updatedCaravan);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ error: validationError.message });
+      }
+      
+      console.error("Error updating caravan:", error);
+      res.status(500).json({ error: "خطا در بروزرسانی کاروان" });
     }
   });
 

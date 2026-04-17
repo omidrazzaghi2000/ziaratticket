@@ -10,7 +10,7 @@ export default function Hero() {
           backgroundImage: `url(${shrineImage})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
-          opacity: 0.5,
+          opacity: 0.2,
           objectFit: "cover"
         }}
       ></div>
@@ -20,24 +20,24 @@ export default function Hero() {
       
       <div className="container mx-auto px-4 py-20 lg:py-32 relative z-10">
         <div className="max-w-3xl text-center mx-auto">
-          <h1 className="font-lalezar text-4xl md:text-5xl lg:text-6xl font-bold mb-6 animate-fade-in text-white drop-shadow-lg">
+          <h1 className="font-lalezar text-4xl md:text-5xl lg:text-6xl font-bold mb-6 animate-fade-in text-green-800 drop-shadow-lg">
             سفر معنوی به کربلای معلی
           </h1>
           
-          <p className="text-lg md:text-xl text-white/90 mb-10 animate-slide-up delay-200 max-w-2xl mx-auto drop-shadow">
+          <p className="text-lg md:text-xl text-green-800/90 mb-10 animate-slide-up delay-200 max-w-2xl mx-auto drop-shadow">
             با استفاده از سامانه رزرو کاروان کربلا، سفر زیارتی خود را با خیال راحت برنامه‌ریزی کنید و از مزایای رزرو آنلاین بهره‌مند شوید.
           </p>
           
           <div className="flex flex-col sm:flex-row justify-center space-y-3 sm:space-y-0 sm:space-x-reverse sm:space-x-6">
             <a 
               href="#caravans" 
-              className="bg-green-800 hover:bg-green-700 text-white px-8 py-4 rounded-lg font-bold shadow-lg transition-all duration-300 transform hover:scale-105 animate-slide-right delay-300"
+              className="bg-green-200 hover:bg-green-100 text-green-800 px-8 py-4 rounded-lg font-bold shadow-lg transition-all duration-300 transform hover:scale-105 animate-slide-right delay-300"
             >
               مشاهده کاروان‌ها
             </a>
             <a 
               href="#guide" 
-              className="bg-transparent border-2 border-white text-white px-8 py-4 rounded-lg font-bold hover:bg-white/20 transition-all duration-300 animate-slide-left delay-400"
+                className="bg-transparent border-2 border-green-800 text-green-800 px-8 py-4 rounded-lg font-bold hover:bg-green-100/20 transition-all duration-300 animate-slide-left delay-400"
             >
               راهنمای سفر
             </a>
