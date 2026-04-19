@@ -423,26 +423,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Apply filters if provided
       let filteredCaravans = [...caravans];
-      
-      if (req.query.departure_date) {
+      console.log("-----------");
+      console.log(req.query);
+      console.log("-----------");
+      if (req.query.departure_date && req.query.departure_date !== "all") {
         filteredCaravans = filteredCaravans.filter(
           caravan => caravan.departure_date === req.query.departure_date
         );
       }
       
-      if (req.query.duration) {
+      if (req.query.duration && req.query.duration !== "all") {
         filteredCaravans = filteredCaravans.filter(
           caravan => caravan.duration === parseInt(req.query.duration as string)
         );
       }
       
-      if (req.query.transportation_type) {
+      if (req.query.transportation_type && req.query.transportation_type !== "all") {
         filteredCaravans = filteredCaravans.filter(
           caravan => caravan.transportation_type === req.query.transportation_type
         );
       }
       
-      if (req.query.price_range) {
+      if (req.query.price_range && req.query.price_range !== "all") {
         const range = req.query.price_range as string;
         
         switch(range) {

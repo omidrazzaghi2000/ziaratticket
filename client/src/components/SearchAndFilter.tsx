@@ -28,17 +28,49 @@ interface Caravan {
   image_url?: string;
 }
 
+
+export const fetchCaravans = async (
+  filters: FilterInterface ={
+    departure_date:"",
+    duration: "",
+    transportation_type: "",
+    price_range: "",
+  }
+): Promise<Caravan[]> => {
+  const params = new URLSearchParams();
+
+  if (filters.departure_date) params.append('departure_date', filters.departure_date);
+  if (filters.duration) params.append('duration', filters.duration);
+  if (filters.transportation_type) params.append('transportation_type', String(filters.transportation_type));
+  if (filters.price_range) params.append('price_range', String(filters.price_range));
+
+  const response = await fetch(`/api/caravans?${params}`);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch posts: ${response.status}`);
+  }
+
+  return response.json();
+};
+
+interface FilterInterface {
+  departure_date: string,
+  duration: string,
+  transportation_type: string,
+  price_range: string,
+}
+
 export default function SearchAndFilter() {
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<FilterInterface>({
     departure_date: "",
     duration: "",
     transportation_type: "",
     price_range: "",
   });
-  
+
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  
+
   const {
     data: caravans,
     isLoading,
@@ -46,19 +78,20 @@ export default function SearchAndFilter() {
     refetch
   } = useQuery<Caravan[]>({
     queryKey: ['/api/caravans', filters],
+    queryFn: ()=>fetchCaravans(filters)
   });
-  
+
   // Handle filter change
   const handleFilterChange = (name: string, value: string) => {
     setFilters(prev => ({ ...prev, [name]: value }));
   };
-  
+
   // Handle search form submission
   const handleSearch = (e: FormEvent) => {
     e.preventDefault();
     refetch();
   };
-  
+
   // هدایت به صفحه رزرو کاروان
   const redirectToBooking = (caravan: Caravan) => {
     if (caravan.remaining_capacity <= 0) {
@@ -69,25 +102,25 @@ export default function SearchAndFilter() {
       });
       return;
     }
-    
+
     // هدایت به صفحه رزرو کاروان
     setLocation(`/booking/${caravan.id}`);
   };
-  
+
   // Format price to Persian format with commas
   const formatPrice = (price: number): string => {
     return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   };
-  
+
   const getTransportIcon = (type: string) => {
-    switch(type) {
+    switch (type) {
       case 'هوایی': return <Plane className="h-4 w-4" />;
       case 'زمینی': return <Bus className="h-4 w-4" />;
       case 'ترکیبی': return <PackageCheck className="h-4 w-4" />;
       default: return null;
     }
   };
-  
+
   return (
     <section id="caravans" className="py-16 bg-gradient-to-b from-white to-gray-50">
       <div className="container mx-auto px-4">
@@ -99,11 +132,11 @@ export default function SearchAndFilter() {
             کاروان مورد نظر خود را جستجو کنید و با چند کلیک ساده، سفر معنوی خود را رزرو نمایید.
           </p>
         </div>
-        
+
         <div className="bg-white p-8 rounded-xl shadow-md mb-12 animate-slide-up relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -mt-32 -mr-32"></div>
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary/5 rounded-full -mb-24 -ml-24"></div>
-          
+
           <form className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 relative" onSubmit={handleSearch}>
             <div className="group">
               <Label className="mb-2 font-medium flex items-center text-primary-700">
@@ -111,24 +144,24 @@ export default function SearchAndFilter() {
                 تاریخ حرکت
               </Label>
               <div className="relative">
-                <Input 
-                  type="text" 
-                  placeholder="انتخاب تاریخ" 
+                <Input
+                  type="text"
+                  placeholder="انتخاب تاریخ"
                   value={filters.departure_date}
-                  onChange={(e) => handleFilterChange("departureDate", e.target.value)}
+                  onChange={(e) => handleFilterChange("departure_date", e.target.value)}
                   className="border-gray-300 focus:border-primary focus:ring-primary transition-all duration-200 pr-3 hover:border-primary"
                 />
                 <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 group-hover:text-primary" />
               </div>
             </div>
-            
+
             <div className="group">
               <Label className="mb-2 font-medium flex items-center text-primary-700">
                 <Clock className="ml-1.5 h-4 w-4" />
                 مدت سفر
               </Label>
-              <Select 
-                value={filters.duration} 
+              <Select
+                value={filters.duration}
                 onValueChange={(value) => handleFilterChange("duration", value)}
               >
                 <SelectTrigger className="border-gray-300 focus:border-primary focus:ring-primary hover:border-primary transition-all duration-200">
@@ -143,15 +176,15 @@ export default function SearchAndFilter() {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="group">
               <Label className="mb-2 font-medium flex items-center text-primary-700">
                 <Bus className="ml-1.5 h-4 w-4" />
                 نوع حمل و نقل
               </Label>
-              <Select 
-                value={filters.transportation_type} 
-                onValueChange={(value) => handleFilterChange("transportationType", value)}
+              <Select
+                value={filters.transportation_type}
+                onValueChange={(value) => handleFilterChange("transportation_type", value)}
               >
                 <SelectTrigger className="border-gray-300 focus:border-primary focus:ring-primary hover:border-primary transition-all duration-200">
                   <SelectValue placeholder="همه" />
@@ -173,15 +206,15 @@ export default function SearchAndFilter() {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="group">
               <Label className="mb-2 font-medium flex items-center text-primary-700">
                 <DollarSign className="ml-1.5 h-4 w-4" />
                 محدوده قیمت (تومان)
               </Label>
-              <Select 
-                value={filters.price_range} 
-                onValueChange={(value) => handleFilterChange("priceRange", value)}
+              <Select
+                value={filters.price_range}
+                onValueChange={(value) => handleFilterChange("price_range", value)}
               >
                 <SelectTrigger className="border-gray-300 focus:border-primary focus:ring-primary hover:border-primary transition-all duration-200">
                   <SelectValue placeholder="همه" />
@@ -195,10 +228,10 @@ export default function SearchAndFilter() {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="flex items-end">
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="w-full bg-green-800 hover:opacity-90 transition-all shadow-md text-base py-6"
               >
                 <Search className="h-5 w-5 ml-2" strokeWidth={2} />
@@ -207,13 +240,13 @@ export default function SearchAndFilter() {
             </div>
           </form>
         </div>
-        
+
         <div className="mb-8">
           <div className="flex items-center mb-6">
             <div className="h-8 w-1 bg-primary rounded-full ml-3"></div>
             <h3 className="text-2xl font-bold font-heading">کاروان‌های فعال</h3>
           </div>
-          
+
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {[1, 2, 3].map((i) => (
@@ -242,9 +275,9 @@ export default function SearchAndFilter() {
           ) : isError ? (
             <div className="text-center py-12 bg-red-50 rounded-lg">
               <p className="text-red-500 font-medium">خطایی در دریافت اطلاعات کاروان‌ها رخ داده است. لطفاً دوباره تلاش کنید.</p>
-              <Button 
-                onClick={() => refetch()} 
-                variant="outline" 
+              <Button
+                onClick={() => refetch()}
+                variant="outline"
                 className="mt-4 border-red-300 text-red-500 hover:bg-red-50"
               >
                 تلاش مجدد
@@ -253,8 +286,8 @@ export default function SearchAndFilter() {
           ) : caravans && caravans.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {caravans.map((caravan, index) => (
-                <Card 
-                  key={caravan.id} 
+                <Card
+                  key={caravan.id}
                   className={`overflow-hidden border-0 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col animate-fade-in delay-${(index % 3) * 100}`}
                 >
                   <div className="relative">
@@ -262,11 +295,11 @@ export default function SearchAndFilter() {
                       <div className="h-48 w-full bg-center bg-cover" style={{ backgroundImage: `url(${caravan.image_url})` }} />
                     ) : (
                       <div className="h-48 w-full bg-gradient-to-r from-primary-100 to-primary-200 flex items-center justify-center"
-                      style={{ backgroundImage: `url(${lantern2})` }}>
+                        style={{ backgroundImage: `url(${lantern2})` }}>
                         <span className="text-primary-700 font-medium text-white">کاروان {caravan.name}</span>
                       </div>
                     )}
-                    
+
                     {/* برچسب‌های کاروان */}
                     <div className="absolute top-0 right-0 p-3 flex flex-col gap-2 items-end">
                       {caravan.popular && (
@@ -281,7 +314,7 @@ export default function SearchAndFilter() {
                         </div>
                       )}
                     </div>
-                    
+
                     {/* ظرفیت کاروان */}
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-3 flex justify-between items-center">
                       <div className="flex items-center bg-white/90 text-primary-700 text-xs px-2.5 py-1.5 rounded-full font-bold">
@@ -299,12 +332,12 @@ export default function SearchAndFilter() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <CardContent className="p-5 flex-grow flex flex-col">
                     <div className="mb-3">
                       <h4 className="text-xl font-bold font-heading text-gray-800">{caravan.name}</h4>
                     </div>
-                    
+
                     <div className="space-y-3 mb-4 text-sm">
                       <div className="flex items-center">
                         <div className="w-8 h-8 bg-primary-50 rounded-full flex items-center justify-center ml-2">
@@ -331,7 +364,7 @@ export default function SearchAndFilter() {
                         <span>اقامت: <span className="font-medium">{caravan.accommodation_type}</span></span>
                       </div>
                     </div>
-                    
+
                     <div className="border-t border-gray-200 pt-4 mt-auto">
                       <div className="flex justify-between items-center">
                         <div className="flex flex-col">
@@ -340,11 +373,11 @@ export default function SearchAndFilter() {
                             {formatPrice(caravan.price)} <span className="text-sm">تومان</span>
                           </div>
                         </div>
-                        <Button 
+                        <Button
                           onClick={() => redirectToBooking(caravan)}
                           className={`
-                            ${caravan.remaining_capacity <= 0 
-                              ? 'bg-gray-400 hover:bg-gray-500' 
+                            ${caravan.remaining_capacity <= 0
+                              ? 'bg-gray-400 hover:bg-gray-500'
                               : 'bg-green-800 hover:bg-green-700'} 
                             transition-all shadow-md text-white font-medium`
                           }
@@ -365,7 +398,7 @@ export default function SearchAndFilter() {
               </div>
               <p className="text-gray-500 font-medium mb-2">هیچ کاروانی با فیلترهای انتخاب شده یافت نشد.</p>
               <p className="text-gray-400 text-sm mb-4">لطفاً فیلترهای جستجو را تغییر دهید.</p>
-              <Button 
+              <Button
                 onClick={() => {
                   setFilters({
                     departure_date: "",
