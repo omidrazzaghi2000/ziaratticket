@@ -54,6 +54,24 @@ class VerifyCodeView(APIView):
         login(request, user)  # واردکردن کاربر به session
         return Response({"message": "ورود با موفقیت انجام شد.", "user": UserSerializer(user).data})
 
+class VerifyUserView(APIView):
+    def post(self, request):
+        serializer = VerifyCodeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        phone = serializer.validated_data['phone']
+        code = serializer.validated_data['code']
+        try:
+            user = User.objects.get(phone=phone)
+        except User.DoesNotExist:
+            return Response({"message": "کاربر یافت نشد."}, status=status.HTTP_404_NOT_FOUND)
+        
+        user.is_verified = True
+        user.verification_code = None
+        user.code_expiry = None
+        user.save()
+        login(request, user)  # واردکردن کاربر به session
+        return Response({"message": "ورود با موفقیت انجام شد.", "user": UserSerializer(user).data})
+
 class LogoutView(APIView):
     def post(self, request):
         logout(request)
@@ -70,3 +88,9 @@ class MeView(APIView):
         if not request.user.is_authenticated:
             return Response({"message": "نیاز به ورود دارید."}, status=status.HTTP_401_UNAUTHORIZED)
         return Response(UserSerializer(request.user).data)
+    
+
+class FetchAllUsers(APIView):
+    def get(self,request):
+        users = User.objects.all();
+        return Response(UserSerializer(users, many=True).data)

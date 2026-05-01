@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
+import { djangoURL } from "@/App";
 
 const bookingStep1Schema = z.object({
   caravanId: z.coerce.number(),
@@ -54,14 +55,14 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
   interface Caravan {
     id: number;
     name: string;
-    departureDate: string;
+    departure_date: string;
     duration: number;
-    transportationType: string;
+    transportation_type: string;
     price: number;
     capacity: number;
-    remainingCapacity: number;
-    accommodationType: string;
-    accommodationDistance: number;
+    remaining_capacity: number;
+    accommodation_type: string;
+    accommodation_distance: number;
     manager: string;
     description?: string;
   }
@@ -90,12 +91,30 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
     },
   });
 
+  function getCookie(name:string) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            // Does this cookie string begin with the name we want?
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
   // ارسال فرم مرحله اول
   const bookingStep1Mutation = useMutation({
     mutationFn: async (data: BookingStep1FormValues) => {
+      const token = (getCookie('csrftoken'));
       const response = await apiRequest("POST", "/api/bookings/step1", {
         ...data,
-        passengerCount: data.passengerCount // اطمینان از ارسال تعداد مسافرین
+        passengerCount: data.passengerCount,
+        csrftoken: token // اطمینان از ارسال تعداد مسافرین
       });
       return response.json();
     },
@@ -405,7 +424,7 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
                   <div className="mr-4">
                     <h3 className="font-bold text-xl font-heading">{caravan.name}</h3>
                     <p className="text-gray-500">
-                      تاریخ حرکت: {caravan.departureDate} - {caravan.duration} روزه
+                      تاریخ حرکت: {caravan.departure_date} - {caravan.duration} روزه
                     </p>
                   </div>
                 </div>
@@ -415,7 +434,7 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
                     <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center ml-3">
                       <Car className="h-4 w-4 text-primary" />
                     </div>
-                    <span className="text-gray-700">{caravan.transportationType}</span>
+                    <span className="text-gray-700">{caravan.transportation_type}</span>
                   </div>
                   
                   <div className="flex items-center animate-slide-right delay-400">
@@ -423,7 +442,7 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
                       <MapPin className="h-4 w-4 text-primary" />
                     </div>
                     <span className="text-gray-700">
-                      {caravan.accommodationType} - {caravan.accommodationDistance} متر تا حرم
+                      {caravan.accommodation_type} - {caravan.accommodation_distance} متر تا حرم
                     </span>
                   </div>
                   
@@ -432,7 +451,7 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
                       <Users className="h-4 w-4 text-primary" />
                     </div>
                     <span className="text-gray-700">
-                      ظرفیت باقیمانده: {caravan.remainingCapacity} نفر
+                      ظرفیت باقیمانده: {caravan.remaining_capacity} نفر
                     </span>
                   </div>
                 </div>

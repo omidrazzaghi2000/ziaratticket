@@ -171,7 +171,7 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
     }
     
     setSelectedSeats(prev => {
-      const newSeats = prev.includes(seatNumber)
+      const newSeats = prev.includes(seatNumber) || selectedSeats.length >= booking?.passengerCount
         ? prev.filter(s => s !== seatNumber)
         : [...prev, seatNumber];
       
@@ -253,7 +253,7 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 mb-1">تاریخ حرکت</p>
-                  <p className="font-medium">{caravan.departureDate}</p>
+                  <p className="font-medium">{caravan.departure_date}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 mb-1">مدت سفر</p>
@@ -261,7 +261,7 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 mb-1">نوع اقامتگاه</p>
-                  <p className="font-medium">{caravan.accommodationType}</p>
+                  <p className="font-medium">{caravan.accommodation_type}</p>
                 </div>
               </div>
             </div>
@@ -356,7 +356,7 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
           </Card>
 
           {/* انتخاب صندلی */}
-          {caravan?.transportationType === "زمینی" && (
+          {caravan?.transportation_type === "زمینی" && (
             <Card className="p-6 shadow-md border-0 overflow-hidden relative mb-6">
               <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-10 -mt-10"></div>
               <div className="relative">
@@ -512,7 +512,7 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
             
             <Button 
               onClick={() => completeBookingMutation.mutate()}
-              disabled={completeBookingMutation.isPending || saveStep3Mutation.isPending || !address || (caravan?.transportationType === "زمینی" && selectedSeats.length !== booking?.passengerCount)}
+              disabled={completeBookingMutation.isPending || saveStep3Mutation.isPending || !address || (caravan?.transportation_type === "زمینی" && selectedSeats.length !== booking?.passengerCount)}
               className="bg-gradient-to-l from-primary-600 to-primary hover:opacity-90 transition-all shadow-md"
             >
               {completeBookingMutation.isPending || saveStep3Mutation.isPending ? (

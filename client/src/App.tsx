@@ -10,7 +10,7 @@ import BookingStepTwo from "@/pages/BookingStepTwo";
 import BookingStepThree from "@/pages/BookingStepThree";
 import BookingSuccess from "@/pages/BookingSuccess";
 import "./lib/fonts.css";
-
+export const djangoURL = "http://localhost:8000";
 function Router() {
   return (
     <Switch>

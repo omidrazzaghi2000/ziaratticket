@@ -12,6 +12,11 @@ import { fromZodError } from "zod-validation-error";
 import { apiRequest } from "@/lib/queryClient";
 
 const DjangoBackendURL:string = "http://localhost:8000";
+export function getCsrfToken(req: Request): string | null {
+  return (req.session as any).csrfToken || null;
+}
+
+
 
 // ضمیمه کردن تعریف مدل با نوع Request
 declare module 'express-serve-static-core' {
@@ -40,7 +45,6 @@ function generateVerificationCode() {
 async function sendSms(phone: string, verificationCode: string) {
   // TODO: Implement Kavenegar API integration
   const apiKey = "376E74796B6A6D7862596C794A61534C374F4E6F494D6667323247416A67706B4A4130665176313575326B3D";
-  console.error(verificationCode)
   const response = await fetch(`https://api.kavenegar.com/v1/${apiKey}/verify/lookup.json`, {
     method: 'POST',
     
@@ -58,6 +62,8 @@ async function sendSms(phone: string, verificationCode: string) {
   // return true;
 }
 
+
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // ===== مسیرهای مربوط به احراز هویت =====
   
@@ -67,11 +73,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { phone } = insertUserSchema.pick({ phone: true }).parse(req.body);
       
       // چک کردن وجود کاربر با این شماره موبایل
-      let user = await storage.getUserByPhone(phone);
+      let usersRes = await fetch(DjangoBackendURL+"/api/users")
+      let users = await usersRes.json(); 
+      let user = users.filter((u:any)=>u.phone===phone);
+      
+      // let user = await storage.getUserByPhone(phone);
       
       // اگر کاربر وجود نداشت، ایجاد میکنیم
-      if (!user) {
-        user = await storage.createUser({ phone, fullName: null });
+      if (user.length === 0) {
+        await fetch(DjangoBackendURL+'/api/auth/send-code',
+          {method:'POST',
+            body: new URLSearchParams({
+              "phone": phone
+              //TODO:add fullname
+            }),
+          })
+        await storage.createUser({ phone, fullName: null });
       }
       
       // تولید کد تایید و ذخیره آن
@@ -79,11 +96,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.setVerificationCode(phone, verificationCode);
       
       // ارسال پیامک حاوی کد تایید
-      const message = `کد تایید سامانه رزرو کاروان: ${verificationCode}`;
-      await sendSms(phone, verificationCode);
+      const message = `کد تایید: ${verificationCode}`;
+      //await sendSms(phone, verificationCode);
       
       res.json({ 
-        message: "کد تایید به شماره موبایل شما ارسال شد.",
+        message: message,//"کد تایید به شماره موبایل شما ارسال شد.",
         phone
       });
     } catch (error) {
@@ -93,6 +110,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.status(500).json({ 
+        errorMessage: error.toString(),
         message: "خطایی در ارسال کد تایید رخ داده است. لطفا دوباره تلاش کنید." 
       });
     }
@@ -104,23 +122,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const verifyData = verifyUserSchema.parse(req.body);
       
       // بررسی کد تایید
-      const user = await storage.verifyUser(verifyData);
-      
-      if (!user) {
+      let usersRes = await fetch(DjangoBackendURL+"/api/users")
+      let users = await usersRes.json(); 
+      let user = users.filter((u:any)=>u.phone==verifyData.phone);
+      console.log("*************************************************");
+      console.log(user);
+      if(user.length === 0){
         return res.status(404).json({ 
           message: "کاربری با این شماره موبایل یافت نشد." 
         });
       }
+      await storage.verifyUser(verifyData);
+
+      await fetch(DjangoBackendURL+"/api/auth/verify_user",
+        {method: "POST",
+          body:new URLSearchParams({
+            "phone":verifyData.phone,
+            "code":verifyData.code
+          })
+        ,credentials: 'include'},
+      )
       
       // ذخیره شناسه کاربر در سشن
-      req.session.userId = user.id;
+      req.session.userId = user[0].id;
+      
       
       res.json({ 
         message: "ورود با موفقیت انجام شد.", 
         user: {
-          id: user.id,
-          phone: user.phone,
-          fullName: user.fullName
+          id: user[0].id,
+          phone: user[0].phone,
+          fullName: user[0].fullName
         }
       });
     } catch (error) {
@@ -168,16 +200,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/user", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId as number;
-      const user = await storage.getUser(userId);
+
+      let usersRes = await fetch(DjangoBackendURL+"/api/users")
+      let users = await usersRes.json(); 
+      let user = users.filter((u:any)=>u.id==userId);
       
-      if (!user) {
+      if (user.length===0) {
         return res.status(404).json({ message: "کاربر یافت نشد." });
       }
       
       res.json({
-        id: user.id,
-        phone: user.phone,
-        fullName: user.fullName
+        id: user[0].id,
+        phone: user[0].phone,
+        fullName: user[0].fullName
       });
     } catch (error) {
       res.status(500).json({ 
@@ -195,13 +230,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const step1Data = bookingStep1Schema.parse(req.body);
       
       // بررسی موجود بودن کاروان
-      const caravan = await storage.getCaravan(step1Data.caravanId);
+      const caravansRes = await fetch(DjangoBackendURL+"/api/caravans/"+step1Data.caravanId) 
+
+      if(caravansRes.status != 200){
+        throw("status : " + caravansRes.status+ " request : "+ DjangoBackendURL+"/api/caravans/");
+      }
+      const caravan = await caravansRes.json();
+      // const caravan = await storage.getCaravan(step1Data.caravanId);
       if (!caravan) {
         return res.status(404).json({ message: "کاروان مورد نظر یافت نشد." });
       }
       
+      
+
+      console.log({
+        'Content-Type': 'application/json',
+        'X-CSRFToken': req.body.csrftoken // Include CSRF token
+        // Do NOT include Authorization header for session auth
+    })
       // ذخیره مرحله اول رزرو
+      await fetch(DjangoBackendURL+"/api/bookings/step1",{method:'POST',
+        body:new URLSearchParams({
+          "caravan_id":  step1Data.caravanId.toString(),
+          "main_passenger_name":  step1Data.mainPassengerName,
+          "main_passenger_id":  step1Data.mainPassengerId,
+          "main_passenger_phone": step1Data.mainPassengerPhone,
+          "main_passenger_birthdate":  step1Data.mainPassengerBirthdate,
+          "passenger_count": step1Data.passengerCount.toString(),
+
+        },
+        
+      ),
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': req.body.csrftoken // Include CSRF token
+        // Do NOT include Authorization header for session auth
+    },
+    credentials: 'include' 
+      }) 
       const booking = await storage.saveBookingStep1(userId, step1Data,caravan);
+
       
       res.status(201).json({ 
         message: "مرحله اول رزرو با موفقیت ثبت شد.",
@@ -215,6 +283,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.status(500).json({ 
+        error:error.toString(),
         message: "خطایی در ثبت مرحله اول رزرو رخ داده است." 
       });
     }
@@ -227,13 +296,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const step2Data = bookingStep2Schema.parse(req.body);
       
       // بررسی اینکه رزرو متعلق به کاربر جاری باشد
-      const booking = await storage.getBooking(bookingId);
-      if (!booking || booking.userId !== req.session.userId) {
+      // const booking = await storage.getBooking(bookingId);
+      const booking = await (await fetch(DjangoBackendURL+"/api/bookings/"+bookingId.toString())).json()
+      if (!booking || booking.user.id !== req.session.userId) {
         return res.status(404).json({ message: "رزرو مورد نظر یافت نشد." });
       }
       
       // ذخیره مرحله دوم رزرو
       const updatedBooking = await storage.saveBookingStep2(bookingId, step2Data);
+      await fetch(DjangoBackendURL+"/bookings/"+bookingId+"/step2",{method:'POST',
+        body:new URLSearchParams({
+          "companions":  step2Data.companions.map(c => JSON.stringify(c)).toString(),
+        })
+      }) 
       
       res.json({ 
         message: "مرحله دوم رزرو با موفقیت ثبت شد.",
@@ -258,20 +333,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const bookingId = parseInt(req.params.id);
       const { address, specialRequests, selectedSeats } = req.body;
 
-      const booking = await storage.getBooking(bookingId);
+      // const booking = await storage.getBooking(bookingId);
+      // if (!booking) {
+      //   return res.status(404).json({ error: "رزرو یافت نشد" });
+      // }
+      const booking = await (await fetch(DjangoBackendURL+"/api/bookings/"+bookingId.toString())).json()
       if (!booking) {
-        return res.status(404).json({ error: "رزرو یافت نشد" });
+        return res.status(404).json({ message: "رزرو مورد نظر یافت نشد." });
       }
 
-      if (booking.userId !== req.session.userId) {
-        return res.status(403).json({ error: "شما دسترسی به این رزرو ندارید" });
+      if (booking.user.id !== req.session.userId) {
+        return res.status(404).json({ message: "شما دسترسی به این رزرو ندارید.." });
       }
-
-      const updatedBooking = await storage.saveBookingStep3(bookingId, {
+      const step3Data = {
         address,
         specialRequests,
         selectedSeats
-      });
+      };
+
+      
+      const updatedBooking = await storage.saveBookingStep3(bookingId, step3Data);
+      await fetch(DjangoBackendURL+"/bookings/"+bookingId+"/step3",{method:'POST',
+        body:new URLSearchParams({
+          "address":  step3Data.address,
+          "special_requests": step3Data.specialRequests,
+          "selected_seats": step3Data.selectedSeats
+        })
+      }) 
+
 
       if (!updatedBooking) {
         return res.status(404).json({ error: "رزرو یافت نشد" });
@@ -302,6 +391,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (booking.transportationType === "زمینی" && (!selectedSeats || selectedSeats.length !== booking.passengerCount)) {
         return res.status(400).json({ error: "تعداد صندلی‌های انتخاب شده باید با تعداد مسافران برابر باشد" });
       }
+
+      await fetch(DjangoBackendURL+"/bookings/"+bookingId+"/step3",{method:'POST'});
 
       const completedBooking = await storage.completeBooking(bookingId, selectedSeats);
       if (!completedBooking) {
@@ -423,9 +514,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Apply filters if provided
       let filteredCaravans = [...caravans];
-      console.log("-----------");
-      console.log(req.query);
-      console.log("-----------");
+      
       if (req.query.departure_date && req.query.departure_date !== "all") {
         filteredCaravans = filteredCaravans.filter(
           caravan => caravan.departure_date === req.query.departure_date
@@ -483,7 +572,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/caravans/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const caravan = await storage.getCaravan(id);
+      const caravansRes = await fetch(DjangoBackendURL+"/api/caravans/"+id) 
+
+      if(caravansRes.status != 200){
+        throw("status : " + caravansRes.status+ " request : "+ DjangoBackendURL+"/api/caravans/"+id);
+      }
+      const caravan = await caravansRes.json();
       
       if (!caravan) {
         return res.status(404).json({ message: "کاروان مورد نظر یافت نشد." });
