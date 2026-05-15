@@ -71,7 +71,7 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
   const { data: caravan, isLoading: isLoadingCaravan } = useQuery<Caravan>({
     queryKey: ['/api/caravans', caravanId],
     queryFn: async () => {
-      const response = await apiRequest("GET", `/api/caravans/${caravanId}`);
+      const response = await apiRequest("GET", djangoURL+`/api/caravans/${caravanId}`);
       return response.json();
     },
     enabled: !isNaN(caravanId),
@@ -110,11 +110,9 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
   // ارسال فرم مرحله اول
   const bookingStep1Mutation = useMutation({
     mutationFn: async (data: BookingStep1FormValues) => {
-      const token = (getCookie('csrftoken'));
-      const response = await apiRequest("POST", "/api/bookings/step1", {
+      const response = await apiRequest("POST", djangoURL+"/api/bookings/step1", {
         ...data,
         passengerCount: data.passengerCount,
-        csrftoken: token // اطمینان از ارسال تعداد مسافرین
       });
       return response.json();
     },

@@ -7,6 +7,8 @@ from .models import User
 from .serializers import UserSerializer, RegisterSendCodeSerializer, VerifyCodeSerializer
 import random
 import datetime
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.tokens import RefreshToken
 
 SEND_CODE_MESSAGE_TEMPLATE = "کد تایید سامانه رزرو کاروان: {}"
 
@@ -31,7 +33,7 @@ class SendCodeView(APIView):
         print(SEND_CODE_MESSAGE_TEMPLATE.format(code))
         return Response({"message": "کد تایید به شماره موبایل شما ارسال شد.", "phone": phone})
 
-class VerifyCodeView(APIView):
+class VerifyCodeView(TokenObtainPairView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
@@ -50,9 +52,13 @@ class VerifyCodeView(APIView):
         user.is_verified = True
         user.verification_code = None
         user.code_expiry = None
+
+        refresh = RefreshToken.for_user(user)
+
         user.save()
-        login(request, user)  # واردکردن کاربر به session
-        return Response({"message": "ورود با موفقیت انجام شد.", "user": UserSerializer(user).data})
+        # login(request, user)  # واردکردن کاربر به session
+        return Response({"message": "ورود با موفقیت انجام شد.", "user": UserSerializer(user).data,"refresh": str(refresh),
+            "access": str(refresh.access_token),})
 
 class VerifyUserView(APIView):
     def post(self, request):

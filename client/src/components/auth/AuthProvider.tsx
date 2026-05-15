@@ -1,5 +1,6 @@
 import { createContext, useContext, ReactNode, useState, useEffect } from "react";
 import { apiRequest } from "@/lib/queryClient";
+import { djangoURL } from "@/App";
 
 interface User {
   id: number;
@@ -30,12 +31,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       setIsLoading(true);
       // بررسی وضعیت احراز هویت
-      const statusResponse = await apiRequest("GET", "/api/auth/status");
+      
+      const statusResponse = await fetch(djangoURL+"/api/auth/status", {method:"GET",headers:{
+        Authorization: localStorage.getItem("AUTH_TOKEN_KEY")
+      }});
       const statusData = await statusResponse.json();
-
+      console.log(JSON.stringify(statusData));
       if (statusData.isAuthenticated) {
         // دریافت اطلاعات کاربر
-        const userResponse = await apiRequest("GET", "/api/user");
+        const userResponse = await fetch(djangoURL+"/api/user", {method:"GET",headers:{
+          Authorization: localStorage.getItem("AUTH_TOKEN_KEY")
+        }});
         const userData = await userResponse.json();
         setUser(userData);
       } else {

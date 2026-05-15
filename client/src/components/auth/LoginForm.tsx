@@ -15,12 +15,14 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { djangoURL } from "@/App";
 
 const phoneSchema = z.object({
   phone: z.string()
     .min(11, { message: "شماره موبایل باید حداقل ۱۱ رقم باشد" })
     .max(11, { message: "شماره موبایل باید حداکثر ۱۱ رقم باشد" })
-    .regex(/^09\d{9}$/, { message: "فرمت شماره موبایل صحیح نیست (مثال: ۰۹۱۲۳۴۵۶۷۸۹)" })
+    .regex(/^09\d{9}$/, { message: "فرمت شماره موبایل صحیح نیست (مثال: ۰۹۱۲۳۴۵۶۷۸۹)" }),
+  full_name:z.string().default(""),//TODO:get full_name
 });
 
 const verifySchema = z.object({
@@ -66,7 +68,12 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
   // ارسال کد تایید به شماره موبایل
   const sendCodeMutation = useMutation({
     mutationFn: async (data: PhoneFormData) => {
-      const response = await apiRequest("POST", "/api/auth/send-code", data);
+      const formData = new FormData();
+      formData.append('phone', data.phone);
+      formData.append('full_name', data.full_name);
+      const response = await fetch(djangoURL+"/api/auth/send-code", {body:formData,method:"POST"});
+
+      
       return response.json();
     },
     onSuccess: (data) => {
@@ -91,12 +98,24 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
   // تایید کد و ورود
   const verifyCodeMutation = useMutation({
     mutationFn: async (data: { code: string }) => {
-      console.log('Sending to API:', { phone, code: data.code });
-      const response = await apiRequest("POST", "/api/auth/verify", {
-        phone: phone,
-        code: data.code
-      });
-      return response.json();
+
+      const formData = new FormData();
+      formData.append('phone', phone);
+      formData.append('code', data.code);
+      const response = await fetch(djangoURL+"/api/auth/verify", {body:formData,method:"POST"});
+
+      if(response.status >= 300){
+        throw ""
+      }
+
+      const verifyRes = await response.json();
+      if(response.status < 300){
+        localStorage.setItem("AUTH_TOKEN_KEY","Bearer "+verifyRes.access);
+        localStorage.setItem("AUTH_REFRESH_KEY",verifyRes.refresh);
+      }
+      return verifyRes;
+
+      
     },
     onSuccess: () => {
       toast({
