@@ -7,6 +7,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowRight, Users, UserPlus, UserMinus, ChevronLeft, ChevronRight } from "lucide-react";
+import Header from "@/components/Header";
 import {
   Form,
   FormControl,
@@ -20,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
+import { djangoURL } from "@/App";
 
 const companionSchema = z.object({
   name: z.string().min(3, { message: "نام و نام خانوادگی الزامی است" }),
@@ -44,13 +46,15 @@ export default function BookingStepTwo({ params }: BookingStepTwoProps) {
 
   // دریافت اطلاعات رزرو
   const { data: booking, isLoading: isLoadingBooking } = useQuery({
-    queryKey: ['/api/bookings', bookingId],
+    queryKey: ["booking", bookingId],
     queryFn: async () => {
-      const response = await apiRequest("GET", `/api/bookings/${bookingId}`);
+      const response = await fetch(djangoURL+`/api/bookings/${bookingId}`,{method:"GET",headers:{
+        Authorization: localStorage.getItem("AUTH_TOKEN_KEY") || ""
+      }});
       const data = await response.json();
       return {
         ...data,
-        passengerCount: parseInt(data.passengerCount) || 1
+        passengerCount: parseInt(data.passenger_count) || 1
       };
     },
   });
@@ -76,7 +80,23 @@ export default function BookingStepTwo({ params }: BookingStepTwoProps) {
   // ارسال اطلاعات همراه
   const addCompanionMutation = useMutation({
     mutationFn: async (data: CompanionFormValues) => {
-      const response = await apiRequest("POST", `/api/bookings/${bookingId}/companions`, data);
+      const response = await fetch(djangoURL + `/api/bookings/${bookingId}/companions`, {
+        method: "POST",
+        headers: {
+          Authorization: localStorage.getItem("AUTH_TOKEN_KEY") || "",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: data.name,
+          national_id: data.nationalId,
+          relationship: data.relationship,
+          birthdate: data.birthdate,
+        }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || "خطا در ثبت اطلاعات همراه");
+      }
       return response.json();
     },
     onSuccess: () => {
@@ -107,11 +127,11 @@ export default function BookingStepTwo({ params }: BookingStepTwoProps) {
     addCompanionMutation.mutate(data);
   };
 
-  // اگر در حال بارگذاری است
   if (isLoadingBooking) {
     return (
-      <div className="container py-10">
-        <div className="flex flex-col items-center justify-center">
+      <div className="bg-gray-50 min-h-screen">
+        <Header />
+        <div className="container py-10 pt-32 flex flex-col items-center justify-center">
           <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
           <p className="text-gray-500">در حال بارگذاری اطلاعات رزرو...</p>
         </div>
@@ -119,17 +139,14 @@ export default function BookingStepTwo({ params }: BookingStepTwoProps) {
     );
   }
 
-  // اگر رزرو یافت نشد
   if (!booking) {
     return (
-      <div className="container py-10">
-        <div className="text-center">
+      <div className="bg-gray-50 min-h-screen">
+        <Header />
+        <div className="container py-10 pt-32 text-center">
           <h2 className="text-2xl font-bold text-gray-800 mb-4">رزرو یافت نشد</h2>
           <p className="text-gray-500 mb-6">متأسفانه رزرو موردنظر شما یافت نشد.</p>
-          <Button 
-            variant="outline" 
-            onClick={() => navigate("/")}
-          >
+          <Button variant="outline" onClick={() => navigate("/")}>
             بازگشت به صفحه اصلی
           </Button>
         </div>
@@ -144,7 +161,9 @@ export default function BookingStepTwo({ params }: BookingStepTwoProps) {
   const isLastStep = currentStep === totalSteps - 1;
 
   return (
-    <div className="container py-12 bg-gray-50/30">
+    <div className="bg-gray-50 min-h-screen">
+    <Header />
+    <div className="container py-12 pt-28">
       <div className="mb-8 animate-fade-in">
         <Button 
           variant="ghost"
@@ -177,19 +196,19 @@ export default function BookingStepTwo({ params }: BookingStepTwoProps) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-gray-500 mb-1">نام و نام خانوادگی</p>
-                  <p className="font-medium">{booking?.mainPassengerName}</p>
+                  <p className="font-medium">{booking?.main_passenger_name}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 mb-1">کد ملی</p>
-                  <p className="font-medium">{booking?.mainPassengerId}</p>
+                  <p className="font-medium">{booking?.main_passenger_id}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 mb-1">شماره موبایل</p>
-                  <p className="font-medium">{booking?.mainPassengerPhone}</p>
+                  <p className="font-medium">{booking?.main_passenger_phone}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 mb-1">تاریخ تولد</p>
-                  <p className="font-medium">{booking?.mainPassengerBirthdate}</p>
+                  <p className="font-medium">{booking?.main_passenger_birthdate}</p>
                 </div>
               </div>
             </div>
@@ -402,5 +421,6 @@ export default function BookingStepTwo({ params }: BookingStepTwoProps) {
         </div>
       </div>
     </div>
+    </div>
   );
-} 
+}

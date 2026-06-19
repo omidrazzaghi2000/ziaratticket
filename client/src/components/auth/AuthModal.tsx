@@ -12,6 +12,7 @@ interface AuthModalProps {
   onClose: () => void;
   title?: string;
   description?: string;
+  onLoginSuccess?: () => void;
 }
 
 export default function AuthModal({
@@ -19,13 +20,17 @@ export default function AuthModal({
   onClose,
   title = "ورود به سامانه رزرو کاروان",
   description,
+  onLoginSuccess,
 }: AuthModalProps) {
   const { refreshUser } = useAuth();
 
-  // هندلر برای زمانی که کاربر با موفقیت وارد شد
   const handleLoginSuccess = () => {
     refreshUser();
-    onClose();
+    if (onLoginSuccess) {
+      onLoginSuccess();
+    } else {
+      onClose();
+    }
   };
 
   return (

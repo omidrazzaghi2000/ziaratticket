@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { Clock } from "lucide-react";
+import { Moon, Sunrise, Sun, Sunset, Clock } from "lucide-react";
+import { motion } from "framer-motion";
+import { djangoURL } from "@/App";
 
 interface PrayerTimesData {
   fajr: string;
@@ -11,66 +13,51 @@ interface PrayerTimesData {
   midnight: string;
 }
 
+const prayerConfig = [
+  { key: "fajr", label: "اذان صبح", icon: Moon, color: "text-indigo-400" },
+  { key: "sunrise", label: "طلوع آفتاب", icon: Sunrise, color: "text-amber-400" },
+  { key: "dhuhr", label: "اذان ظهر", icon: Sun, color: "text-yellow-500" },
+  { key: "maghrib", label: "اذان مغرب", icon: Sunset, color: "text-orange-400" },
+  { key: "isha", label: "اذان عشاء", icon: Moon, color: "text-blue-400" },
+];
+
 export default function PrayerTimes() {
-  const { data: prayerTimes, isLoading } = useQuery<PrayerTimesData>({
-    queryKey: ['/api/prayer-times'],
+  const { data, isLoading } = useQuery<PrayerTimesData>({
+    queryKey: [djangoURL + "/api/prayer-times"],
+    staleTime: 1000 * 60 * 60,
   });
 
   return (
-    <section className="bg-white py-4 shadow-sm sticky top-0 z-20">
-      <div className="container mx-auto px-4">
-        <div className="flex flex-wrap justify-center items-center">
-          <div className="flex items-center ml-6 mb-2 md:mb-0">
-            <Clock className="text-primary-500 ml-2 h-5 w-5" />
-            <span className="text-sm font-medium">اوقات شرعی کربلا:</span>
+    <motion.section
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="sticky top-0 z-40 bg-primary/95 backdrop-blur-md border-b border-white/10 shadow-lg"
+    >
+      <div className="container mx-auto px-4 py-2.5">
+        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+          <div className="flex items-center gap-2">
+            <Clock className="h-3.5 w-3.5 text-white/60" />
+            <span className="text-white/70 text-xs font-medium">اوقات شرعی کربلا</span>
+            <span className="h-3 w-px bg-white/20 mx-1" />
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-6 text-center">
-            <div className="prayer-time relative px-3 py-1">
-              <div className="text-xs text-gray-500">اذان صبح</div>
-              <div className="text-sm font-semibold">
-                {isLoading ? "..." : prayerTimes?.fajr || "۴:۳۰"}
+          <div className="flex flex-wrap justify-center gap-x-5 gap-y-1">
+            {prayerConfig.map((item) => (
+              <div key={item.key} className="flex items-center gap-1.5">
+                <item.icon className={`h-3.5 w-3.5 ${item.color}`} />
+                <span className="text-white/60 text-xs">{item.label}:</span>
+                <span className="text-white font-semibold text-xs tracking-wide">
+                  {isLoading ? (
+                    <span className="inline-block w-10 h-3 bg-white/20 rounded animate-pulse" />
+                  ) : (
+                    (data as Record<string, string>)?.[item.key] || "--:--"
+                  )}
+                </span>
               </div>
-            </div>
-            <div className="prayer-time relative px-3 py-1">
-              <div className="text-xs text-gray-500">طلوع آفتاب</div>
-              <div className="text-sm font-semibold">
-                {isLoading ? "..." : prayerTimes?.sunrise || "۵:۵۳"}
-              </div>
-            </div>
-            <div className="prayer-time relative px-3 py-1">
-              <div className="text-xs text-gray-500">اذان ظهر</div>
-              <div className="text-sm font-semibold">
-                {isLoading ? "..." : prayerTimes?.dhuhr || "۱۲:۰۵"}
-              </div>
-            </div>
-            <div className="prayer-time relative px-3 py-1">
-              <div className="text-xs text-gray-500">اذان مغرب</div>
-              <div className="text-sm font-semibold">
-                {isLoading ? "..." : prayerTimes?.maghrib || "۱۸:۱۷"}
-              </div>
-            </div>
-            <div className="prayer-time relative px-3 py-1">
-              <div className="text-xs text-gray-500">نیمه شب شرعی</div>
-              <div className="text-sm font-semibold">
-                {isLoading ? "..." : prayerTimes?.midnight || "۲۳:۰۹"}
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </div>
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        .prayer-time::after {
-          content: "";
-          position: absolute;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          height: 1px;
-          background: linear-gradient(to left, transparent, #E5E7EB, transparent);
-        }
-        `
-      }} />
-    </section>
+    </motion.section>
   );
 }

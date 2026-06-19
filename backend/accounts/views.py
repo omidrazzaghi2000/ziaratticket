@@ -2,15 +2,32 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from django.utils import timezone
+from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
 from .models import User
 from .serializers import UserSerializer, RegisterSendCodeSerializer, VerifyCodeSerializer
 import random
 import datetime
+import requests as http_requests
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-SEND_CODE_MESSAGE_TEMPLATE = "کد تایید سامانه رزرو کاروان: {}"
+
+def _send_otp_sms(phone: str, code: str) -> bool:
+    api_key = settings.KAVENEGAR_API_KEY
+    try:
+        response = http_requests.post(
+            f"https://api.kavenegar.com/v1/{api_key}/verify/lookup.json",
+            data={
+                "receptor": phone,
+                "template": "code",
+                "token": code,
+            },
+            timeout=10,
+        )
+        return response.status_code == 200
+    except Exception:
+        return False
 
 class SendCodeView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -29,8 +46,7 @@ class SendCodeView(APIView):
             user.full_name = full_name
         user.is_verified = False
         user.save()
-        # پیامک نیازمند اتصال به Kavenegar. فعلاً فقط حالت دمو:
-        print(SEND_CODE_MESSAGE_TEMPLATE.format(code))
+        _send_otp_sms(phone, code)
         return Response({"message": "کد تایید به شماره موبایل شما ارسال شد.", "phone": phone})
 
 class VerifyCodeView(TokenObtainPairView):

@@ -5,3 +5,10 @@ server/public
 vite.config.ts.*
 *.tar.gz
 ziaratenv
+__pycache__
+*.pyc
+backend/db.sqlite3
+backend/staticfiles/
+backend/media/
+.env.local
+client/.env.local

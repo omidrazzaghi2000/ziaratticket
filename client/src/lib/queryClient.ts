@@ -1,5 +1,12 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+const DJANGO_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+
+function getAuthHeader(): Record<string, string> {
+  const token = localStorage.getItem("AUTH_TOKEN_KEY");
+  return token ? { Authorization: token } : {};
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -10,13 +17,18 @@ async function throwIfResNotOk(res: Response) {
 export async function apiRequest(
   method: string,
   url: string,
-  data?: unknown | undefined,
+  data?: unknown,
 ): Promise<Response> {
-  const res = await fetch(url, {
+  const fullUrl = url.startsWith("http") ? url : DJANGO_URL + url;
+  const headers: Record<string, string> = {
+    ...getAuthHeader(),
+    ...(data ? { "Content-Type": "application/json" } : {}),
+  };
+
+  const res = await fetch(fullUrl, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
   });
 
   await throwIfResNotOk(res);
@@ -29,8 +41,11 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey[0] as string, {
-      credentials: "include",
+    const rawUrl = queryKey[0] as string;
+    const fullUrl = rawUrl.startsWith("http") ? rawUrl : DJANGO_URL + rawUrl;
+
+    const res = await fetch(fullUrl, {
+      headers: getAuthHeader(),
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

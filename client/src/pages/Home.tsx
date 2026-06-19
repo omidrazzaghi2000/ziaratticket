@@ -14,7 +14,7 @@ export default function Home() {
     <div className="bg-gray-50 min-h-screen">
       <Header />
       <Hero />
-      {/* <PrayerTimes /> */}
+      <PrayerTimes />
       <Features />
       <SearchAndFilter />
       <PilgrimageGuide />

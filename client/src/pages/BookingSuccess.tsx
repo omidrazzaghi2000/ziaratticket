@@ -1,120 +1,213 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
-import { CheckCircle2, Phone, MessageCircle, ArrowLeft } from "lucide-react";
+import { CheckCircle2, Phone, MessageCircle, Home, Copy, Users, Calendar, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { motion } from "framer-motion";
+import { djangoURL } from "@/App";
+import Header from "@/components/Header";
+import { useToast } from "@/hooks/use-toast";
 
 interface BookingSuccessProps {
-  params: {
-    bookingId: string;
-  };
+  params: { bookingId: string };
 }
 
 export default function BookingSuccess({ params }: BookingSuccessProps) {
   const bookingId = parseInt(params.bookingId);
   const [, navigate] = useLocation();
+  const { toast } = useToast();
 
-  // دریافت اطلاعات رزرو
-  const { data: booking, isLoading: isLoadingBooking } = useQuery({
-    queryKey: ['/api/bookings', bookingId],
+  const { data: booking, isLoading } = useQuery({
+    queryKey: [djangoURL + `/api/bookings/${bookingId}`],
     queryFn: async () => {
       const response = await apiRequest("GET", `/api/bookings/${bookingId}`);
       return response.json();
     },
   });
 
-  // اگر در حال بارگذاری است
-  if (isLoadingBooking) {
+  const copyCode = () => {
+    navigator.clipboard.writeText(`#${booking?.id}`);
+    toast({ title: "کد رزرو کپی شد", description: `کد #${booking?.id} در کلیپ‌بورد کپی شد.` });
+  };
+
+  if (isLoading) {
     return (
-      <div className="container py-10">
-        <div className="flex flex-col items-center justify-center">
-          <div className="h-10 w-10 animate-spin text-primary mb-4">...</div>
-          <p className="text-gray-500">در حال بارگذاری اطلاعات رزرو...</p>
+      <div className="bg-gray-50 min-h-screen">
+        <Header />
+        <div className="flex flex-col items-center justify-center min-h-screen">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent mb-4" />
+          <p className="text-gray-500">در حال بارگذاری...</p>
         </div>
       </div>
     );
   }
 
-  // اگر رزرو یافت نشد
   if (!booking) {
     return (
-      <div className="container py-10">
-        <div className="text-center">
+      <div className="bg-gray-50 min-h-screen">
+        <Header />
+        <div className="container py-10 pt-32 text-center">
           <h2 className="text-2xl font-bold text-gray-800 mb-4">رزرو یافت نشد</h2>
-          <p className="text-gray-500 mb-6">متأسفانه رزرو موردنظر شما یافت نشد.</p>
-          <Button 
-            variant="outline" 
-            onClick={() => navigate("/")}
-          >
-            بازگشت به صفحه اصلی
-          </Button>
+          <Button variant="outline" onClick={() => navigate("/")}>بازگشت به صفحه اصلی</Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container py-12 bg-gray-50/30">
-      <div className="max-w-2xl mx-auto">
-        <Card className="p-8 shadow-lg border-0 overflow-hidden relative">
-          <div className="absolute top-0 right-0 w-40 h-40 bg-primary/5 rounded-full -mr-20 -mt-20"></div>
-          <div className="absolute bottom-0 left-0 w-40 h-40 bg-primary/5 rounded-full -ml-20 -mb-20"></div>
-          
-          <div className="relative text-center">
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <CheckCircle2 className="h-10 w-10 text-green-600" />
-            </div>
-            
-            <h1 className="text-3xl font-bold text-gray-800 mb-4">
-              رزرو شما با موفقیت ثبت شد
-            </h1>
-            
-            <p className="text-gray-600 mb-8">
-              لینک پرداخت به شماره موبایل شما ارسال خواهد شد. لطفا در اسرع وقت نسبت به پرداخت هزینه اقدام کنید.
-            </p>
-            
-            <div className="space-y-6 mb-8">
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                <h3 className="font-bold text-blue-700 mb-2 flex items-center justify-center">
-                  <Phone className="ml-2 h-5 w-5" />
-                  تماس با ما
-                </h3>
-                <p className="text-blue-600 text-sm">
-                  برای هرگونه سوال یا راهنمایی می‌توانید با شماره زیر تماس بگیرید:
-                </p>
-                <p className="text-blue-700 font-bold mt-2">۰۹۹۰۲۳۸۲۴۱۶</p>
-              </div>
+    <div className="bg-gradient-to-b from-gray-50 to-white min-h-screen">
+      <Header />
 
-              <div className="bg-green-50 p-4 rounded-lg border border-green-100">
-                <h3 className="font-bold text-green-700 mb-2 flex items-center justify-center">
-                  <MessageCircle className="ml-2 h-5 w-5" />
-                  پیام‌رسان‌ها
-                </h3>
-                <p className="text-green-600 text-sm">
-                  لینک پرداخت از طریق پیام‌رسان‌های زیر ارسال خواهد شد:
-                </p>
-                <ul className="text-green-700 mt-2 space-y-1">
-                  <li>• تلگرام</li>
-                  <li>• واتساپ</li>
-                  <li>• بله</li>
-                </ul>
-              </div>
+      <div className="container py-16 pt-28 max-w-2xl mx-auto">
+        {/* Success card */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          className="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100"
+        >
+          {/* Top banner */}
+          <div className="bg-gradient-to-r from-emerald-500 to-teal-600 p-8 text-center relative overflow-hidden">
+            <div className="absolute inset-0 opacity-10">
+              {[...Array(6)].map((_, i) => (
+                <div
+                  key={i}
+                  className="absolute rounded-full border border-white"
+                  style={{
+                    width: `${(i + 1) * 60}px`,
+                    height: `${(i + 1) * 60}px`,
+                    top: "50%",
+                    left: "50%",
+                    transform: "translate(-50%, -50%)",
+                  }}
+                />
+              ))}
             </div>
-            
-            <div className="flex justify-center">
-              <Button
-                variant="outline"
-                onClick={() => navigate("/")}
-                className="border-gray-300 hover:bg-gray-100 transition-all duration-300"
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
+              className="relative"
+            >
+              <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-white/30">
+                <CheckCircle2 className="h-10 w-10 text-white" />
+              </div>
+              <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
+                رزرو با موفقیت ثبت شد!
+              </h1>
+              <p className="text-white/80 text-sm">
+                تیم ما به زودی با شما تماس خواهد گرفت.
+              </p>
+            </motion.div>
+          </div>
+
+          <div className="p-6 md:p-8">
+            {/* Booking code */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="flex items-center justify-between bg-primary/5 border border-primary/20 rounded-2xl p-4 mb-6"
+            >
+              <div>
+                <p className="text-xs text-gray-500 mb-1">کد رزرو شما</p>
+                <p className="text-2xl font-black text-primary tracking-widest">#{booking.id}</p>
+              </div>
+              <button
+                onClick={copyCode}
+                className="flex items-center gap-2 text-sm text-primary hover:text-primary/70 transition-colors bg-primary/10 hover:bg-primary/20 px-3 py-2 rounded-xl"
               >
-                <ArrowLeft className="ml-2 h-4 w-4" />
+                <Copy className="h-4 w-4" />
+                کپی کد
+              </button>
+            </motion.div>
+
+            {/* Summary grid */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="grid grid-cols-2 gap-3 mb-6"
+            >
+              {[
+                { icon: Users, label: "سرپرست", value: booking.main_passenger_name, color: "text-blue-600", bg: "bg-blue-50" },
+                { icon: Users, label: "تعداد مسافرین", value: `${booking.passenger_count} نفر`, color: "text-violet-600", bg: "bg-violet-50" },
+                { icon: CreditCard, label: "مبلغ کل", value: `${new Intl.NumberFormat("fa-IR").format(booking.total_price)} تومان`, color: "text-emerald-600", bg: "bg-emerald-50" },
+                { icon: Phone, label: "شماره موبایل", value: booking.main_passenger_phone, color: "text-orange-600", bg: "bg-orange-50" },
+              ].map((item, i) => (
+                <div key={i} className={`${item.bg} rounded-xl p-3`}>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <item.icon className={`h-3.5 w-3.5 ${item.color}`} />
+                    <p className="text-xs text-gray-500">{item.label}</p>
+                  </div>
+                  <p className={`font-bold text-sm ${item.color}`}>{item.value}</p>
+                </div>
+              ))}
+            </motion.div>
+
+            {/* Status */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+              className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6"
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                  <MessageCircle className="h-4 w-4 text-amber-600" />
+                </div>
+                <div>
+                  <p className="font-semibold text-amber-800 mb-1">در انتظار پرداخت</p>
+                  <p className="text-amber-700 text-sm leading-relaxed">
+                    لینک پرداخت به شماره{" "}
+                    <span className="font-bold">{booking.main_passenger_phone}</span>{" "}
+                    از طریق تلگرام، واتساپ یا بله ارسال خواهد شد.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Contact */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7 }}
+              className="bg-gray-50 rounded-2xl p-4 mb-6 flex items-center justify-between"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+                  <Phone className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">پشتیبانی ۲۴ ساعته</p>
+                  <p className="font-bold text-gray-800 text-lg">۰۹۹۰۲۳۸۲۴۱۶</p>
+                </div>
+              </div>
+              <a
+                href="tel:09902382416"
+                className="bg-primary text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
+              >
+                تماس
+              </a>
+            </motion.div>
+
+            {/* Actions */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.8 }}
+            >
+              <Button
+                onClick={() => navigate("/")}
+                className="w-full bg-primary hover:bg-primary/90 rounded-xl h-12 gap-2 font-semibold"
+              >
+                <Home className="h-4 w-4" />
                 بازگشت به صفحه اصلی
               </Button>
-            </div>
+            </motion.div>
           </div>
-        </Card>
+        </motion.div>
       </div>
     </div>
   );
-} 
+}

@@ -8,7 +8,8 @@ import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/auth";
 import { AuthModal } from "@/components/auth";
-import { Loader2, ArrowRight, Calendar, Users, Car, MapPin, Currency } from "lucide-react";
+import { Loader2, ArrowRight, Calendar, Users, Car, MapPin } from "lucide-react";
+import Header from "@/components/Header";
 import {
   Form,
   FormControl,
@@ -110,10 +111,25 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
   // ارسال فرم مرحله اول
   const bookingStep1Mutation = useMutation({
     mutationFn: async (data: BookingStep1FormValues) => {
-      const response = await apiRequest("POST", djangoURL+"/api/bookings/step1", {
-        ...data,
-        passengerCount: data.passengerCount,
+      const response = await fetch(djangoURL + "/api/bookings/step1", {
+        method: "POST",
+        headers: {
+          Authorization: localStorage.getItem("AUTH_TOKEN_KEY") || "",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          caravan_id: data.caravanId,
+          passenger_count: data.passengerCount,
+          main_passenger_name: data.mainPassengerName,
+          main_passenger_id: data.mainPassengerId,
+          main_passenger_phone: data.mainPassengerPhone,
+          main_passenger_birthdate: data.mainPassengerBirthdate,
+        }),
       });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || "خطا در ثبت اطلاعات");
+      }
       return response.json();
     },
     onSuccess: (data) => {
@@ -184,7 +200,9 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
   }
 
   return (
-    <div className="container py-12 bg-gray-50/30">
+    <div className="bg-gray-50 min-h-screen">
+    <Header />
+    <div className="container py-12 pt-28 bg-gray-50/30">
       <div className="mb-8 animate-fade-in">
         <Button 
           variant="ghost"
@@ -481,6 +499,7 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
         title="ورود به حساب کاربری"
         description="برای ادامه فرایند رزرو، لطفا وارد حساب کاربری خود شوید یا ثبت‌نام کنید."
       />
+    </div>
     </div>
   );
 }
