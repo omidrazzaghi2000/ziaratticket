@@ -12,7 +12,7 @@ import BookingSuccess from "@/pages/BookingSuccess";
 import "./lib/fonts.css";
 // در محیط production (Docker)، از URL نسبی استفاده می‌کنیم تا nginx پروکسی کند
 // در محیط development، مستقیم به Django متصل می‌شویم
-export const djangoURL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+export const djangoURL = import.meta.env.VITE_API_URL ?? "";
 function Router() {
   return (
     <Switch>
