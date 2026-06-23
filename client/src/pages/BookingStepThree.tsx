@@ -3,8 +3,9 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowRight, CheckCircle2, Phone, MessageCircle, Bus, User, Armchair } from "lucide-react";
+import { Loader2, ArrowRight, CheckCircle2, Phone, MessageCircle, Bus, User } from "lucide-react";
 import Header from "@/components/Header";
+import BusSeatMap from "@/components/BusSeatMap";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { motion } from "framer-motion";
@@ -35,6 +36,8 @@ interface BookingStep3Data {
   specialRequests?: string;
   selectedSeats?: number[];
 }
+
+const SEATS_PER_BUS = 25;
 
 const RELATIONSHIP_LABELS: Record<string, string> = {
   spouse: "همسر",
@@ -354,93 +357,13 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
                   انتخاب صندلی
                 </h2>
 
-                <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
-                  <div className="flex items-center gap-4 flex-wrap text-xs">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-5 h-5 rounded border-2 border-border bg-card" />
-                      <span className="text-muted-foreground">خالی</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-5 h-5 rounded border-2 border-primary bg-primary/20" />
-                      <span className="text-muted-foreground">انتخاب شده</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-5 h-5 rounded border-2 border-border/50 bg-muted" />
-                      <span className="text-muted-foreground">اشغال شده</span>
-                    </div>
-                  </div>
-                  <p className="text-sm font-medium text-primary">
-                    {selectedSeats.length} از {seatsRequired} صندلی انتخاب شده
-                  </p>
-                </div>
-
-                <div className="bg-cream-100 rounded-xl p-4 overflow-x-auto">
-                  <div className="min-w-[280px]">
-                    <div className="flex justify-center mb-4">
-                      <div className="bg-muted rounded-t-3xl w-32 h-8 flex items-center justify-center text-xs font-semibold text-muted-foreground">
-                        جلو (راننده)
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                      {Array.from({ length: Math.ceil(seats.length / 4) }, (_, rowIdx) => {
-                        const rowSeats = seats.slice(rowIdx * 4, rowIdx * 4 + 4);
-                        return (
-                          <div key={rowIdx} className="flex justify-center gap-1 items-center">
-                            <span className="text-xs text-muted-foreground w-5 text-center">{rowIdx + 1}</span>
-                            {rowSeats.slice(0, 2).map((seat) => (
-                              <motion.button
-                                key={seat.number}
-                                whileHover={!seat.isOccupied ? { scale: 1.08 } : {}}
-                                whileTap={!seat.isOccupied ? { scale: 0.95 } : {}}
-                                onClick={() => handleSeatClick(seat.number)}
-                                disabled={seat.isOccupied}
-                                title={seat.isOccupied ? `اشغال شده توسط ${seat.passengerName || ''}` : `صندلی ${seat.number}`}
-                                className={`w-10 h-10 rounded-lg flex flex-col items-center justify-center text-xs font-bold border-2 transition-all ${
-                                  seat.isOccupied
-                                    ? "bg-muted border-border/50 text-muted-foreground cursor-not-allowed"
-                                    : selectedSeats.includes(seat.number)
-                                    ? "bg-primary/20 border-primary text-primary"
-                                    : "bg-card border-border text-muted-foreground hover:border-primary hover:text-primary"
-                                }`}
-                              >
-                                <Armchair className="w-3.5 h-3.5" />
-                                <span className="text-[10px]">{toPersian(seat.number)}</span>
-                              </motion.button>
-                            ))}
-                            <div className="w-6" />
-                            {rowSeats.slice(2, 4).map((seat) => (
-                              <motion.button
-                                key={seat.number}
-                                whileHover={!seat.isOccupied ? { scale: 1.08 } : {}}
-                                whileTap={!seat.isOccupied ? { scale: 0.95 } : {}}
-                                onClick={() => handleSeatClick(seat.number)}
-                                disabled={seat.isOccupied}
-                                title={seat.isOccupied ? `اشغال شده توسط ${seat.passengerName || ''}` : `صندلی ${seat.number}`}
-                                className={`w-10 h-10 rounded-lg flex flex-col items-center justify-center text-xs font-bold border-2 transition-all ${
-                                  seat.isOccupied
-                                    ? "bg-muted border-border/50 text-muted-foreground cursor-not-allowed"
-                                    : selectedSeats.includes(seat.number)
-                                    ? "bg-primary/20 border-primary text-primary"
-                                    : "bg-card border-border text-muted-foreground hover:border-primary hover:text-primary"
-                                }`}
-                              >
-                                <Armchair className="w-3.5 h-3.5" />
-                                <span className="text-[10px]">{toPersian(seat.number)}</span>
-                              </motion.button>
-                            ))}
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    <div className="flex justify-center mt-4">
-                      <div className="bg-muted rounded-b-3xl w-32 h-8 flex items-center justify-center text-xs font-semibold text-muted-foreground">
-                        عقب
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <BusSeatMap
+                  totalCapacity={caravan?.capacity || SEATS_PER_BUS}
+                  occupiedSeats={seats.filter(s => s.isOccupied).map(s => s.number)}
+                  selectedSeats={selectedSeats}
+                  maxSelectable={seatsRequired}
+                  onToggle={handleSeatClick}
+                />
               </motion.div>
             )}
 
