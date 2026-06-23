@@ -1,0 +1,53 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: karvan
+      POSTGRES_USER: karvan
+      POSTGRES_PASSWORD: karvan_password_prod
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U karvan"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    volumes:
+      - static_files:/app/staticfiles
+      - media_files:/app/media
+    environment:
+      - DEBUG=0
+      - DB_ENGINE=postgres
+      - DB_NAME=karvan
+      - DB_USER=karvan
+      - DB_PASSWORD=karvan_password_prod
+      - DB_HOST=db
+      - DB_PORT=5432
+      - SECRET_KEY=karvan-karbala-super-secret-key-2026-production-use
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  db_data:
+  static_files:
+  media_files:
