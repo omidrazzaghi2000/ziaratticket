@@ -4,8 +4,8 @@
 
 :root {
   --font-vazir: 'Vazirmatn', sans-serif;
-  --font-lalezar: 'Lalezar', cursive;
   --font-markazi: 'Markazi Text', serif;
+  --font-lalezar: 'Lalezar', cursive;
 }
 
 html {
@@ -15,11 +15,14 @@ html {
 body {
   direction: rtl;
   text-align: right;
+  line-height: 1.75;
+  font-size: 15px;
 }
 
-h1, h2, h3 {
+h1, h2, h3, h4 {
   font-family: var(--font-markazi);
   font-weight: 700;
+  line-height: 1.2;
 }
 
 .font-heading {
@@ -30,150 +33,46 @@ h1, h2, h3 {
   font-family: var(--font-lalezar);
 }
 
-/* انیمیشن‌های اساسی */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+/* Gold text shimmer utility */
+.text-gold-shimmer {
+  background: linear-gradient(135deg, #C9A84C 0%, #E8CB7A 40%, #C9A84C 60%, #8B6914 100%);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gold-shimmer 3s ease infinite;
 }
 
-@keyframes slideInRight {
-  from {
-    transform: translateX(30px);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
+@keyframes gold-shimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
 }
 
-@keyframes slideInLeft {
-  from {
-    transform: translateX(-30px);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
+/* Islamic geometric ornament pattern (SVG background) */
+.bg-geometric {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cg fill='none' stroke='%23C9A84C' stroke-width='0.4' opacity='0.25'%3E%3Cpolygon points='30,2 38,10 38,22 30,30 22,22 22,10'/%3E%3Cpolygon points='30,30 38,38 38,50 30,58 22,50 22,38'/%3E%3Cpolygon points='2,16 10,16 18,24 10,32 2,32'/%3E%3Cpolygon points='42,16 50,16 58,24 50,32 42,32'/%3E%3Cline x1='30' y1='2' x2='22' y2='10'/%3E%3Cline x1='30' y1='2' x2='38' y2='10'/%3E%3C/g%3E%3C/svg%3E");
 }
 
-@keyframes slideInUp {
-  from {
-    transform: translateY(30px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+.bg-geometric-dark {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cg fill='none' stroke='%23C9A84C' stroke-width='0.4' opacity='0.12'%3E%3Cpolygon points='30,2 38,10 38,22 30,30 22,22 22,10'/%3E%3Cpolygon points='30,30 38,38 38,50 30,58 22,50 22,38'/%3E%3Cpolygon points='2,16 10,16 18,24 10,32 2,32'/%3E%3Cpolygon points='42,16 50,16 58,24 50,32 42,32'/%3E%3C/g%3E%3C/svg%3E");
 }
 
-@keyframes slideInDown {
-  from {
-    transform: translateY(-30px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+/* Section divider ornament */
+.ornament-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
 }
 
-@keyframes pulse {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-  100% {
-    transform: scale(1);
-  }
+.ornament-divider::before,
+.ornament-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, hsl(42 60% 52% / 0.4));
 }
 
-@keyframes floatAnimation {
-  0% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-  100% {
-    transform: translateY(0);
-  }
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
-}
-
-/* کلاس‌های انیمیشن */
-.animate-fade-in {
-  animation: fadeIn 0.5s ease-out forwards;
-}
-
-.animate-slide-right {
-  animation: slideInRight 0.5s ease-out forwards;
-}
-
-.animate-slide-left {
-  animation: slideInLeft 0.5s ease-out forwards;
-}
-
-.animate-slide-up {
-  animation: slideInUp 0.5s ease-out forwards;
-}
-
-.animate-slide-down {
-  animation: slideInDown 0.5s ease-out forwards;
-}
-
-.animate-pulse {
-  animation: pulse 2s infinite;
-}
-
-.animate-float {
-  animation: floatAnimation 3s ease-in-out infinite;
-}
-
-.animate-shimmer {
-  background: linear-gradient(
-    to right,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.5) 50%,
-    rgba(255, 255, 255, 0) 100%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 2s infinite;
-}
-
-/* تاخیر انیمیشن‌ها */
-.delay-100 {
-  animation-delay: 100ms;
-}
-
-.delay-200 {
-  animation-delay: 200ms;
-}
-
-.delay-300 {
-  animation-delay: 300ms;
-}
-
-.delay-400 {
-  animation-delay: 400ms;
-}
-
-.delay-500 {
-  animation-delay: 500ms;
+.ornament-divider::after {
+  background: linear-gradient(to left, transparent, hsl(42 60% 52% / 0.4));
 }

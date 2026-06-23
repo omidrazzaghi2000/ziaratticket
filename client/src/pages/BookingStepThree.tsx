@@ -3,10 +3,9 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowRight, CheckCircle2, Phone, MessageCircle, Bus, User, Square, Armchair } from "lucide-react";
+import { Loader2, ArrowRight, CheckCircle2, Phone, MessageCircle, Bus, User, Armchair } from "lucide-react";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { motion } from "framer-motion";
 import { djangoURL } from "@/App";
@@ -45,6 +44,40 @@ const RELATIONSHIP_LABELS: Record<string, string> = {
   other: "سایر",
 };
 
+function StepIndicator({ current }: { current: 1 | 2 | 3 }) {
+  const steps = [
+    { n: "۱", label: "اطلاعات سرپرست" },
+    { n: "۲", label: "همراهان" },
+    { n: "۳", label: "تایید نهایی" },
+  ];
+  return (
+    <div className="flex items-center gap-1 mt-5">
+      {steps.map((s, i) => {
+        const stepNum = i + 1;
+        const isDone = stepNum < current;
+        const isActive = stepNum === current;
+        return (
+          <div key={i} className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-colors ${
+                isActive ? "bg-primary text-white border-primary" :
+                isDone ? "bg-primary/20 text-primary border-primary/40" :
+                "bg-transparent text-muted-foreground/40 border-border"
+              }`}>
+                {isDone ? "✓" : s.n}
+              </div>
+              <span className={`text-xs hidden sm:block ${isActive ? "text-primary font-semibold" : isDone ? "text-primary/60" : "text-muted-foreground/40"}`}>
+                {s.label}
+              </span>
+            </div>
+            {i < 2 && <div className={`w-6 md:w-12 h-px mx-1 ${isDone ? "bg-primary/40" : "bg-border"}`} />}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function BookingStepThree({ params }: BookingStepThreeProps) {
   const bookingId = parseInt(params.bookingId);
   const [, navigate] = useLocation();
@@ -53,7 +86,6 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
   const [address, setAddress] = useState("");
   const [selectedSeats, setSelectedSeats] = useState<number[]>([]);
 
-  // دریافت اطلاعات رزرو
   const { data: booking, isLoading: isLoadingBooking } = useQuery({
     queryKey: [djangoURL + `/api/bookings/${bookingId}`],
     queryFn: async () => {
@@ -62,7 +94,6 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
     },
   });
 
-  // دریافت اطلاعات کاروان
   const { data: caravan } = useQuery({
     queryKey: [djangoURL + `/api/caravans/${booking?.caravan}`],
     queryFn: async () => {
@@ -72,7 +103,6 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
     enabled: !!booking?.caravan,
   });
 
-  // دریافت وضعیت صندلی‌ها
   const { data: seats = [] } = useQuery<Seat[]>({
     queryKey: [djangoURL + `/api/bookings/${bookingId}/seats`],
     queryFn: async () => {
@@ -82,7 +112,6 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
     enabled: !!bookingId,
   });
 
-  // ذخیره مرحله سوم
   const saveStep3Mutation = useMutation({
     mutationFn: async (data: BookingStep3Data) => {
       const response = await apiRequest("POST", `/api/bookings/${bookingId}/step3`, data);
@@ -97,7 +126,6 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
     },
   });
 
-  // تکمیل رزرو
   const completeBookingMutation = useMutation({
     mutationFn: async () => {
       await saveStep3Mutation.mutateAsync({
@@ -123,7 +151,6 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
     },
   });
 
-  // انتخاب صندلی
   const handleSeatClick = (seatNumber: number) => {
     const seat = seats.find((s) => s.number === seatNumber);
     if (seat?.isOccupied) return;
@@ -146,11 +173,11 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
 
   if (isLoadingBooking) {
     return (
-      <div className="bg-gray-50 min-h-screen">
+      <div className="bg-background min-h-screen">
         <Header />
-        <div className="container py-10 pt-32 flex flex-col items-center justify-center">
-          <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-          <p className="text-gray-500">در حال بارگذاری اطلاعات رزرو...</p>
+        <div className="container py-10 pt-32 flex flex-col items-center justify-center min-h-[50vh]">
+          <div className="w-12 h-12 rounded-full border-4 border-primary/20 border-t-primary animate-spin mb-4" />
+          <p className="text-muted-foreground">در حال بارگذاری اطلاعات رزرو...</p>
         </div>
       </div>
     );
@@ -158,147 +185,137 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
 
   if (!booking) {
     return (
-      <div className="bg-gray-50 min-h-screen">
+      <div className="bg-background min-h-screen">
         <Header />
         <div className="container py-10 pt-32 text-center">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">رزرو یافت نشد</h2>
-          <Button variant="outline" onClick={() => navigate("/")}>
-            بازگشت به صفحه اصلی
-          </Button>
+          <h2 className="font-heading text-2xl font-bold text-foreground mb-4">رزرو یافت نشد</h2>
+          <Button variant="outline" onClick={() => navigate("/")}>بازگشت به صفحه اصلی</Button>
         </div>
       </div>
     );
   }
 
-  const companions: Companion[] = Array.isArray(booking.companions)
-    ? booking.companions
-    : [];
-
+  const companions: Companion[] = Array.isArray(booking.companions) ? booking.companions : [];
   const isGroundTransport =
-    caravan?.transportation_type === "زمینی" ||
-    booking?.transportation_type === "زمینی";
-
+    caravan?.transportation_type === "زمینی" || booking?.transportation_type === "زمینی";
   const seatsRequired = booking?.passenger_count || 1;
-  const canSubmit =
-    address.trim() &&
-    (!isGroundTransport || selectedSeats.length === seatsRequired);
+  const canSubmit = address.trim() && (!isGroundTransport || selectedSeats.length === seatsRequired);
 
   return (
-    <div className="bg-gray-50 min-h-screen">
-    <Header />
-    <div className="container py-12 pt-28">
-      <div className="mb-8 animate-fade-in">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="mb-4 hover:scale-105 transition-transform"
-          onClick={() => navigate(`/booking/${bookingId}/step2`)}
+    <div className="bg-background min-h-screen">
+      <Header />
+      <div className="container py-12 pt-28">
+        {/* Page header */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="mb-10"
         >
-          <ArrowRight className="ml-2 h-4 w-4" />
-          بازگشت به مرحله قبل
-        </Button>
-        <h1 className="text-3xl md:text-4xl font-bold font-heading bg-gradient-to-l from-primary to-primary-600 bg-clip-text text-transparent">
-          خلاصه اطلاعات رزرو
-        </h1>
-        <div className="flex items-center mt-3">
-          <div className="h-2 w-2 rounded-full bg-primary"></div>
-          <div className="h-[2px] w-10 bg-primary"></div>
-          <div className="px-3 py-1 rounded-full bg-primary text-white text-sm">
-            مرحله ۳ از ۳: تایید نهایی
-          </div>
-        </div>
-      </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mb-5 text-muted-foreground hover:text-foreground"
+            onClick={() => navigate(`/booking/${bookingId}/step2`)}
+          >
+            <ArrowRight className="ml-2 h-4 w-4" />
+            بازگشت به مرحله قبل
+          </Button>
+          <span className="inline-flex items-center gap-2 bg-primary/8 text-primary text-xs font-semibold px-4 py-1.5 rounded-full mb-3">
+            <span className="w-1.5 h-1.5 rounded-full bg-gold-500" />
+            فرایند رزرو کاروان
+          </span>
+          <h1 className="font-heading text-display-sm text-foreground">خلاصه اطلاعات رزرو</h1>
+          <StepIndicator current={3} />
+        </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 space-y-6">
-          {/* اطلاعات کاروان */}
-          {caravan && (
-            <Card className="p-6 shadow-md border-0 overflow-hidden relative">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-10 -mt-10"></div>
-              <div className="relative">
-                <h2 className="text-2xl font-heading font-bold mb-6 border-b pb-4">اطلاعات کاروان</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="md:col-span-2 space-y-6">
+            {/* Caravan info */}
+            {caravan && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.05 }}
+                className="bg-card rounded-2xl p-7 border border-border shadow-card"
+              >
+                <h2 className="font-heading text-xl font-bold text-foreground mb-5 pb-4 border-b border-border">اطلاعات کاروان</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">نام کاروان</p>
-                    <p className="font-medium">{caravan.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">تاریخ حرکت</p>
-                    <p className="font-medium">{caravan.departure_date}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">مدت سفر</p>
-                    <p className="font-medium">{caravan.duration} روز</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">نوع اقامتگاه</p>
-                    <p className="font-medium">{caravan.accommodation_type}</p>
-                  </div>
+                  {[
+                    { label: "نام کاروان", value: caravan.name },
+                    { label: "تاریخ حرکت", value: caravan.departure_date },
+                    { label: "مدت سفر", value: `${caravan.duration} روز` },
+                    { label: "نوع اقامتگاه", value: caravan.accommodation_type },
+                  ].map((item, i) => (
+                    <div key={i}>
+                      <p className="text-xs text-muted-foreground mb-1">{item.label}</p>
+                      <p className="font-medium text-foreground">{item.value}</p>
+                    </div>
+                  ))}
                 </div>
-              </div>
-            </Card>
-          )}
+              </motion.div>
+            )}
 
-          {/* اطلاعات مسافرین */}
-          <Card className="p-6 shadow-md border-0 overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-10 -mt-10"></div>
-            <div className="relative">
-              <h2 className="text-2xl font-heading font-bold mb-6 border-b pb-4">اطلاعات مسافرین</h2>
+            {/* Passengers */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="bg-card rounded-2xl p-7 border border-border shadow-card"
+            >
+              <h2 className="font-heading text-xl font-bold text-foreground mb-5 pb-4 border-b border-border">اطلاعات مسافرین</h2>
 
-              {/* سرپرست */}
               <div className="mb-6">
-                <h3 className="font-bold text-lg mb-4 flex items-center">
-                  <User className="ml-2 h-5 w-5 text-primary" />
+                <h3 className="font-semibold text-base text-foreground mb-4 flex items-center gap-2">
+                  <div className="w-6 h-6 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <User className="h-3.5 w-3.5 text-primary" />
+                  </div>
                   سرپرست
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">نام و نام خانوادگی</p>
-                    <p className="font-medium">{booking?.main_passenger_name}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">کد ملی</p>
-                    <p className="font-medium">{booking?.main_passenger_id}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">شماره موبایل</p>
-                    <p className="font-medium">{booking?.main_passenger_phone}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">تاریخ تولد</p>
-                    <p className="font-medium">{booking?.main_passenger_birthdate}</p>
-                  </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-cream-100 rounded-xl p-4">
+                  {[
+                    { label: "نام و نام خانوادگی", value: booking?.main_passenger_name },
+                    { label: "کد ملی", value: booking?.main_passenger_id },
+                    { label: "شماره موبایل", value: booking?.main_passenger_phone },
+                    { label: "تاریخ تولد", value: booking?.main_passenger_birthdate },
+                  ].map((item, i) => (
+                    <div key={i}>
+                      <p className="text-xs text-muted-foreground mb-1">{item.label}</p>
+                      <p className="font-medium text-foreground">{item.value}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              {/* همراهان */}
               {companions.length > 0 && (
                 <div>
-                  <h3 className="font-bold text-lg mb-4 flex items-center">
-                    <User className="ml-2 h-5 w-5 text-primary" />
+                  <h3 className="font-semibold text-base text-foreground mb-4 flex items-center gap-2">
+                    <div className="w-6 h-6 bg-primary/10 rounded-lg flex items-center justify-center">
+                      <User className="h-3.5 w-3.5 text-primary" />
+                    </div>
                     همراهان ({companions.length} نفر)
                   </h3>
                   <div className="space-y-3">
                     {companions.map((companion, index) => (
-                      <div key={index} className="bg-gray-50 p-4 rounded-lg border border-gray-100">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div key={index} className="bg-cream-100 rounded-xl p-4 border border-border">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           <div>
-                            <p className="text-sm text-gray-500 mb-1">نام و نام خانوادگی</p>
-                            <p className="font-medium">{companion.name}</p>
+                            <p className="text-xs text-muted-foreground mb-1">نام و نام خانوادگی</p>
+                            <p className="font-medium text-foreground text-sm">{companion.name}</p>
                           </div>
                           <div>
-                            <p className="text-sm text-gray-500 mb-1">کد ملی</p>
-                            <p className="font-medium">{companion.nationalId}</p>
+                            <p className="text-xs text-muted-foreground mb-1">کد ملی</p>
+                            <p className="font-medium text-foreground text-sm">{companion.nationalId}</p>
                           </div>
                           <div>
-                            <p className="text-sm text-gray-500 mb-1">نسبت</p>
-                            <p className="font-medium">
+                            <p className="text-xs text-muted-foreground mb-1">نسبت</p>
+                            <p className="font-medium text-foreground text-sm">
                               {RELATIONSHIP_LABELS[companion.relationship] || companion.relationship}
                             </p>
                           </div>
                           <div>
-                            <p className="text-sm text-gray-500 mb-1">تاریخ تولد</p>
-                            <p className="font-medium">{companion.birthdate}</p>
+                            <p className="text-xs text-muted-foreground mb-1">تاریخ تولد</p>
+                            <p className="font-medium text-foreground text-sm">{companion.birthdate}</p>
                           </div>
                         </div>
                       </div>
@@ -306,46 +323,50 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
                   </div>
                 </div>
               )}
-            </div>
-          </Card>
+            </motion.div>
 
-          {/* آدرس */}
-          <Card className="p-6 shadow-md border-0 overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-10 -mt-10"></div>
-            <div className="relative">
-              <h2 className="text-2xl font-heading font-bold mb-4 border-b pb-4">آدرس</h2>
+            {/* Address */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.15 }}
+              className="bg-card rounded-2xl p-7 border border-border shadow-card"
+            >
+              <h2 className="font-heading text-xl font-bold text-foreground mb-4 pb-4 border-b border-border">آدرس</h2>
               <Textarea
                 placeholder="لطفا آدرس خود را وارد کنید..."
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                className="h-28"
+                className="h-28 rounded-xl"
               />
-            </div>
-          </Card>
+            </motion.div>
 
-          {/* انتخاب صندلی - فقط برای کاروان زمینی */}
-          {isGroundTransport && (
-            <Card className="p-6 shadow-md border-0 overflow-hidden relative">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-10 -mt-10"></div>
-              <div className="relative">
-                <h2 className="text-2xl font-heading font-bold mb-6 border-b pb-4 flex items-center">
-                  <Bus className="ml-2 h-6 w-6 text-primary" />
+            {/* Seat selector — ground transport only */}
+            {isGroundTransport && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+                className="bg-card rounded-2xl p-7 border border-border shadow-card"
+              >
+                <h2 className="font-heading text-xl font-bold text-foreground mb-5 pb-4 border-b border-border flex items-center gap-2">
+                  <Bus className="h-5 w-5 text-primary" strokeWidth={1.5} />
                   انتخاب صندلی
                 </h2>
 
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-4 flex-wrap">
-                    <div className="flex items-center gap-1">
-                      <div className="w-6 h-6 rounded border-2 border-gray-300 bg-white"></div>
-                      <span className="text-sm text-gray-600">خالی</span>
+                <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+                  <div className="flex items-center gap-4 flex-wrap text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-5 h-5 rounded border-2 border-border bg-card" />
+                      <span className="text-muted-foreground">خالی</span>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <div className="w-6 h-6 rounded border-2 border-primary bg-primary/20"></div>
-                      <span className="text-sm text-gray-600">انتخاب شده</span>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-5 h-5 rounded border-2 border-primary bg-primary/20" />
+                      <span className="text-muted-foreground">انتخاب شده</span>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <div className="w-6 h-6 rounded border-2 border-gray-400 bg-gray-200"></div>
-                      <span className="text-sm text-gray-600">اشغال شده</span>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-5 h-5 rounded border-2 border-border/50 bg-muted" />
+                      <span className="text-muted-foreground">اشغال شده</span>
                     </div>
                   </div>
                   <p className="text-sm font-medium text-primary">
@@ -353,69 +374,59 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
                   </p>
                 </div>
 
-                {/* نمای اتوبوس */}
-                <div className="bg-gray-50 rounded-xl p-4 overflow-x-auto">
+                <div className="bg-cream-100 rounded-xl p-4 overflow-x-auto">
                   <div className="min-w-[280px]">
-                    {/* جلوی اتوبوس */}
                     <div className="flex justify-center mb-4">
-                      <div className="bg-gray-300 rounded-t-3xl w-32 h-8 flex items-center justify-center text-sm font-bold text-gray-600">
+                      <div className="bg-muted rounded-t-3xl w-32 h-8 flex items-center justify-center text-xs font-semibold text-muted-foreground">
                         جلو (راننده)
                       </div>
                     </div>
 
-                    {/* گرید صندلی‌ها - ۴ صندلی در هر ردیف با راهرو */}
                     <div className="flex flex-col gap-2">
                       {Array.from({ length: Math.ceil(seats.length / 4) }, (_, rowIdx) => {
                         const rowSeats = seats.slice(rowIdx * 4, rowIdx * 4 + 4);
                         return (
                           <div key={rowIdx} className="flex justify-center gap-1 items-center">
-                            <span className="text-xs text-gray-400 w-5 text-center">{rowIdx + 1}</span>
-                            {/* دو صندلی راست */}
+                            <span className="text-xs text-muted-foreground w-5 text-center">{rowIdx + 1}</span>
                             {rowSeats.slice(0, 2).map((seat) => (
                               <motion.button
                                 key={seat.number}
-                                whileHover={!seat.isOccupied ? { scale: 1.1 } : {}}
+                                whileHover={!seat.isOccupied ? { scale: 1.08 } : {}}
                                 whileTap={!seat.isOccupied ? { scale: 0.95 } : {}}
                                 onClick={() => handleSeatClick(seat.number)}
                                 disabled={seat.isOccupied}
                                 title={seat.isOccupied ? `اشغال شده توسط ${seat.passengerName || ''}` : `صندلی ${seat.number}`}
-                                className={`
-                                  w-10 h-10 rounded-lg flex flex-col items-center justify-center text-xs font-bold border-2 transition-all
-                                  ${seat.isOccupied
-                                    ? "bg-gray-200 border-gray-400 text-gray-400 cursor-not-allowed"
+                                className={`w-10 h-10 rounded-lg flex flex-col items-center justify-center text-xs font-bold border-2 transition-all ${
+                                  seat.isOccupied
+                                    ? "bg-muted border-border/50 text-muted-foreground cursor-not-allowed"
                                     : selectedSeats.includes(seat.number)
-                                      ? "bg-primary/20 border-primary text-primary"
-                                      : "bg-white border-gray-300 text-gray-600 hover:border-primary hover:text-primary"
-                                  }
-                                `}
+                                    ? "bg-primary/20 border-primary text-primary"
+                                    : "bg-card border-border text-muted-foreground hover:border-primary hover:text-primary"
+                                }`}
                               >
-                                <Armchair className="w-4 h-4" />
-                                <span>{toPersian(seat.number)}</span>
+                                <Armchair className="w-3.5 h-3.5" />
+                                <span className="text-[10px]">{toPersian(seat.number)}</span>
                               </motion.button>
                             ))}
-                            {/* راهرو */}
-                            <div className="w-6"></div>
-                            {/* دو صندلی چپ */}
+                            <div className="w-6" />
                             {rowSeats.slice(2, 4).map((seat) => (
                               <motion.button
                                 key={seat.number}
-                                whileHover={!seat.isOccupied ? { scale: 1.1 } : {}}
+                                whileHover={!seat.isOccupied ? { scale: 1.08 } : {}}
                                 whileTap={!seat.isOccupied ? { scale: 0.95 } : {}}
                                 onClick={() => handleSeatClick(seat.number)}
                                 disabled={seat.isOccupied}
                                 title={seat.isOccupied ? `اشغال شده توسط ${seat.passengerName || ''}` : `صندلی ${seat.number}`}
-                                className={`
-                                  w-10 h-10 rounded-lg flex flex-col items-center justify-center text-xs font-bold border-2 transition-all
-                                  ${seat.isOccupied
-                                    ? "bg-gray-200 border-gray-400 text-gray-400 cursor-not-allowed"
+                                className={`w-10 h-10 rounded-lg flex flex-col items-center justify-center text-xs font-bold border-2 transition-all ${
+                                  seat.isOccupied
+                                    ? "bg-muted border-border/50 text-muted-foreground cursor-not-allowed"
                                     : selectedSeats.includes(seat.number)
-                                      ? "bg-primary/20 border-primary text-primary"
-                                      : "bg-white border-gray-300 text-gray-600 hover:border-primary hover:text-primary"
-                                  }
-                                `}
+                                    ? "bg-primary/20 border-primary text-primary"
+                                    : "bg-card border-border text-muted-foreground hover:border-primary hover:text-primary"
+                                }`}
                               >
-                                <Armchair className="w-4 h-4" />
-                                <span>{toPersian(seat.number)}</span>
+                                <Armchair className="w-3.5 h-3.5" />
+                                <span className="text-[10px]">{toPersian(seat.number)}</span>
                               </motion.button>
                             ))}
                           </div>
@@ -423,128 +434,123 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
                       })}
                     </div>
 
-                    {/* عقب اتوبوس */}
                     <div className="flex justify-center mt-4">
-                      <div className="bg-gray-300 rounded-b-3xl w-32 h-8 flex items-center justify-center text-sm font-bold text-gray-600">
+                      <div className="bg-muted rounded-b-3xl w-32 h-8 flex items-center justify-center text-xs font-semibold text-muted-foreground">
                         عقب
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </Card>
-          )}
+              </motion.div>
+            )}
 
-          {/* درخواست‌های ویژه */}
-          <Card className="p-6 shadow-md border-0 overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-10 -mt-10"></div>
-            <div className="relative">
-              <h2 className="text-2xl font-heading font-bold mb-4 border-b pb-4">درخواست‌های ویژه</h2>
+            {/* Special requests */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.25 }}
+              className="bg-card rounded-2xl p-7 border border-border shadow-card"
+            >
+              <h2 className="font-heading text-xl font-bold text-foreground mb-4 pb-4 border-b border-border">درخواست‌های ویژه</h2>
               <Textarea
                 placeholder="در صورت نیاز به توضیحات بیشتر یا درخواست‌های ویژه، اینجا بنویسید..."
                 value={specialRequests}
                 onChange={(e) => setSpecialRequests(e.target.value)}
-                className="h-28"
+                className="h-28 rounded-xl"
               />
-            </div>
-          </Card>
+            </motion.div>
 
-          {/* دکمه‌های عملیات */}
-          <div className="flex justify-between">
-            <Button
-              variant="outline"
-              onClick={() => navigate(`/booking/${bookingId}/step2`)}
-              className="border-gray-300 hover:bg-gray-100"
+            {/* Action buttons */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className="flex justify-between"
             >
-              بازگشت به مرحله قبل
-            </Button>
+              <Button
+                variant="outline"
+                className="rounded-xl"
+                onClick={() => navigate(`/booking/${bookingId}/step2`)}
+              >
+                بازگشت به مرحله قبل
+              </Button>
 
-            <Button
-              onClick={() => completeBookingMutation.mutate()}
-              disabled={
-                completeBookingMutation.isPending ||
-                saveStep3Mutation.isPending ||
-                !canSubmit
-              }
-              className="bg-gradient-to-l from-primary-600 to-primary hover:opacity-90 transition-all shadow-md"
-            >
-              {completeBookingMutation.isPending || saveStep3Mutation.isPending ? (
-                <>
-                  <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-                  در حال ثبت...
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="ml-2 h-4 w-4" />
-                  تایید نهایی رزرو
-                </>
-              )}
-            </Button>
+              <Button
+                onClick={() => completeBookingMutation.mutate()}
+                disabled={completeBookingMutation.isPending || saveStep3Mutation.isPending || !canSubmit}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-emerald-sm px-6"
+              >
+                {completeBookingMutation.isPending || saveStep3Mutation.isPending ? (
+                  <>
+                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                    در حال ثبت...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="ml-2 h-4 w-4" />
+                    تایید نهایی رزرو
+                  </>
+                )}
+              </Button>
+            </motion.div>
           </div>
-        </div>
 
-        {/* ستون راهنما */}
-        <div className="animate-slide-left delay-200">
-          <Card className="p-6 shadow-md border-0 overflow-hidden relative sticky top-4">
-            <div className="absolute top-0 left-0 w-40 h-40 bg-primary/5 rounded-full -ml-16 -mt-16"></div>
-            <div className="relative">
-              <h2 className="text-xl font-heading font-bold mb-6 border-b pb-4">
+          {/* Sidebar */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <div className="bg-card rounded-2xl p-7 border border-border shadow-card sticky top-24 space-y-4">
+              <h2 className="font-heading text-xl font-bold text-foreground pb-4 border-b border-border flex items-center gap-2">
+                <div className="w-1.5 h-5 bg-gradient-to-b from-primary to-gold-500 rounded-full" />
                 اطلاعات تکمیلی
               </h2>
 
-              <div className="space-y-4">
-                {/* خلاصه قیمت */}
-                <div className="bg-primary/10 p-4 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">مبلغ قابل پرداخت</p>
-                  <p className="text-2xl font-bold text-primary-600">
-                    {new Intl.NumberFormat("fa-IR").format(booking?.total_price || 0)}
-                    <span className="text-sm font-normal mr-1">تومان</span>
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {booking?.passenger_count} نفر
-                  </p>
-                </div>
+              {/* Price summary */}
+              <div className="bg-primary/8 border border-primary/15 rounded-xl p-4">
+                <p className="text-xs text-muted-foreground mb-1">مبلغ قابل پرداخت</p>
+                <p className="font-heading text-2xl font-bold text-primary">
+                  {new Intl.NumberFormat("fa-IR").format(booking?.total_price || 0)}
+                  <span className="text-sm font-normal mr-1">تومان</span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">{booking?.passenger_count} نفر</p>
+              </div>
 
-                <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                  <h3 className="font-bold text-blue-700 mb-2 flex items-center text-sm">
-                    <Phone className="ml-2 h-4 w-4" />
-                    تماس با ما
-                  </h3>
-                  <p className="text-blue-600 text-xs mb-1">
-                    برای هرگونه سوال تماس بگیرید:
-                  </p>
-                  <p className="text-blue-700 font-bold">۰۹۹۰۲۳۸۲۴۱۶</p>
-                </div>
+              <div className="bg-primary/8 border border-primary/15 rounded-xl p-4">
+                <h3 className="font-semibold text-primary text-sm mb-2 flex items-center gap-2">
+                  <Phone className="h-4 w-4" />
+                  تماس با ما
+                </h3>
+                <p className="text-primary/70 text-xs mb-1">برای هرگونه سوال تماس بگیرید:</p>
+                <p className="font-bold text-primary text-sm">۰۹۹۰۲۳۸۲۴۱۶</p>
+              </div>
 
-                <div className="bg-green-50 p-4 rounded-lg border border-green-100">
-                  <h3 className="font-bold text-green-700 mb-2 flex items-center text-sm">
-                    <MessageCircle className="ml-2 h-4 w-4" />
-                    پیام‌رسان‌ها
-                  </h3>
-                  <p className="text-green-600 text-xs mb-1">
-                    لینک پرداخت از طریق:
-                  </p>
-                  <ul className="text-green-700 text-xs space-y-1">
-                    <li>• تلگرام</li>
-                    <li>• واتساپ</li>
-                    <li>• بله</li>
-                  </ul>
-                </div>
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                <h3 className="font-semibold text-emerald-700 text-sm mb-2 flex items-center gap-2">
+                  <MessageCircle className="h-4 w-4" />
+                  پیام‌رسان‌ها
+                </h3>
+                <p className="text-emerald-600 text-xs mb-1">لینک پرداخت از طریق:</p>
+                <ul className="text-emerald-700 text-xs space-y-1">
+                  <li>• تلگرام</li>
+                  <li>• واتساپ</li>
+                  <li>• بله</li>
+                </ul>
+              </div>
 
-                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
-                  <h3 className="font-bold text-yellow-700 mb-2 text-sm">نکات مهم</h3>
-                  <ul className="text-yellow-600 text-xs space-y-1">
-                    <li>• تمام اطلاعات را با دقت بررسی کنید.</li>
-                    <li>• پس از تایید، امکان ویرایش وجود ندارد.</li>
-                    <li>• لینک پرداخت تا ۲۴ ساعت معتبر است.</li>
-                  </ul>
-                </div>
+              <div className="bg-gold-50 border border-gold-200 rounded-xl p-4">
+                <h3 className="font-semibold text-gold-700 text-sm mb-2">نکات مهم</h3>
+                <ul className="text-gold-600 text-xs space-y-1">
+                  <li>• تمام اطلاعات را با دقت بررسی کنید.</li>
+                  <li>• پس از تایید، امکان ویرایش وجود ندارد.</li>
+                  <li>• لینک پرداخت تا ۲۴ ساعت معتبر است.</li>
+                </ul>
               </div>
             </div>
-          </Card>
+          </motion.div>
         </div>
       </div>
-    </div>
     </div>
   );
 }

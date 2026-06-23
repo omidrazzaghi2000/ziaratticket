@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
 import { djangoURL } from "@/App";
@@ -38,13 +37,46 @@ interface BookingStepTwoProps {
   };
 }
 
+function StepIndicator({ current }: { current: 1 | 2 | 3 }) {
+  const steps = [
+    { n: "۱", label: "اطلاعات سرپرست" },
+    { n: "۲", label: "همراهان" },
+    { n: "۳", label: "تایید نهایی" },
+  ];
+  return (
+    <div className="flex items-center gap-1 mt-5">
+      {steps.map((s, i) => {
+        const stepNum = i + 1;
+        const isDone = stepNum < current;
+        const isActive = stepNum === current;
+        return (
+          <div key={i} className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-colors ${
+                isActive ? "bg-primary text-white border-primary" :
+                isDone ? "bg-primary/20 text-primary border-primary/40" :
+                "bg-transparent text-muted-foreground/40 border-border"
+              }`}>
+                {isDone ? "✓" : s.n}
+              </div>
+              <span className={`text-xs hidden sm:block ${isActive ? "text-primary font-semibold" : isDone ? "text-primary/60" : "text-muted-foreground/40"}`}>
+                {s.label}
+              </span>
+            </div>
+            {i < 2 && <div className={`w-6 md:w-12 h-px mx-1 ${isDone ? "bg-primary/40" : "bg-border"}`} />}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function BookingStepTwo({ params }: BookingStepTwoProps) {
   const bookingId = parseInt(params.bookingId);
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(0);
 
-  // دریافت اطلاعات رزرو
   const { data: booking, isLoading: isLoadingBooking } = useQuery({
     queryKey: ["booking", bookingId],
     queryFn: async () => {
@@ -59,14 +91,12 @@ export default function BookingStepTwo({ params }: BookingStepTwoProps) {
     },
   });
 
-  // اگر تعداد مسافرین 1 نفر است، مستقیماً به مرحله سوم هدایت شود
   useEffect(() => {
     if (booking?.passengerCount === 1) {
       navigate(`/booking/${bookingId}/step3`);
     }
   }, [booking?.passengerCount, bookingId, navigate]);
 
-  // فرم اطلاعات همراه
   const form = useForm<CompanionFormValues>({
     resolver: zodResolver(companionSchema),
     defaultValues: {
@@ -77,7 +107,6 @@ export default function BookingStepTwo({ params }: BookingStepTwoProps) {
     },
   });
 
-  // ارسال اطلاعات همراه
   const addCompanionMutation = useMutation({
     mutationFn: async (data: CompanionFormValues) => {
       const response = await fetch(djangoURL + `/api/bookings/${bookingId}/companions`, {
@@ -105,8 +134,6 @@ export default function BookingStepTwo({ params }: BookingStepTwoProps) {
         description: "اطلاعات همراه با موفقیت ثبت شد.",
       });
       form.reset();
-      
-      // اگر آخرین همراه بود، به مرحله بعد برو
       if (currentStep === totalSteps - 1) {
         navigate(`/booking/${bookingId}/step3`);
       } else {
@@ -122,18 +149,17 @@ export default function BookingStepTwo({ params }: BookingStepTwoProps) {
     },
   });
 
-  // ارسال فرم
   const onSubmit = (data: CompanionFormValues) => {
     addCompanionMutation.mutate(data);
   };
 
   if (isLoadingBooking) {
     return (
-      <div className="bg-gray-50 min-h-screen">
+      <div className="bg-background min-h-screen">
         <Header />
-        <div className="container py-10 pt-32 flex flex-col items-center justify-center">
-          <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-          <p className="text-gray-500">در حال بارگذاری اطلاعات رزرو...</p>
+        <div className="container py-10 pt-32 flex flex-col items-center justify-center min-h-[50vh]">
+          <div className="w-12 h-12 rounded-full border-4 border-primary/20 border-t-primary animate-spin mb-4" />
+          <p className="text-muted-foreground">در حال بارگذاری اطلاعات رزرو...</p>
         </div>
       </div>
     );
@@ -141,102 +167,106 @@ export default function BookingStepTwo({ params }: BookingStepTwoProps) {
 
   if (!booking) {
     return (
-      <div className="bg-gray-50 min-h-screen">
+      <div className="bg-background min-h-screen">
         <Header />
         <div className="container py-10 pt-32 text-center">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">رزرو یافت نشد</h2>
-          <p className="text-gray-500 mb-6">متأسفانه رزرو موردنظر شما یافت نشد.</p>
-          <Button variant="outline" onClick={() => navigate("/")}>
-            بازگشت به صفحه اصلی
-          </Button>
+          <h2 className="font-heading text-2xl font-bold text-foreground mb-4">رزرو یافت نشد</h2>
+          <p className="text-muted-foreground mb-6">متأسفانه رزرو موردنظر شما یافت نشد.</p>
+          <Button variant="outline" onClick={() => navigate("/")}>بازگشت به صفحه اصلی</Button>
         </div>
       </div>
     );
   }
 
-  // اطمینان از اینکه passengerCount یک عدد معتبر است
   const passengerCount = parseInt(booking?.passengerCount) || 1;
-  // تعداد همراهان = تعداد کل مسافرین منهای یک (سرپرست)
   const totalSteps = Math.max(0, passengerCount - 1);
   const isLastStep = currentStep === totalSteps - 1;
 
   return (
-    <div className="bg-gray-50 min-h-screen">
-    <Header />
-    <div className="container py-12 pt-28">
-      <div className="mb-8 animate-fade-in">
-        <Button 
-          variant="ghost"
-          size="sm"
-          className="mb-4 hover:scale-105 transition-transform"
-          onClick={() => navigate(`/booking/${bookingId}/step1`)}
+    <div className="bg-background min-h-screen">
+      <Header />
+      <div className="container py-12 pt-28">
+        {/* Page header */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="mb-10"
         >
-          <ArrowRight className="ml-2 h-4 w-4" />
-          بازگشت به مرحله قبل
-        </Button>
-        <h1 className="text-3xl md:text-4xl font-bold font-heading bg-gradient-to-l from-primary to-primary-600 bg-clip-text text-transparent">
-          اطلاعات مسافرین
-        </h1>
-        <div className="flex items-center mt-3">
-          <div className="h-2 w-2 rounded-full bg-primary"></div>
-          <div className="h-[2px] w-10 bg-primary"></div>
-          <div className="px-3 py-1 rounded-full bg-primary text-white text-sm">
-            مرحله ۲ از ۴: اطلاعات مسافرین
-          </div>
-        </div>
-      </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mb-5 text-muted-foreground hover:text-foreground"
+            onClick={() => navigate(`/booking/${bookingId}/step1`)}
+          >
+            <ArrowRight className="ml-2 h-4 w-4" />
+            بازگشت به مرحله قبل
+          </Button>
+          <span className="inline-flex items-center gap-2 bg-primary/8 text-primary text-xs font-semibold px-4 py-1.5 rounded-full mb-3">
+            <span className="w-1.5 h-1.5 rounded-full bg-gold-500" />
+            فرایند رزرو کاروان
+          </span>
+          <h1 className="font-heading text-display-sm text-foreground">اطلاعات مسافرین</h1>
+          <StepIndicator current={2} />
+        </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2">
-          {/* اطلاعات سرپرست */}
-          <Card className="p-6 shadow-md border-0 overflow-hidden relative mb-6">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-10 -mt-10"></div>
-            <div className="relative">
-              <h2 className="text-2xl font-heading font-bold mb-6 border-b pb-4">اطلاعات سرپرست</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="md:col-span-2 space-y-6">
+            {/* Lead passenger info */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="bg-card rounded-2xl p-7 border border-border shadow-card"
+            >
+              <h2 className="font-heading text-xl font-bold text-foreground mb-6 pb-4 border-b border-border">اطلاعات سرپرست</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">نام و نام خانوادگی</p>
-                  <p className="font-medium">{booking?.main_passenger_name}</p>
+                  <p className="text-xs text-muted-foreground mb-1">نام و نام خانوادگی</p>
+                  <p className="font-medium text-foreground">{booking?.main_passenger_name}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">کد ملی</p>
-                  <p className="font-medium">{booking?.main_passenger_id}</p>
+                  <p className="text-xs text-muted-foreground mb-1">کد ملی</p>
+                  <p className="font-medium text-foreground">{booking?.main_passenger_id}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">شماره موبایل</p>
-                  <p className="font-medium">{booking?.main_passenger_phone}</p>
+                  <p className="text-xs text-muted-foreground mb-1">شماره موبایل</p>
+                  <p className="font-medium text-foreground">{booking?.main_passenger_phone}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">تاریخ تولد</p>
-                  <p className="font-medium">{booking?.main_passenger_birthdate}</p>
+                  <p className="text-xs text-muted-foreground mb-1">تاریخ تولد</p>
+                  <p className="font-medium text-foreground">{booking?.main_passenger_birthdate}</p>
                 </div>
               </div>
-            </div>
-          </Card>
+            </motion.div>
 
-          {/* فرم اطلاعات همراه */}
-          {totalSteps > 0 && (
-            <Card className="p-6 shadow-md border-0 overflow-hidden relative">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-10 -mt-10"></div>
-              <div className="relative">
-                <div className="flex items-center justify-between mb-6 border-b pb-4">
-                  <h2 className="text-2xl font-heading font-bold">
+            {/* Companion form */}
+            {totalSteps > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.15 }}
+                className="bg-card rounded-2xl p-7 border border-border shadow-card"
+              >
+                <div className="flex items-center justify-between mb-6 pb-4 border-b border-border">
+                  <h2 className="font-heading text-xl font-bold text-foreground">
                     اطلاعات همراه {currentStep + 1} از {totalSteps}
                   </h2>
-                  <div className="flex items-center space-x-2 space-x-reverse">
-                    <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">{currentStep}/{totalSteps}</span>
+                    <div className="w-24 h-1.5 bg-border rounded-full overflow-hidden">
                       <motion.div
-                        className="h-full bg-primary"
+                        className="h-full bg-primary rounded-full"
                         initial={{ width: 0 }}
                         animate={{ width: `${((currentStep + 1) / totalSteps) * 100}%` }}
-                        transition={{ duration: 0.3 }}
+                        transition={{ duration: 0.4, ease: "easeOut" }}
                       />
                     </div>
                   </div>
                 </div>
 
                 <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
@@ -245,13 +275,13 @@ export default function BookingStepTwo({ params }: BookingStepTwoProps) {
                           <FormItem>
                             <FormLabel>نام و نام خانوادگی</FormLabel>
                             <FormControl>
-                              <Input {...field} />
+                              <Input className="rounded-xl" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-                      
+
                       <FormField
                         control={form.control}
                         name="nationalId"
@@ -259,13 +289,13 @@ export default function BookingStepTwo({ params }: BookingStepTwoProps) {
                           <FormItem>
                             <FormLabel>کد ملی</FormLabel>
                             <FormControl>
-                              <Input {...field} />
+                              <Input className="rounded-xl" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-                      
+
                       <FormField
                         control={form.control}
                         name="relationship"
@@ -274,7 +304,7 @@ export default function BookingStepTwo({ params }: BookingStepTwoProps) {
                             <FormLabel>نسبت</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                               <FormControl>
-                                <SelectTrigger>
+                                <SelectTrigger className="rounded-xl">
                                   <SelectValue placeholder="انتخاب کنید" />
                                 </SelectTrigger>
                               </FormControl>
@@ -290,7 +320,7 @@ export default function BookingStepTwo({ params }: BookingStepTwoProps) {
                           </FormItem>
                         )}
                       />
-                      
+
                       <FormField
                         control={form.control}
                         name="birthdate"
@@ -298,7 +328,7 @@ export default function BookingStepTwo({ params }: BookingStepTwoProps) {
                           <FormItem>
                             <FormLabel>تاریخ تولد</FormLabel>
                             <FormControl>
-                              <Input placeholder="مثال: ۱۳۷۰/۰۴/۲۰" {...field} />
+                              <Input className="rounded-xl" placeholder="مثال: ۱۳۷۰/۰۴/۲۰" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -306,10 +336,11 @@ export default function BookingStepTwo({ params }: BookingStepTwoProps) {
                       />
                     </div>
 
-                    <div className="flex justify-between pt-4">
+                    <div className="flex justify-between pt-2">
                       <Button
                         type="button"
                         variant="outline"
+                        className="rounded-xl"
                         onClick={() => {
                           if (currentStep > 0) {
                             setCurrentStep(prev => prev - 1);
@@ -318,16 +349,15 @@ export default function BookingStepTwo({ params }: BookingStepTwoProps) {
                             navigate(`/booking/${bookingId}/step1`);
                           }
                         }}
-                        className="border-gray-300 hover:bg-gray-100 transition-all duration-300"
                       >
                         <ChevronRight className="ml-2 h-4 w-4" />
-                        {currentStep > 0 ? "مرحله قبل" : "بازگشت به مرحله قبل"}
+                        {currentStep > 0 ? "مرحله قبل" : "بازگشت"}
                       </Button>
-                      
-                      <Button 
+
+                      <Button
                         type="submit"
                         disabled={addCompanionMutation.isPending}
-                        className="bg-gradient-to-l from-primary-600 to-primary hover:opacity-90 transition-all shadow-md"
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-emerald-sm px-6"
                       >
                         {addCompanionMutation.isPending ? (
                           <>
@@ -346,81 +376,79 @@ export default function BookingStepTwo({ params }: BookingStepTwoProps) {
                     </div>
                   </form>
                 </Form>
+              </motion.div>
+            )}
+
+            {totalSteps === 0 && (
+              <div className="flex justify-end">
+                <Button
+                  onClick={() => navigate(`/booking/${bookingId}/step3`)}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-emerald-sm px-6"
+                >
+                  ادامه به مرحله بعد
+                  <ChevronLeft className="mr-2 h-4 w-4" />
+                </Button>
               </div>
-            </Card>
-          )}
+            )}
+          </div>
 
-          {/* دکمه ادامه برای حالت تک نفره */}
-          {totalSteps === 0 && (
-            <div className="flex justify-end">
-              <Button
-                onClick={() => navigate(`/booking/${bookingId}/step3`)}
-                className="bg-gradient-to-l from-primary-600 to-primary hover:opacity-90 transition-all shadow-md"
-              >
-                ادامه به مرحله بعد
-                <ChevronLeft className="mr-2 h-4 w-4" />
-              </Button>
-            </div>
-          )}
-        </div>
-
-        <div className="animate-slide-left delay-200">
-          <Card className="p-6 shadow-md border-0 overflow-hidden relative">
-            <div className="absolute top-0 left-0 w-40 h-40 bg-primary/5 rounded-full -ml-16 -mt-16"></div>
-            <div className="relative">
-              <h2 className="text-2xl font-heading font-bold mb-6 border-b pb-4 flex items-center">
-                <span className="ml-2 text-primary">•</span>
+          {/* Sidebar */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <div className="bg-card rounded-2xl p-7 border border-border shadow-card sticky top-24 space-y-4">
+              <h2 className="font-heading text-xl font-bold text-foreground pb-4 border-b border-border flex items-center gap-2">
+                <div className="w-1.5 h-5 bg-gradient-to-b from-primary to-gold-500 rounded-full" />
                 راهنمای ثبت اطلاعات
               </h2>
-              
-              <div className="space-y-6">
-                <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                  <h3 className="font-bold text-blue-700 mb-2 flex items-center">
-                    <UserPlus className="ml-2 h-5 w-5" />
-                    نکات مهم
-                  </h3>
-                  <ul className="text-blue-600 text-sm space-y-2">
-                    <li className="flex items-start">
-                      <span className="inline-block w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 ml-2"></span>
-                      <span>اطلاعات باید دقیقاً مطابق با مدارک شناسایی باشد.</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="inline-block w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 ml-2"></span>
-                      <span>کد ملی باید ۱۰ رقم باشد.</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="inline-block w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 ml-2"></span>
-                      <span>تاریخ تولد را به فرمت شمسی وارد کنید.</span>
-                    </li>
-                  </ul>
-                </div>
 
-                <div className="bg-green-50 p-4 rounded-lg border border-green-100">
-                  <h3 className="font-bold text-green-700 mb-2 flex items-center">
-                    <Users className="ml-2 h-5 w-5" />
-                    وضعیت ثبت
-                  </h3>
-                  <div className="text-green-600 text-sm">
-                    <p className="mb-2">تعداد کل همراهان: {totalSteps} نفر</p>
-                    <p>تعداد ثبت شده: {currentStep} نفر</p>
-                  </div>
-                </div>
+              <div className="bg-primary/8 border border-primary/15 rounded-xl p-4">
+                <h3 className="font-semibold text-primary text-sm mb-2 flex items-center gap-2">
+                  <UserPlus className="h-4 w-4" />
+                  نکات مهم
+                </h3>
+                <ul className="text-primary/75 text-xs space-y-2">
+                  <li className="flex items-start gap-2">
+                    <span className="inline-block w-1 h-1 rounded-full bg-primary mt-1.5 shrink-0" />
+                    اطلاعات باید دقیقاً مطابق با مدارک شناسایی باشد.
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="inline-block w-1 h-1 rounded-full bg-primary mt-1.5 shrink-0" />
+                    کد ملی باید ۱۰ رقم باشد.
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="inline-block w-1 h-1 rounded-full bg-primary mt-1.5 shrink-0" />
+                    تاریخ تولد را به فرمت شمسی وارد کنید.
+                  </li>
+                </ul>
+              </div>
 
-                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
-                  <h3 className="font-bold text-yellow-700 mb-2 flex items-center">
-                    <UserMinus className="ml-2 h-5 w-5" />
-                    توجه
-                  </h3>
-                  <p className="text-yellow-600 text-sm">
-                    در صورت نیاز به تغییر اطلاعات، می‌توانید در مراحل بعدی آن را ویرایش کنید.
-                  </p>
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                <h3 className="font-semibold text-emerald-700 text-sm mb-2 flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  وضعیت ثبت
+                </h3>
+                <div className="text-emerald-600 text-xs space-y-1">
+                  <p>تعداد کل همراهان: {totalSteps} نفر</p>
+                  <p>تعداد ثبت شده: {currentStep} نفر</p>
                 </div>
               </div>
+
+              <div className="bg-gold-50 border border-gold-200 rounded-xl p-4">
+                <h3 className="font-semibold text-gold-700 text-sm mb-2 flex items-center gap-2">
+                  <UserMinus className="h-4 w-4" />
+                  توجه
+                </h3>
+                <p className="text-gold-600 text-xs">
+                  در صورت نیاز به تغییر اطلاعات، می‌توانید در مراحل بعدی آن را ویرایش کنید.
+                </p>
+              </div>
             </div>
-          </Card>
+          </motion.div>
         </div>
       </div>
-    </div>
     </div>
   );
 }

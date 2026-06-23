@@ -8,8 +8,9 @@ import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/auth";
 import { AuthModal } from "@/components/auth";
-import { Loader2, ArrowRight, Calendar, Users, Car, MapPin } from "lucide-react";
+import { Loader2, ArrowRight, Calendar, Users, Car, MapPin, ChevronLeft } from "lucide-react";
 import Header from "@/components/Header";
+import { motion } from "framer-motion";
 import {
   Form,
   FormControl,
@@ -20,7 +21,6 @@ import {
 } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { djangoURL } from "@/App";
@@ -45,6 +45,40 @@ interface BookingStepOneProps {
   };
 }
 
+function StepIndicator({ current }: { current: 1 | 2 | 3 }) {
+  const steps = [
+    { n: "۱", label: "اطلاعات سرپرست" },
+    { n: "۲", label: "همراهان" },
+    { n: "۳", label: "تایید نهایی" },
+  ];
+  return (
+    <div className="flex items-center gap-1 mt-5">
+      {steps.map((s, i) => {
+        const stepNum = i + 1;
+        const isDone = stepNum < current;
+        const isActive = stepNum === current;
+        return (
+          <div key={i} className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-colors ${
+                isActive ? "bg-primary text-white border-primary" :
+                isDone ? "bg-primary/20 text-primary border-primary/40" :
+                "bg-transparent text-muted-foreground/40 border-border"
+              }`}>
+                {isDone ? "✓" : s.n}
+              </div>
+              <span className={`text-xs hidden sm:block ${isActive ? "text-primary font-semibold" : "text-muted-foreground/40"}`}>
+                {s.label}
+              </span>
+            </div>
+            {i < 2 && <div className={`w-6 md:w-12 h-px mx-1 ${isDone ? "bg-primary/40" : "bg-border"}`} />}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function BookingStepOne({ params }: BookingStepOneProps) {
   const caravanId = parseInt(params.caravanId);
   const [, navigate] = useLocation();
@@ -52,7 +86,6 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
 
-  // تعریف اینترفیس کاروان
   interface Caravan {
     id: number;
     name: string;
@@ -67,8 +100,7 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
     manager: string;
     description?: string;
   }
-  
-  // دریافت اطلاعات کاروان
+
   const { data: caravan, isLoading: isLoadingCaravan } = useQuery<Caravan>({
     queryKey: ['/api/caravans', caravanId],
     queryFn: async () => {
@@ -78,7 +110,6 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
     enabled: !isNaN(caravanId),
   });
 
-  // فرم مرحله اول رزرو
   const form = useForm<BookingStep1FormValues>({
     resolver: zodResolver(bookingStep1Schema),
     defaultValues: {
@@ -98,7 +129,6 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
         const cookies = document.cookie.split(';');
         for (let i = 0; i < cookies.length; i++) {
             const cookie = cookies[i].trim();
-            // Does this cookie string begin with the name we want?
             if (cookie.substring(0, name.length + 1) === (name + '=')) {
                 cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
                 break;
@@ -106,9 +136,8 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
         }
     }
     return cookieValue;
-}
+  }
 
-  // ارسال فرم مرحله اول
   const bookingStep1Mutation = useMutation({
     mutationFn: async (data: BookingStep1FormValues) => {
       const response = await fetch(djangoURL + "/api/bookings/step1", {
@@ -137,8 +166,6 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
         title: "مرحله اول رزرو",
         description: "اطلاعات مرحله اول با موفقیت ثبت شد.",
       });
-      
-      // هدایت به مرحله دوم
       navigate(`/booking/${data.bookingId}/step2`);
     },
     onError: (error: Error) => {
@@ -150,48 +177,39 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
     },
   });
 
-  // ارسال فرم
   const onSubmit = (data: BookingStep1FormValues) => {
     if (!isAuthenticated) {
-      // اگر کاربر وارد نشده، مودال احراز هویت نمایش داده شود
       setShowAuthModal(true);
       return;
     }
-    
-    // ارسال فرم
     console.log(data);
     bookingStep1Mutation.mutate(data);
-
   };
 
-  // هندلر بستن مودال احراز هویت
   const handleAuthModalClose = () => {
     setShowAuthModal(false);
   };
 
-  // اگر در حال بارگذاری است، اسکلتون نمایش می‌دهیم
   if (isLoadingCaravan) {
     return (
-      <div className="container py-10">
-        <div className="flex flex-col items-center justify-center">
-          <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-          <p className="text-gray-500">در حال بارگذاری اطلاعات کاروان...</p>
+      <div className="bg-background min-h-screen">
+        <Header />
+        <div className="container py-10 pt-32 flex flex-col items-center justify-center min-h-[50vh]">
+          <div className="w-12 h-12 rounded-full border-4 border-primary/20 border-t-primary animate-spin mb-4" />
+          <p className="text-muted-foreground">در حال بارگذاری اطلاعات کاروان...</p>
         </div>
       </div>
     );
   }
 
-  // اگر کاروان یافت نشد
   if (!caravan) {
     return (
-      <div className="container py-10">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">کاروان یافت نشد</h2>
-          <p className="text-gray-500 mb-6">متأسفانه کاروان موردنظر شما یافت نشد.</p>
-          <Button 
-            variant="outline" 
-            onClick={() => navigate("/")}
-          >
+      <div className="bg-background min-h-screen">
+        <Header />
+        <div className="container py-10 pt-32 text-center">
+          <h2 className="font-heading text-2xl font-bold text-foreground mb-4">کاروان یافت نشد</h2>
+          <p className="text-muted-foreground mb-6">متأسفانه کاروان موردنظر شما یافت نشد.</p>
+          <Button variant="outline" onClick={() => navigate("/")}>
             بازگشت به صفحه اصلی
           </Button>
         </div>
@@ -200,39 +218,48 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen">
-    <Header />
-    <div className="container py-12 pt-28 bg-gray-50/30">
-      <div className="mb-8 animate-fade-in">
-        <Button 
-          variant="ghost"
-          size="sm"
-          className="mb-4 hover:scale-105 transition-transform"
-          onClick={() => navigate("/")}
+    <div className="bg-background min-h-screen">
+      <Header />
+      <div className="container py-12 pt-28">
+        {/* Page header */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="mb-10"
         >
-          <ArrowRight className="ml-2 h-4 w-4" />
-          بازگشت به صفحه اصلی
-        </Button>
-        <h1 className="text-3xl md:text-4xl font-bold font-heading bg-gradient-to-l from-primary to-primary-600 bg-clip-text text-transparent">
-          رزرو کاروان
-        </h1>
-        <div className="flex items-center mt-3">
-          <div className="h-2 w-2 rounded-full bg-primary"></div>
-          <div className="h-[2px] w-10 bg-primary"></div>
-          <div className="px-3 py-1 rounded-full bg-primary text-white text-sm">
-            مرحله ۱ از ۴: انتخاب تعداد مسافرین
-          </div>
-        </div>
-      </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mb-5 text-muted-foreground hover:text-foreground"
+            onClick={() => navigate("/")}
+          >
+            <ArrowRight className="ml-2 h-4 w-4" />
+            بازگشت به صفحه اصلی
+          </Button>
+          <span className="inline-flex items-center gap-2 bg-primary/8 text-primary text-xs font-semibold px-4 py-1.5 rounded-full mb-3">
+            <span className="w-1.5 h-1.5 rounded-full bg-gold-500" />
+            فرایند رزرو کاروان
+          </span>
+          <h1 className="font-heading text-display-sm text-foreground">رزرو کاروان</h1>
+          <StepIndicator current={1} />
+        </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 animate-slide-up delay-100">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <Card className="p-6 shadow-md border-0 overflow-hidden relative">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-10 -mt-10"></div>
-                <div className="relative">
-                  <h2 className="text-2xl font-heading font-bold mb-6 border-b pb-4">اطلاعات مسافرین</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Main form */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="md:col-span-2"
+          >
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                {/* Passenger info card */}
+                <div className="bg-card rounded-2xl p-7 border border-border shadow-card">
+                  <h2 className="font-heading text-xl font-bold text-foreground mb-6 pb-4 border-b border-border">
+                    اطلاعات مسافرین
+                  </h2>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     <FormField
@@ -242,13 +269,13 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
                         <FormItem>
                           <FormLabel>نام و نام خانوادگی سرپرست</FormLabel>
                           <FormControl>
-                            <Input {...field} />
+                            <Input className="rounded-xl" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                    
+
                     <FormField
                       control={form.control}
                       name="mainPassengerId"
@@ -256,13 +283,13 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
                         <FormItem>
                           <FormLabel>کد ملی سرپرست</FormLabel>
                           <FormControl>
-                            <Input {...field} />
+                            <Input className="rounded-xl" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                    
+
                     <FormField
                       control={form.control}
                       name="mainPassengerPhone"
@@ -270,13 +297,13 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
                         <FormItem>
                           <FormLabel>شماره موبایل سرپرست</FormLabel>
                           <FormControl>
-                            <Input {...field} />
+                            <Input className="rounded-xl" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                    
+
                     <FormField
                       control={form.control}
                       name="mainPassengerBirthdate"
@@ -284,7 +311,7 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
                         <FormItem>
                           <FormLabel>تاریخ تولد سرپرست</FormLabel>
                           <FormControl>
-                            <Input placeholder="مثال: ۱۳۶۵/۰۶/۱۰" {...field} />
+                            <Input className="rounded-xl" placeholder="مثال: ۱۳۶۵/۰۶/۱۰" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -297,30 +324,25 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
                     name="passengerCount"
                     render={({ field }) => (
                       <FormItem className="mb-6">
-                        <FormLabel className="text-lg mb-3 block">تعداد مسافرین</FormLabel>
+                        <FormLabel className="text-base mb-3 block font-semibold">تعداد مسافرین</FormLabel>
                         <FormControl>
                           <RadioGroup
                             onValueChange={(value) => field.onChange(parseInt(value))}
                             defaultValue={field.value.toString()}
-                            className="flex flex-col space-y-3"
+                            className="flex flex-col space-y-2.5"
                           >
-                            {[1, 2, 3, 4, 5].map((count, index) => (
-                              <div 
-                                key={count} 
-                                className={`animate-slide-right delay-${(index + 1) * 100} flex items-center space-x-2 space-x-reverse`}
-                              >
+                            {[1, 2, 3, 4, 5].map((count) => (
+                              <div key={count} className="flex items-center gap-3">
                                 <RadioGroupItem value={count.toString()} id={`count-${count}`} />
                                 <label
                                   htmlFor={`count-${count}`}
-                                  className="flex flex-1 cursor-pointer items-center rounded-md border border-gray-200 p-4 hover:border-primary hover:bg-primary/5 transition-all duration-300"
+                                  className="flex flex-1 cursor-pointer items-center rounded-xl border border-border p-4 hover:border-primary hover:bg-primary/8 transition-all duration-200"
                                 >
-                                  <Users className="ml-3 h-5 w-5 text-primary-600" />
+                                  <Users className="ml-3 h-4 w-4 text-primary shrink-0" />
                                   <div>
-                                    <p className="font-medium">{count} نفر</p>
-                                    <p className="text-gray-500 text-sm">
-                                      {count === 1 
-                                        ? "فقط خودم" 
-                                        : `خودم به همراه ${count - 1} نفر همراه`}
+                                    <p className="font-medium text-sm">{count} نفر</p>
+                                    <p className="text-muted-foreground text-xs">
+                                      {count === 1 ? "فقط خودم" : `خودم به همراه ${count - 1} نفر همراه`}
                                     </p>
                                   </div>
                                 </label>
@@ -333,173 +355,163 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
                     )}
                   />
 
-                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-6 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-20 h-20 bg-blue-100/50 rounded-full -mr-5 -mt-5"></div>
-                    <div className="relative">
-                      <p className="text-blue-700 text-sm leading-6">
-                        اطلاعات همراهان در مرحله بعد دریافت خواهد شد. لطفا تعداد دقیق مسافرین را وارد کنید.
-                      </p>
-                    </div>
+                  <div className="bg-primary/8 border border-primary/15 rounded-xl p-4 mb-6">
+                    <p className="text-primary/80 text-sm leading-6">
+                      اطلاعات همراهان در مرحله بعد دریافت خواهد شد. لطفا تعداد دقیق مسافرین را وارد کنید.
+                    </p>
                   </div>
 
-                  <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-20 h-20 bg-gray-100/50 rounded-full -ml-5 -mt-5"></div>
-                    <div className="relative">
-                      <h3 className="font-bold text-lg mb-4 font-heading">شرایط و قوانین رزرو</h3>
-                      <ul className="text-gray-600 text-sm space-y-3 mb-6">
-                        <li className="flex items-start">
-                          <span className="inline-block w-1.5 h-1.5 bg-primary rounded-full mt-2 ml-2"></span>
-                          <span>همراه داشتن شناسنامه، کارت ملی و گذرنامه معتبر الزامی است.</span>
+                  <div className="bg-cream-100 border border-border rounded-xl p-6">
+                    <h3 className="font-heading font-bold text-lg text-foreground mb-4">شرایط و قوانین رزرو</h3>
+                    <ul className="text-muted-foreground text-sm space-y-3 mb-6">
+                      {[
+                        "همراه داشتن شناسنامه، کارت ملی و گذرنامه معتبر الزامی است.",
+                        "در صورت انصراف تا ۱۴ روز قبل از سفر، ۸۰٪ مبلغ عودت داده می‌شود.",
+                        "مسئولیت صحت اطلاعات وارد شده به عهده مسافر است.",
+                        "رعایت کلیه قوانین و مقررات کشور عراق الزامی است.",
+                        "هزینه بیمه مسافرتی در قیمت کاروان لحاظ شده است.",
+                      ].map((item, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
+                          <span>{item}</span>
                         </li>
-                        <li className="flex items-start">
-                          <span className="inline-block w-1.5 h-1.5 bg-primary rounded-full mt-2 ml-2"></span>
-                          <span>در صورت انصراف تا ۱۴ روز قبل از سفر، ۸۰٪ مبلغ عودت داده می‌شود.</span>
-                        </li>
-                        <li className="flex items-start">
-                          <span className="inline-block w-1.5 h-1.5 bg-primary rounded-full mt-2 ml-2"></span>
-                          <span>مسئولیت صحت اطلاعات وارد شده به عهده مسافر است.</span>
-                        </li>
-                        <li className="flex items-start">
-                          <span className="inline-block w-1.5 h-1.5 bg-primary rounded-full mt-2 ml-2"></span>
-                          <span>رعایت کلیه قوانین و مقررات کشور عراق الزامی است.</span>
-                        </li>
-                        <li className="flex items-start">
-                          <span className="inline-block w-1.5 h-1.5 bg-primary rounded-full mt-2 ml-2"></span>
-                          <span>هزینه بیمه مسافرتی در قیمت کاروان لحاظ شده است.</span>
-                        </li>
-                      </ul>
+                      ))}
+                    </ul>
 
-                      <FormField
-                        control={form.control}
-                        name="termsAccepted"
-                        render={({ field }) => (
-                          <FormItem className="flex items-start space-x-2 space-x-reverse animate-pulse">
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                                className="border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
-                              />
-                            </FormControl>
-                            <div className="space-y-1 leading-none">
-                              <FormLabel className="font-normal">
-                                شرایط و قوانین رزرو را مطالعه کرده و می‌پذیرم
-                              </FormLabel>
-                              <FormMessage />
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
+                    <FormField
+                      control={form.control}
+                      name="termsAccepted"
+                      render={({ field }) => (
+                        <FormItem className="flex items-start gap-3">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              className="border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground mt-0.5"
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel className="font-normal text-sm cursor-pointer">
+                              شرایط و قوانین رزرو را مطالعه کرده و می‌پذیرم
+                            </FormLabel>
+                            <FormMessage />
+                          </div>
+                        </FormItem>
+                      )}
+                    />
                   </div>
                 </div>
-              </Card>
 
-              <div className="flex justify-between animate-slide-up delay-500">
-                <Button
-                  variant="outline"
-                  onClick={() => navigate("/")}
-                  className="border-gray-300 hover:bg-gray-100 transition-all duration-300"
-                >
-                  انصراف
-                </Button>
-                
-                <Button 
-                  type="submit"
-                  disabled={bookingStep1Mutation.isPending}
-                  className="bg-gradient-to-l from-primary-600 to-primary hover:opacity-90 transition-all shadow-md"
-                >
-                  {bookingStep1Mutation.isPending ? (
-                    <>
-                      <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-                      در حال ثبت...
-                    </>
-                  ) : (
-                    "ادامه و ثبت اطلاعات مسافرین"
-                  )}
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </div>
+                <div className="flex justify-between">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => navigate("/")}
+                    className="rounded-xl"
+                  >
+                    انصراف
+                  </Button>
 
-        <div className="animate-slide-left delay-200">
-          <Card className="p-6 shadow-md border-0 overflow-hidden relative">
-            <div className="absolute top-0 left-0 w-40 h-40 bg-primary/5 rounded-full -ml-16 -mt-16"></div>
-            <div className="relative">
-              <h2 className="text-2xl font-heading font-bold mb-6 border-b pb-4 flex items-center">
-                <span className="ml-2 text-primary">•</span>
+                  <Button
+                    type="submit"
+                    disabled={bookingStep1Mutation.isPending}
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-emerald-sm px-6"
+                  >
+                    {bookingStep1Mutation.isPending ? (
+                      <>
+                        <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                        در حال ثبت...
+                      </>
+                    ) : (
+                      <>
+                        ادامه و ثبت اطلاعات مسافرین
+                        <ChevronLeft className="mr-2 h-4 w-4" />
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </motion.div>
+
+          {/* Sidebar */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <div className="bg-card rounded-2xl p-7 border border-border shadow-card sticky top-24">
+              <h2 className="font-heading text-xl font-bold text-foreground mb-6 pb-4 border-b border-border flex items-center gap-2">
+                <div className="w-1.5 h-5 bg-gradient-to-b from-primary to-gold-500 rounded-full" />
                 اطلاعات کاروان
               </h2>
-              
-              <div className="space-y-6">
-                <div className="flex animate-fade-in">
-                  <div className="w-16 h-16 bg-gradient-to-br from-primary-300 to-primary-600 rounded-lg flex items-center justify-center text-white shadow-md">
-                    <Calendar className="h-8 w-8" strokeWidth={1.5} />
+
+              <div className="space-y-5">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
+                    <Calendar className="h-6 w-6 text-primary" strokeWidth={1.5} />
                   </div>
-                  <div className="mr-4">
-                    <h3 className="font-bold text-xl font-heading">{caravan.name}</h3>
-                    <p className="text-gray-500">
-                      تاریخ حرکت: {caravan.departure_date} - {caravan.duration} روزه
+                  <div>
+                    <h3 className="font-heading font-bold text-foreground">{caravan.name}</h3>
+                    <p className="text-muted-foreground text-sm mt-0.5">
+                      تاریخ حرکت: {caravan.departure_date} — {caravan.duration} روزه
                     </p>
                   </div>
                 </div>
-                
-                <div className="grid grid-cols-1 gap-3 bg-gray-50 p-4 rounded-lg">
-                  <div className="flex items-center animate-slide-right delay-300">
-                    <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center ml-3">
-                      <Car className="h-4 w-4 text-primary" />
+
+                <div className="grid gap-2.5 bg-cream-100 rounded-xl p-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 bg-primary/10 rounded-lg flex items-center justify-center">
+                      <Car className="h-3.5 w-3.5 text-primary" />
                     </div>
-                    <span className="text-gray-700">{caravan.transportation_type}</span>
+                    <span className="text-foreground/80 text-sm">{caravan.transportation_type}</span>
                   </div>
-                  
-                  <div className="flex items-center animate-slide-right delay-400">
-                    <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center ml-3">
-                      <MapPin className="h-4 w-4 text-primary" />
+
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 bg-primary/10 rounded-lg flex items-center justify-center">
+                      <MapPin className="h-3.5 w-3.5 text-primary" />
                     </div>
-                    <span className="text-gray-700">
-                      {caravan.accommodation_type} - {caravan.accommodation_distance} متر تا حرم
+                    <span className="text-foreground/80 text-sm">
+                      {caravan.accommodation_type} — {caravan.accommodation_distance} متر تا حرم
                     </span>
                   </div>
-                  
-                  <div className="flex items-center animate-slide-right delay-500">
-                    <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center ml-3">
-                      <Users className="h-4 w-4 text-primary" />
+
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 bg-primary/10 rounded-lg flex items-center justify-center">
+                      <Users className="h-3.5 w-3.5 text-primary" />
                     </div>
-                    <span className="text-gray-700">
+                    <span className="text-foreground/80 text-sm">
                       ظرفیت باقیمانده: {caravan.remaining_capacity} نفر
                     </span>
                   </div>
                 </div>
-                
-                <div className="flex flex-col items-center justify-center bg-primary/10 p-6 rounded-lg animate-pulse">
-                  <p className="text-gray-500 text-sm mb-2">هزینه سفر برای هر نفر</p>
-                  <p className="text-3xl font-bold font-heading text-primary-600">
+
+                <div className="flex flex-col items-center justify-center bg-primary/8 border border-primary/15 rounded-xl p-6">
+                  <p className="text-muted-foreground text-xs mb-2">هزینه سفر برای هر نفر</p>
+                  <p className="font-heading text-2xl font-bold text-primary">
                     {new Intl.NumberFormat('fa-IR').format(caravan.price)}
-                    <span className="text-lg mr-1">تومان</span>
+                    <span className="text-base font-normal mr-1">تومان</span>
                   </p>
                 </div>
-                
+
                 {caravan.description && (
-                  <div className="mt-4 pt-4 border-t border-gray-100 animate-fade-in delay-500">
-                    <h4 className="font-bold mb-2 font-heading">توضیحات کاروان</h4>
-                    <p className="text-gray-600 text-sm leading-6">{caravan.description}</p>
+                  <div className="pt-4 border-t border-border">
+                    <h4 className="font-heading font-bold text-sm text-foreground mb-2">توضیحات کاروان</h4>
+                    <p className="text-muted-foreground text-sm leading-relaxed">{caravan.description}</p>
                   </div>
                 )}
               </div>
             </div>
-          </Card>
+          </motion.div>
         </div>
-      </div>
 
-      {/* مودال احراز هویت */}
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={handleAuthModalClose}
-        title="ورود به حساب کاربری"
-        description="برای ادامه فرایند رزرو، لطفا وارد حساب کاربری خود شوید یا ثبت‌نام کنید."
-      />
-    </div>
+        <AuthModal
+          isOpen={showAuthModal}
+          onClose={handleAuthModalClose}
+          title="ورود به حساب کاربری"
+          description="برای ادامه فرایند رزرو، لطفا وارد حساب کاربری خود شوید یا ثبت‌نام کنید."
+        />
+      </div>
     </div>
   );
 }

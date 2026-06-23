@@ -1,7 +1,9 @@
 import { useState, FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Calendar, Clock, Hotel, Search, MapPin, DollarSign, Users, Plane, Bus, PackageCheck, Star, ChevronLeft } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Calendar, Clock, Hotel, Search, MapPin, DollarSign,
+  Users, Plane, Bus, PackageCheck, Star, ChevronLeft, SlidersHorizontal,
+} from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -39,9 +41,9 @@ interface FilterInterface {
   price_range: string;
 }
 
-export const fetchCaravans = async (filters: FilterInterface = {
-  departure_date: "", duration: "", transportation_type: "", price_range: "",
-}): Promise<Caravan[]> => {
+export const fetchCaravans = async (
+  filters: FilterInterface = { departure_date: "", duration: "", transportation_type: "", price_range: "" }
+): Promise<Caravan[]> => {
   const params = new URLSearchParams();
   if (filters.departure_date) params.append("departure_date", filters.departure_date);
   if (filters.duration) params.append("duration", filters.duration);
@@ -52,10 +54,10 @@ export const fetchCaravans = async (filters: FilterInterface = {
   return response.json();
 };
 
-const transportConfig: Record<string, { label: string; icon: typeof Plane; color: string; bg: string }> = {
-  هوایی: { label: "هوایی", icon: Plane, color: "text-sky-600", bg: "bg-sky-100" },
-  زمینی: { label: "زمینی", icon: Bus, color: "text-emerald-600", bg: "bg-emerald-100" },
-  ترکیبی: { label: "ترکیبی", icon: PackageCheck, color: "text-violet-600", bg: "bg-violet-100" },
+const transportConfig: Record<string, { label: string; icon: typeof Plane; color: string; bg: string; border: string }> = {
+  هوایی:  { label: "هوایی",  icon: Plane,        color: "text-sky-600",    bg: "bg-sky-50",    border: "border-sky-100"    },
+  زمینی:  { label: "زمینی",  icon: Bus,          color: "text-primary",   bg: "bg-primary/8", border: "border-primary/12" },
+  ترکیبی: { label: "ترکیبی", icon: PackageCheck, color: "text-violet-600", bg: "bg-violet-50", border: "border-violet-100" },
 };
 
 const formatPrice = (price: number) =>
@@ -64,30 +66,46 @@ const formatPrice = (price: number) =>
 const cardVariants = {
   hidden: { opacity: 0, y: 30 },
   visible: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.5, delay: i * 0.1, ease: "easeOut" },
+    opacity: 1, y: 0,
+    transition: { duration: 0.55, delay: i * 0.09, ease: [0.22, 1, 0.36, 1] },
   }),
 };
 
 function CaravanCardSkeleton() {
   return (
-    <Card className="overflow-hidden border-0 shadow-md">
-      <Skeleton className="h-52 w-full" />
-      <CardContent className="p-6 space-y-3">
-        <Skeleton className="h-6 w-3/4" />
-        <Skeleton className="h-4 w-1/2" />
-        <div className="space-y-2 pt-2">
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-3/4" />
+    <div className="bg-card rounded-2xl overflow-hidden shadow-card border border-border">
+      <Skeleton className="h-52 w-full rounded-none" />
+      <div className="p-5 space-y-3">
+        <Skeleton className="h-6 w-3/4 rounded-lg" />
+        <Skeleton className="h-4 w-1/2 rounded-lg" />
+        <div className="space-y-2 pt-1">
+          {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-4 w-full rounded-lg" />)}
         </div>
-        <div className="flex justify-between items-center pt-3">
-          <Skeleton className="h-8 w-28" />
-          <Skeleton className="h-10 w-32" />
+        <div className="flex justify-between items-center pt-2">
+          <Skeleton className="h-8 w-28 rounded-xl" />
+          <Skeleton className="h-10 w-32 rounded-xl" />
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
+  );
+}
+
+/* Availability indicator */
+function CapacityBadge({ remaining, capacity }: { remaining: number; capacity: number }) {
+  const pct = capacity > 0 ? (remaining / capacity) * 100 : 0;
+  const color = pct > 50 ? "bg-emerald-500" : pct > 20 ? "bg-amber-500" : "bg-red-500";
+  if (remaining <= 0) {
+    return (
+      <span className="text-xs font-bold text-red-600 bg-red-50 border border-red-100 px-2.5 py-1 rounded-full">
+        تکمیل ظرفیت
+      </span>
+    );
+  }
+  return (
+    <div className="flex items-center gap-1.5 bg-white/90 backdrop-blur-sm px-2.5 py-1.5 rounded-full">
+      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${color}`} />
+      <span className="text-xs font-semibold text-foreground/80">{remaining} جای خالی</span>
+    </div>
   );
 }
 
@@ -100,6 +118,7 @@ export default function SearchAndFilter() {
   const { isAuthenticated } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [pendingCaravanId, setPendingCaravanId] = useState<number | null>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
 
   const { data: caravans, isLoading, isError, refetch } = useQuery<Caravan[]>({
     queryKey: ["/api/caravans", filters],
@@ -113,7 +132,7 @@ export default function SearchAndFilter() {
 
   const redirectToBooking = (caravan: Caravan) => {
     if (caravan.remaining_capacity <= 0) {
-      toast({ title: "ظرفیت تکمیل", description: "متأسفانه ظرفیت این کاروان تکمیل شده است.", variant: "destructive" });
+      toast({ title: "ظرفیت تکمیل", description: "ظرفیت این کاروان تکمیل شده است.", variant: "destructive" });
       return;
     }
     if (!isAuthenticated) {
@@ -133,134 +152,204 @@ export default function SearchAndFilter() {
   };
 
   const transportInfo = (type: string) =>
-    transportConfig[type] || { label: type, icon: PackageCheck, color: "text-gray-600", bg: "bg-gray-100" };
+    transportConfig[type] || { label: type, icon: PackageCheck, color: "text-muted-foreground", bg: "bg-muted", border: "border-border" };
+
+  const hasActiveFilters = Object.values(filters).some((v) => v !== "");
 
   return (
-    <section id="caravans" className="py-20 bg-gradient-to-b from-white to-gray-50">
-      <div className="container mx-auto px-4">
-        {/* Section Header */}
+    <section id="caravans" className="py-24 bg-gradient-to-b from-background to-cream-200 relative overflow-hidden">
+      {/* Section geometric bg */}
+      <div className="absolute inset-0 bg-geometric opacity-30 pointer-events-none" />
+
+      <div className="container mx-auto px-4 relative">
+        {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 28 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.7 }}
-          className="text-center mb-12"
+          className="text-center mb-14"
         >
-          <span className="inline-block bg-primary/10 text-primary text-sm font-semibold px-4 py-1.5 rounded-full mb-4">
+          <span className="inline-flex items-center gap-2 bg-primary/8 text-primary text-xs font-semibold px-4 py-1.5 rounded-full mb-5 tracking-wide">
+            <span className="w-1.5 h-1.5 rounded-full bg-gold-500" />
             رزرو آنلاین
           </span>
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            جستجو و رزرو کاروان
-          </h2>
-          <p className="text-gray-500 max-w-xl mx-auto">
-            کاروان مورد نظر خود را جستجو کنید و با چند کلیک ساده، سفر معنوی خود را رزرو نمایید.
+          <h2 className="font-heading text-display-sm text-foreground mb-4">کاروان‌های زیارتی</h2>
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="h-px w-12 bg-gradient-to-r from-transparent to-gold-400/60" />
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M8 0L10 6L16 8L10 10L8 16L6 10L0 8L6 6Z" fill="hsl(42 60% 52%)" opacity="0.8" />
+            </svg>
+            <div className="h-px w-12 bg-gradient-to-l from-transparent to-gold-400/60" />
+          </div>
+          <p className="text-muted-foreground max-w-xl mx-auto text-sm leading-relaxed">
+            کاروان مورد نظر خود را از میان بهترین کاروان‌های معتمد انتخاب و با چند کلیک ساده رزرو کنید.
           </p>
         </motion.div>
 
-        {/* Search Box */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="bg-white p-6 md:p-8 rounded-2xl shadow-lg mb-12 border border-gray-100 relative overflow-hidden"
-        >
-          <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 rounded-full -mt-24 -mr-24 pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-36 h-36 bg-emerald-50 rounded-full -mb-18 -ml-18 pointer-events-none" />
-
-          <form
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5 relative"
-            onSubmit={handleSearch}
+        {/* Filter toggle (mobile) */}
+        <div className="flex items-center justify-between mb-5 md:hidden">
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setFilterOpen(!filterOpen)}
+            className="flex items-center gap-2 bg-card border border-border px-4 py-2.5 rounded-xl text-sm font-medium shadow-card text-foreground/80"
           >
-            <div>
-              <Label className="mb-2 font-medium flex items-center text-gray-700 text-sm">
-                <Calendar className="ml-1.5 h-3.5 w-3.5 text-primary" />
-                تاریخ حرکت
-              </Label>
-              <Input
-                type="text"
-                placeholder="مثال: 1403-05-01"
-                value={filters.departure_date}
-                onChange={(e) => handleFilterChange("departure_date", e.target.value)}
-                className="border-gray-200 focus:border-primary focus:ring-1 focus:ring-primary/30 rounded-xl h-11"
-              />
-            </div>
+            <SlidersHorizontal className="h-4 w-4 text-primary" />
+            فیلتر جستجو
+            {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-gold-500" />}
+          </motion.button>
+          {caravans && (
+            <span className="bg-primary/10 text-primary text-xs font-semibold px-3 py-1.5 rounded-full">
+              {caravans.length} کاروان
+            </span>
+          )}
+        </div>
 
-            <div>
-              <Label className="mb-2 font-medium flex items-center text-gray-700 text-sm">
-                <Clock className="ml-1.5 h-3.5 w-3.5 text-primary" />
-                مدت سفر
-              </Label>
-              <Select value={filters.duration} onValueChange={(v) => handleFilterChange("duration", v)}>
-                <SelectTrigger className="border-gray-200 focus:border-primary rounded-xl h-11">
-                  <SelectValue placeholder="همه" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">همه</SelectItem>
-                  <SelectItem value="7">۷ روزه</SelectItem>
-                  <SelectItem value="10">۱۰ روزه</SelectItem>
-                  <SelectItem value="14">۱۴ روزه</SelectItem>
-                  <SelectItem value="21">۲۱ روزه</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+        {/* Mobile filter panel (animated) */}
+        <AnimatePresence>
+          {filterOpen && (
+            <motion.div
+              key="mobile-filter"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.35, ease: "easeInOut" }}
+              className="md:hidden overflow-hidden mb-6"
+            >
+              <div className="bg-card rounded-2xl border border-border shadow-card p-5">
+                <form className="grid grid-cols-1 gap-4" onSubmit={handleSearch}>
+                  <div>
+                    <Label className="mb-2 font-medium flex items-center text-foreground/75 text-xs gap-1.5">
+                      <Calendar className="h-3.5 w-3.5 text-primary" />تاریخ حرکت
+                    </Label>
+                    <Input type="text" placeholder="مثال: ۱۴۰۳-۰۵-۰۱" value={filters.departure_date}
+                      onChange={(e) => handleFilterChange("departure_date", e.target.value)}
+                      className="border-border rounded-xl h-11 text-sm bg-background" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Select value={filters.duration} onValueChange={(v) => handleFilterChange("duration", v)}>
+                      <SelectTrigger className="border-border rounded-xl h-11 text-sm bg-background"><SelectValue placeholder="مدت سفر" /></SelectTrigger>
+                      <SelectContent><SelectItem value="all">همه</SelectItem><SelectItem value="7">۷ روزه</SelectItem><SelectItem value="10">۱۰ روزه</SelectItem><SelectItem value="14">۱۴ روزه</SelectItem></SelectContent>
+                    </Select>
+                    <Select value={filters.transportation_type} onValueChange={(v) => handleFilterChange("transportation_type", v)}>
+                      <SelectTrigger className="border-border rounded-xl h-11 text-sm bg-background"><SelectValue placeholder="حمل‌ونقل" /></SelectTrigger>
+                      <SelectContent><SelectItem value="all">همه</SelectItem><SelectItem value="هوایی">هوایی</SelectItem><SelectItem value="زمینی">زمینی</SelectItem><SelectItem value="ترکیبی">ترکیبی</SelectItem></SelectContent>
+                    </Select>
+                  </div>
+                  <Button type="submit" className="w-full h-11 bg-primary hover:bg-primary/90 rounded-xl text-sm font-semibold gap-2">
+                    <Search className="h-4 w-4" />جستجو
+                  </Button>
+                </form>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-            <div>
-              <Label className="mb-2 font-medium flex items-center text-gray-700 text-sm">
-                <Bus className="ml-1.5 h-3.5 w-3.5 text-primary" />
-                نوع حمل و نقل
-              </Label>
-              <Select value={filters.transportation_type} onValueChange={(v) => handleFilterChange("transportation_type", v)}>
-                <SelectTrigger className="border-gray-200 focus:border-primary rounded-xl h-11">
-                  <SelectValue placeholder="همه" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">همه</SelectItem>
-                  <SelectItem value="هوایی">هوایی</SelectItem>
-                  <SelectItem value="زمینی">زمینی</SelectItem>
-                  <SelectItem value="ترکیبی">ترکیبی</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+        {/* Desktop Filter Panel */}
+        <div className="hidden md:block">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.15 }}
+            className="bg-card rounded-2xl border border-border shadow-card p-6 md:p-7 mb-12 relative overflow-hidden"
+          >
+            <div className="absolute top-0 left-0 w-32 h-32 bg-primary/3 rounded-full -ml-16 -mt-16 pointer-events-none" />
+            <div className="absolute bottom-0 right-0 w-24 h-24 bg-gold-100/50 rounded-full -mr-12 -mb-12 pointer-events-none" />
 
-            <div>
-              <Label className="mb-2 font-medium flex items-center text-gray-700 text-sm">
-                <DollarSign className="ml-1.5 h-3.5 w-3.5 text-primary" />
-                محدوده قیمت
-              </Label>
-              <Select value={filters.price_range} onValueChange={(v) => handleFilterChange("price_range", v)}>
-                <SelectTrigger className="border-gray-200 focus:border-primary rounded-xl h-11">
-                  <SelectValue placeholder="همه" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">همه</SelectItem>
-                  <SelectItem value="1">تا ۱۰ میلیون</SelectItem>
-                  <SelectItem value="2">۱۰ تا ۱۵ میلیون</SelectItem>
-                  <SelectItem value="3">۱۵ تا ۲۰ میلیون</SelectItem>
-                  <SelectItem value="4">بالای ۲۰ میلیون</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <form className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 relative" onSubmit={handleSearch}>
+              <div>
+                <Label className="mb-2 font-medium flex items-center text-foreground/75 text-xs gap-1.5">
+                  <Calendar className="h-3.5 w-3.5 text-primary" />تاریخ حرکت
+                </Label>
+                <Input
+                  type="text"
+                  placeholder="مثال: ۱۴۰۳-۰۵-۰۱"
+                  value={filters.departure_date}
+                  onChange={(e) => handleFilterChange("departure_date", e.target.value)}
+                  className="border-border focus:border-primary focus:ring-1 focus:ring-primary/20 rounded-xl h-11 text-sm bg-background"
+                />
+              </div>
 
-            <div className="flex items-end">
-              <motion.div className="w-full" whileTap={{ scale: 0.97 }}>
-                <Button
-                  type="submit"
-                  className="w-full h-11 bg-primary hover:bg-primary/90 rounded-xl shadow-md text-sm font-semibold gap-2"
-                >
-                  <Search className="h-4 w-4" />
-                  جستجوی کاروان
-                </Button>
-              </motion.div>
-            </div>
-          </form>
-        </motion.div>
+              <div>
+                <Label className="mb-2 font-medium flex items-center text-foreground/75 text-xs gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-primary" />مدت سفر
+                </Label>
+                <Select value={filters.duration} onValueChange={(v) => handleFilterChange("duration", v)}>
+                  <SelectTrigger className="border-border rounded-xl h-11 text-sm bg-background">
+                    <SelectValue placeholder="همه" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">همه</SelectItem>
+                    <SelectItem value="7">۷ روزه</SelectItem>
+                    <SelectItem value="10">۱۰ روزه</SelectItem>
+                    <SelectItem value="14">۱۴ روزه</SelectItem>
+                    <SelectItem value="21">۲۱ روزه</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-        {/* Caravans Header */}
-        <div className="flex items-center justify-between mb-8">
+              <div>
+                <Label className="mb-2 font-medium flex items-center text-foreground/75 text-xs gap-1.5">
+                  <Bus className="h-3.5 w-3.5 text-primary" />نوع حمل‌ونقل
+                </Label>
+                <Select value={filters.transportation_type} onValueChange={(v) => handleFilterChange("transportation_type", v)}>
+                  <SelectTrigger className="border-border rounded-xl h-11 text-sm bg-background">
+                    <SelectValue placeholder="همه" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">همه</SelectItem>
+                    <SelectItem value="هوایی">هوایی</SelectItem>
+                    <SelectItem value="زمینی">زمینی</SelectItem>
+                    <SelectItem value="ترکیبی">ترکیبی</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="mb-2 font-medium flex items-center text-foreground/75 text-xs gap-1.5">
+                  <DollarSign className="h-3.5 w-3.5 text-primary" />محدوده قیمت
+                </Label>
+                <Select value={filters.price_range} onValueChange={(v) => handleFilterChange("price_range", v)}>
+                  <SelectTrigger className="border-border rounded-xl h-11 text-sm bg-background">
+                    <SelectValue placeholder="همه" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">همه</SelectItem>
+                    <SelectItem value="1">تا ۱۰ میلیون</SelectItem>
+                    <SelectItem value="2">۱۰–۱۵ میلیون</SelectItem>
+                    <SelectItem value="3">۱۵–۲۰ میلیون</SelectItem>
+                    <SelectItem value="4">بالای ۲۰ میلیون</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-end gap-2">
+                <motion.div className="flex-1" whileTap={{ scale: 0.97 }}>
+                  <Button type="submit" className="w-full h-11 bg-primary hover:bg-primary/90 rounded-xl shadow-emerald-sm text-sm font-semibold gap-2">
+                    <Search className="h-4 w-4" />جستجو
+                  </Button>
+                </motion.div>
+                {hasActiveFilters && (
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => { setFilters({ departure_date: "", duration: "", transportation_type: "", price_range: "" }); refetch(); }}
+                    className="h-11 px-3 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors text-xs"
+                  >
+                    پاک
+                  </motion.button>
+                )}
+              </div>
+            </form>
+          </motion.div>
+        </div>
+
+        {/* Result header */}
+        <div className="flex items-center justify-between mb-7">
           <div className="flex items-center gap-3">
-            <div className="h-8 w-1 bg-gradient-to-b from-primary to-emerald-400 rounded-full" />
-            <h3 className="text-2xl font-bold text-gray-800">کاروان‌های فعال</h3>
+            <div className="h-8 w-0.5 bg-gradient-to-b from-primary to-gold-500 rounded-full" />
+            <h3 className="font-heading text-2xl font-bold text-foreground">کاروان‌های فعال</h3>
             {caravans && (
               <span className="bg-primary/10 text-primary text-xs font-semibold px-2.5 py-1 rounded-full">
                 {caravans.length} کاروان
@@ -269,7 +358,7 @@ export default function SearchAndFilter() {
           </div>
         </div>
 
-        {/* Cards */}
+        {/* Cards grid */}
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => <CaravanCardSkeleton key={i} />)}
@@ -280,10 +369,9 @@ export default function SearchAndFilter() {
             animate={{ opacity: 1 }}
             className="text-center py-16 bg-red-50 rounded-2xl border border-red-100"
           >
-            <div className="text-5xl mb-4">⚠️</div>
             <p className="text-red-600 font-semibold mb-2">خطا در دریافت اطلاعات</p>
             <p className="text-red-400 text-sm mb-6">لطفاً اتصال اینترنت خود را بررسی کنید.</p>
-            <Button onClick={() => refetch()} variant="outline" className="border-red-200 text-red-500">
+            <Button onClick={() => refetch()} variant="outline" className="border-red-200 text-red-500 rounded-xl">
               تلاش مجدد
             </Button>
           </motion.div>
@@ -302,93 +390,96 @@ export default function SearchAndFilter() {
                     variants={cardVariants}
                     initial="hidden"
                     whileInView="visible"
-                    viewport={{ once: true, margin: "-40px" }}
-                    whileHover={{ y: -6 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                    viewport={{ once: true, margin: "-30px" }}
+                    whileHover={{ y: -8, transition: { duration: 0.25, ease: "easeOut" } }}
+                    className="group"
                   >
-                    <Card className="overflow-hidden border-0 shadow-md hover:shadow-xl transition-shadow duration-300 flex flex-col h-full group">
+                    <div className={`bg-card rounded-2xl border ${isFull ? "border-border/50 opacity-75" : "border-border"} shadow-card hover:shadow-card-hover transition-all duration-300 overflow-hidden flex flex-col h-full`}>
                       {/* Image */}
                       <div className="relative h-52 overflow-hidden">
                         <img
                           src={caravan.image_url || lantern2}
                           alt={caravan.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-600"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent" />
 
-                        {/* Tags */}
+                        {/* Top-right badges */}
                         <div className="absolute top-3 right-3 flex flex-col gap-1.5 items-end">
                           {caravan.popular && (
-                            <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-md flex items-center gap-1">
-                              <Star className="h-3 w-3" fill="white" />
+                            <span className="inline-flex items-center gap-1 bg-gold-500 text-gold-foreground text-xs font-bold px-2.5 py-1 rounded-full shadow-gold-sm">
+                              <Star className="h-3 w-3" fill="currentColor" />
                               پرطرفدار
                             </span>
                           )}
                           {caravan.special_tag && (
-                            <span className="bg-gradient-to-r from-violet-500 to-purple-600 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-md">
+                            <span className="bg-violet-600 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-md">
                               {caravan.special_tag}
                             </span>
                           )}
                         </div>
 
-                        {/* Bottom info */}
+                        {/* Bottom overlay info */}
                         <div className="absolute bottom-3 left-3 right-3 flex justify-between items-center">
-                          <div className="flex items-center bg-white/90 backdrop-blur-sm text-primary-700 text-xs px-2.5 py-1.5 rounded-full font-bold gap-1">
-                            <Users className="h-3 w-3" />
-                            {caravan.remaining_capacity} جای خالی
-                          </div>
-                          <div className={`flex items-center text-xs font-bold px-2.5 py-1.5 rounded-full gap-1 ${transport.bg} ${transport.color}`}>
+                          <CapacityBadge remaining={caravan.remaining_capacity} capacity={caravan.capacity} />
+                          <div className={`flex items-center text-xs font-semibold px-2.5 py-1.5 rounded-full gap-1.5 ${transport.bg} ${transport.color} ${transport.border} border`}>
                             <TransportIcon className="h-3 w-3" />
                             {transport.label}
                           </div>
                         </div>
                       </div>
 
-                      <CardContent className="p-5 flex-grow flex flex-col">
-                        <h4 className="text-lg font-bold text-gray-800 mb-3">{caravan.name}</h4>
+                      {/* Content */}
+                      <div className="p-5 flex flex-col flex-grow">
+                        <h4 className="font-heading text-xl font-bold text-foreground mb-3 leading-tight">{caravan.name}</h4>
 
-                        <div className="space-y-2.5 mb-4 text-sm flex-grow">
+                        <div className="space-y-2.5 mb-4 flex-grow">
                           {[
                             { icon: Calendar, label: "تاریخ حرکت", value: caravan.departure_date },
-                            { icon: Clock, label: "مدت سفر", value: `${caravan.duration} روز` },
-                            { icon: MapPin, label: "فاصله تا حرم", value: `${caravan.accommodation_distance} متر` },
-                            { icon: Hotel, label: "اقامت", value: caravan.accommodation_type },
+                            { icon: Clock,    label: "مدت سفر",    value: `${caravan.duration} روز` },
+                            { icon: MapPin,   label: "فاصله تا حرم", value: `${caravan.accommodation_distance} متر` },
+                            { icon: Hotel,    label: "اقامت",        value: caravan.accommodation_type },
                           ].map((item, i) => (
-                            <div key={i} className="flex items-center gap-2">
-                              <div className="w-7 h-7 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
-                                <item.icon className="text-primary h-3.5 w-3.5" />
+                            <div key={i} className="flex items-center gap-2 text-sm">
+                              <div className="w-6 h-6 bg-primary/8 rounded-lg flex items-center justify-center shrink-0">
+                                <item.icon className="h-3 w-3 text-primary" />
                               </div>
-                              <span className="text-gray-500">{item.label}:</span>
-                              <span className="font-medium text-gray-700">{item.value}</span>
+                              <span className="text-muted-foreground text-xs">{item.label}:</span>
+                              <span className="font-medium text-foreground/85 text-xs">{item.value}</span>
                             </div>
                           ))}
                         </div>
 
-                        <div className="border-t border-gray-100 pt-4 flex justify-between items-center">
+                        {/* Price + CTA */}
+                        <div className="border-t border-border pt-4 flex justify-between items-center">
                           <div>
-                            <p className="text-xs text-gray-400 mb-0.5">قیمت هر نفر</p>
-                            <div className="text-xl font-bold text-primary">
+                            <p className="text-xs text-muted-foreground mb-0.5">هر نفر</p>
+                            <div className="font-heading font-bold text-primary" style={{ fontSize: "1.3rem", lineHeight: 1.1 }}>
                               {formatPrice(caravan.price)}
-                              <span className="text-xs font-normal text-gray-400 mr-1">تومان</span>
+                              <span className="text-xs font-normal text-muted-foreground mr-1">تومان</span>
                             </div>
                           </div>
-                          <motion.div whileTap={{ scale: 0.95 }}>
+                          <motion.div whileTap={{ scale: 0.96 }}>
                             <Button
                               onClick={() => redirectToBooking(caravan)}
                               disabled={isFull}
-                              className={`rounded-xl gap-1.5 font-semibold text-sm px-4 ${isFull ? "bg-gray-200 text-gray-500" : "bg-primary hover:bg-primary/90 text-white shadow-md"}`}
+                              className={`rounded-xl gap-1.5 font-semibold text-sm px-5 h-10 transition-all ${
+                                isFull
+                                  ? "bg-muted text-muted-foreground cursor-not-allowed"
+                                  : "bg-primary hover:bg-primary/90 text-primary-foreground shadow-emerald-sm hover:shadow-emerald"
+                              }`}
                             >
                               {isFull ? "تکمیل ظرفیت" : (
                                 <>
                                   رزرو کنید
-                                  <ChevronLeft className="h-4 w-4" />
+                                  <ChevronLeft className="h-3.5 w-3.5" />
                                 </>
                               )}
                             </Button>
                           </motion.div>
                         </div>
-                      </CardContent>
-                    </Card>
+                      </div>
+                    </div>
                   </motion.div>
                 );
               })}
@@ -396,22 +487,19 @@ export default function SearchAndFilter() {
           </div>
         ) : (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center py-20 bg-gray-50 rounded-2xl border border-gray-200"
+            className="text-center py-20 bg-card rounded-2xl border border-border"
           >
-            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-5">
-              <Search className="h-9 w-9 text-gray-300" />
+            <div className="w-16 h-16 bg-primary/8 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Search className="h-8 w-8 text-primary/50" />
             </div>
-            <p className="text-gray-600 font-semibold mb-2">کاروانی یافت نشد</p>
-            <p className="text-gray-400 text-sm mb-6">فیلترها را تغییر دهید یا همه را پاک کنید.</p>
+            <p className="font-heading text-xl text-foreground mb-2">کاروانی یافت نشد</p>
+            <p className="text-muted-foreground text-sm mb-6">فیلترها را تغییر دهید یا همه را پاک کنید.</p>
             <Button
-              onClick={() => {
-                setFilters({ departure_date: "", duration: "", transportation_type: "", price_range: "" });
-                refetch();
-              }}
+              onClick={() => { setFilters({ departure_date: "", duration: "", transportation_type: "", price_range: "" }); refetch(); }}
               variant="outline"
-              className="rounded-xl border-gray-300"
+              className="rounded-xl border-border"
             >
               پاک کردن فیلترها
             </Button>
@@ -423,7 +511,7 @@ export default function SearchAndFilter() {
         isOpen={showAuthModal}
         onClose={() => { setShowAuthModal(false); setPendingCaravanId(null); }}
         title="ورود به حساب کاربری"
-        description="برای رزرو کاروان ابتدا وارد حساب کاربری خود شوید یا ثبت‌نام کنید."
+        description="برای رزرو کاروان ابتدا وارد حساب کاربری خود شوید."
         onLoginSuccess={handleAuthSuccess}
       />
     </section>
