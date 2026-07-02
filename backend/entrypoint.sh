@@ -3,7 +3,7 @@ set -e
 
 echo "Waiting for database..."
 if [ "$DB_ENGINE" = "postgres" ]; then
-  while ! nc -z "$DB_HOST" "$DB_PORT"; do
+  while ! python -c "import socket; s=socket.socket(); s.connect(('$DB_HOST', int('$DB_PORT'))); s.close()" 2>/dev/null; do
     sleep 1
   done
   echo "Database is ready."

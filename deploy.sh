@@ -77,7 +77,7 @@ else
 fi
 
 echo "====== [7/8] Switching to HTTPS config and reloading nginx ======"
-cp nginx/conf.d/ssl.conf nginx/conf.d/active.conf
+cp nginx/ssl.conf nginx/conf.d/default.conf
 docker compose -f docker-compose.prod.yml restart nginx-proxy
 docker compose -f docker-compose.prod.yml up -d certbot
 
