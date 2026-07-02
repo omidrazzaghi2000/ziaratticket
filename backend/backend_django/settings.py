@@ -136,6 +136,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:4173",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5173",
+    "https://ziaratticket.ir",
+    "https://www.ziaratticket.ir",
 ]
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 
@@ -161,22 +163,22 @@ PRAYER_TIMES_CACHE_SECONDS = 3600
 
 # ─── Jazzmin Admin Theme ───────────────────────────────────────────────────────
 JAZZMIN_SETTINGS = {
-    "site_title": "KarvanKarbala",
-    "site_header": "Karvan Karbala",
-    "site_brand": "Karvan Karbala",
+    "site_title": "زیارت تیکت",
+    "site_header": "پنل مدیریت زیارت تیکت",
+    "site_brand": "زیارت تیکت",
     "site_logo": None,
     "login_logo": None,
     "login_logo_dark": None,
     "site_logo_classes": "img-circle",
     "site_icon": None,
-    "welcome_sign": "Welcome to Karvan Karbala Admin",
-    "copyright": "Karvan Karbala © 2024",
+    "welcome_sign": "خوش آمدید به پنل مدیریت زیارت تیکت",
+    "copyright": "زیارت تیکت © ۱۴۰۳",
     "search_model": ["accounts.User", "carvans.Caravan", "bookings.Booking"],
     "user_avatar": None,
 
     "topmenu_links": [
-        {"name": "Dashboard", "url": "admin:index", "permissions": ["auth.view_user"]},
-        {"name": "Site", "url": "/", "new_window": True},
+        {"name": "داشبورد", "url": "admin:index", "permissions": ["auth.view_user"]},
+        {"name": "مشاهده سایت", "url": "/", "new_window": True},
         {"model": "accounts.User"},
         {"model": "carvans.Caravan"},
         {"model": "bookings.Booking"},
@@ -211,6 +213,8 @@ JAZZMIN_SETTINGS = {
         "core.Contact": "fas fa-envelope",
         "core.Newsletter": "fas fa-newspaper",
     },
+    "show_ui_builder": False,
+    "language_chooser": False,
     "default_icon_parents": "fas fa-chevron-circle-right",
     "default_icon_children": "fas fa-circle",
 

@@ -6,6 +6,8 @@ interface User {
   id: number;
   phone: string;
   fullName: string | null;
+  role?: string;
+  is_leader_approved?: boolean;
 }
 
 interface AuthContextType {

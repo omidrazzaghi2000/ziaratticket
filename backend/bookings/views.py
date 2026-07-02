@@ -22,6 +22,9 @@ class BookingStep1View(APIView):
         except Caravan.DoesNotExist:
             return Response({"message": "کاروان یافت نشد."}, status=status.HTTP_404_NOT_FOUND)
 
+        if caravan.status != 'approved':
+            return Response({"message": "این کاروان هنوز تأیید نشده است."}, status=status.HTTP_400_BAD_REQUEST)
+
         passenger_count = serializer.validated_data['passenger_count']
         total_price = caravan.price * passenger_count
 
@@ -29,9 +32,14 @@ class BookingStep1View(APIView):
             user=request.user,
             caravan=caravan,
             main_passenger_name=serializer.validated_data['main_passenger_name'],
-            main_passenger_id=serializer.validated_data['main_passenger_id'],
+            main_passenger_id=serializer.validated_data.get('main_passenger_id', ''),
             main_passenger_phone=serializer.validated_data['main_passenger_phone'],
             main_passenger_birthdate=serializer.validated_data['main_passenger_birthdate'],
+            main_passenger_emergency_phone=serializer.validated_data.get('main_passenger_emergency_phone', ''),
+            main_passenger_messaging_apps=serializer.validated_data.get('main_passenger_messaging_apps', []),
+            main_passenger_passport_no=serializer.validated_data.get('main_passenger_passport_no', ''),
+            main_passenger_foreign_name=serializer.validated_data.get('main_passenger_foreign_name', ''),
+            main_passenger_foreign_lastname=serializer.validated_data.get('main_passenger_foreign_lastname', ''),
             passenger_count=passenger_count,
             total_price=total_price,
             transportation_type=caravan.transportation_type,
@@ -57,9 +65,13 @@ class AddCompanionView(APIView):
 
         companion_data = {
             "name": serializer.validated_data['name'],
-            "nationalId": serializer.validated_data['national_id'],
+            "nationalId": serializer.validated_data.get('national_id', ''),
+            "passportNo": serializer.validated_data.get('passport_no', ''),
+            "foreignName": serializer.validated_data.get('foreign_name', ''),
+            "foreignLastname": serializer.validated_data.get('foreign_lastname', ''),
             "relationship": serializer.validated_data['relationship'],
             "birthdate": serializer.validated_data['birthdate'],
+            "phone": serializer.validated_data.get('phone', ''),
         }
 
         companions = booking.companions or []
@@ -88,11 +100,7 @@ class BookingStep2View(APIView):
         booking.companions = serializer.validated_data['companions']
         booking.current_step = 2
         booking.save()
-        return Response({
-            "message": "مرحله دوم رزرو با موفقیت ثبت شد.",
-            "bookingId": booking.id,
-            "step": 2
-        })
+        return Response({"message": "مرحله دوم رزرو با موفقیت ثبت شد.", "bookingId": booking.id, "step": 2})
 
 
 class BookingStep3View(APIView):
@@ -105,7 +113,6 @@ class BookingStep3View(APIView):
             booking = Booking.objects.get(id=id, user=request.user)
         except Booking.DoesNotExist:
             return Response({"message": "رزرو یافت نشد."}, status=status.HTTP_404_NOT_FOUND)
-        booking.address = serializer.validated_data['address']
         booking.special_requests = serializer.validated_data.get('special_requests', '')
         booking.selected_seats = serializer.validated_data.get('selected_seats', [])
         booking.current_step = 3
@@ -125,7 +132,6 @@ class BookingSeatsView(APIView):
         caravan = booking.caravan
         capacity = caravan.capacity or 50
 
-        # جمع‌آوری صندلی‌های اشغال شده از همه رزروهای این کاروان
         other_bookings = Booking.objects.filter(
             caravan=caravan,
             status__in=['pending', 'confirmed', 'completed']
@@ -134,25 +140,14 @@ class BookingSeatsView(APIView):
         occupied = {}
         for b in other_bookings:
             for seat_num in (b.selected_seats or []):
-                passenger_name = b.main_passenger_name
-                occupied[seat_num] = passenger_name
+                occupied[seat_num] = b.main_passenger_name
 
         seats = []
         for i in range(1, capacity + 1):
             if i in occupied:
-                seats.append({
-                    "number": i,
-                    "isOccupied": True,
-                    "isSelected": i in (booking.selected_seats or []),
-                    "passengerName": occupied[i],
-                })
+                seats.append({"number": i, "isOccupied": True, "isSelected": i in (booking.selected_seats or []), "passengerName": occupied[i]})
             else:
-                seats.append({
-                    "number": i,
-                    "isOccupied": False,
-                    "isSelected": i in (booking.selected_seats or []),
-                    "passengerName": None,
-                })
+                seats.append({"number": i, "isOccupied": False, "isSelected": i in (booking.selected_seats or []), "passengerName": None})
 
         return Response(seats)
 
@@ -171,7 +166,6 @@ class CompleteBookingView(APIView):
         booking.is_completed = True
         booking.save()
 
-        # کاهش ظرفیت کاروان
         caravan = booking.caravan
         if caravan.remaining_capacity >= booking.passenger_count:
             caravan.remaining_capacity -= booking.passenger_count

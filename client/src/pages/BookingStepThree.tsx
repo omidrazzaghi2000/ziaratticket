@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowRight, CheckCircle2, Phone, MessageCircle, Bus, User } from "lucide-react";
@@ -32,7 +31,6 @@ interface BookingStepThreeProps {
 }
 
 interface BookingStep3Data {
-  address: string;
   specialRequests?: string;
   selectedSeats?: number[];
 }
@@ -51,7 +49,7 @@ function StepIndicator({ current }: { current: 1 | 2 | 3 }) {
   const steps = [
     { n: "۱", label: "اطلاعات سرپرست" },
     { n: "۲", label: "همراهان" },
-    { n: "۳", label: "تایید نهایی" },
+    { n: "۳", label: "تایید ثبت رزرو" },
   ];
   return (
     <div className="flex items-center gap-1 mt-5">
@@ -86,30 +84,31 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [specialRequests, setSpecialRequests] = useState("");
-  const [address, setAddress] = useState("");
   const [selectedSeats, setSelectedSeats] = useState<number[]>([]);
 
+  const authHeader = { Authorization: localStorage.getItem("AUTH_TOKEN_KEY") || "" };
+
   const { data: booking, isLoading: isLoadingBooking } = useQuery({
-    queryKey: [djangoURL + `/api/bookings/${bookingId}`],
+    queryKey: ["booking3", bookingId],
     queryFn: async () => {
-      const response = await apiRequest("GET", `/api/bookings/${bookingId}`);
+      const response = await fetch(djangoURL + `/api/bookings/${bookingId}`, { headers: authHeader });
       return response.json();
     },
   });
 
   const { data: caravan } = useQuery({
-    queryKey: [djangoURL + `/api/caravans/${booking?.caravan}`],
+    queryKey: ["caravan3", booking?.caravan],
     queryFn: async () => {
-      const response = await apiRequest("GET", `/api/caravans/${booking?.caravan}`);
+      const response = await fetch(djangoURL + `/api/caravans/${booking?.caravan}`, { headers: authHeader });
       return response.json();
     },
     enabled: !!booking?.caravan,
   });
 
   const { data: seats = [] } = useQuery<Seat[]>({
-    queryKey: [djangoURL + `/api/bookings/${bookingId}/seats`],
+    queryKey: ["seats3", bookingId],
     queryFn: async () => {
-      const response = await apiRequest("GET", `/api/bookings/${bookingId}/seats`);
+      const response = await fetch(djangoURL + `/api/bookings/${bookingId}/seats`, { headers: authHeader });
       return response.json();
     },
     enabled: !!bookingId,
@@ -117,7 +116,14 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
 
   const saveStep3Mutation = useMutation({
     mutationFn: async (data: BookingStep3Data) => {
-      const response = await apiRequest("POST", `/api/bookings/${bookingId}/step3`, data);
+      const response = await fetch(djangoURL + `/api/bookings/${bookingId}/step3`, {
+        method: "POST",
+        headers: {
+          Authorization: localStorage.getItem("AUTH_TOKEN_KEY") || "",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
       return response.json();
     },
     onError: (error: Error) => {
@@ -132,12 +138,13 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
   const completeBookingMutation = useMutation({
     mutationFn: async () => {
       await saveStep3Mutation.mutateAsync({
-        address,
         specialRequests,
         selectedSeats,
       });
-      const response = await apiRequest("POST", `/api/bookings/${bookingId}/complete`, {
-        selected_seats: selectedSeats,
+      const response = await fetch(djangoURL + `/api/bookings/${bookingId}/complete`, {
+        method: "POST",
+        headers: { ...authHeader, "Content-Type": "application/json" },
+        body: JSON.stringify({ selected_seats: selectedSeats }),
       });
       const data = await response.json();
       return data;
@@ -202,7 +209,7 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
   const isGroundTransport =
     caravan?.transportation_type === "زمینی" || booking?.transportation_type === "زمینی";
   const seatsRequired = booking?.passenger_count || 1;
-  const canSubmit = address.trim() && (!isGroundTransport || selectedSeats.length === seatsRequired);
+  const canSubmit = !isGroundTransport || selectedSeats.length === seatsRequired;
 
   return (
     <div className="bg-background min-h-screen">
@@ -328,22 +335,6 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
               )}
             </motion.div>
 
-            {/* Address */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.15 }}
-              className="bg-card rounded-2xl p-7 border border-border shadow-card"
-            >
-              <h2 className="font-heading text-xl font-bold text-foreground mb-4 pb-4 border-b border-border">آدرس</h2>
-              <Textarea
-                placeholder="لطفا آدرس خود را وارد کنید..."
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                className="h-28 rounded-xl"
-              />
-            </motion.div>
-
             {/* Seat selector — ground transport only */}
             {isGroundTransport && (
               <motion.div
@@ -411,7 +402,7 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
                 ) : (
                   <>
                     <CheckCircle2 className="ml-2 h-4 w-4" />
-                    تایید نهایی رزرو
+                    تایید ثبت رزرو
                   </>
                 )}
               </Button>
@@ -440,26 +431,27 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
                 <p className="text-xs text-muted-foreground mt-1">{booking?.passenger_count} نفر</p>
               </div>
 
-              <div className="bg-primary/8 border border-primary/15 rounded-xl p-4">
-                <h3 className="font-semibold text-primary text-sm mb-2 flex items-center gap-2">
-                  <Phone className="h-4 w-4" />
-                  تماس با ما
-                </h3>
-                <p className="text-primary/70 text-xs mb-1">برای هرگونه سوال تماس بگیرید:</p>
-                <p className="font-bold text-primary text-sm">۰۹۹۰۲۳۸۲۴۱۶</p>
-              </div>
+              {(booking?.caravan_leader_phone || caravan?.contact_phone) && (
+                <div className="bg-primary/8 border border-primary/15 rounded-xl p-4">
+                  <h3 className="font-semibold text-primary text-sm mb-2 flex items-center gap-2">
+                    <Phone className="h-4 w-4" />
+                    مسئول کاروان
+                  </h3>
+                  {(booking?.caravan_leader_name || caravan?.manager) && (
+                    <p className="text-primary/80 text-xs mb-1">{booking?.caravan_leader_name || caravan?.manager}</p>
+                  )}
+                  <p className="font-bold text-primary text-sm">
+                    {booking?.caravan_leader_phone || caravan?.contact_phone}
+                  </p>
+                </div>
+              )}
 
               <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
                 <h3 className="font-semibold text-emerald-700 text-sm mb-2 flex items-center gap-2">
                   <MessageCircle className="h-4 w-4" />
-                  پیام‌رسان‌ها
+                  لینک پرداخت
                 </h3>
-                <p className="text-emerald-600 text-xs mb-1">لینک پرداخت از طریق:</p>
-                <ul className="text-emerald-700 text-xs space-y-1">
-                  <li>• تلگرام</li>
-                  <li>• واتساپ</li>
-                  <li>• بله</li>
-                </ul>
+                <p className="text-emerald-600 text-xs">لینک پرداخت به شماره موبایل شما ارسال خواهد شد.</p>
               </div>
 
               <div className="bg-gold-50 border border-gold-200 rounded-xl p-4">

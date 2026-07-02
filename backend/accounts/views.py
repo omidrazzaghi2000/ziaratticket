@@ -5,7 +5,7 @@ from django.utils import timezone
 from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
 from .models import User
-from .serializers import UserSerializer, RegisterSendCodeSerializer, VerifyCodeSerializer
+from .serializers import UserSerializer, RegisterSendCodeSerializer, VerifyCodeSerializer, LeaderRegisterSerializer
 import random
 import datetime
 import requests as http_requests
@@ -113,6 +113,43 @@ class MeView(APIView):
     
 
 class FetchAllUsers(APIView):
-    def get(self,request):
-        users = User.objects.all();
+    def get(self, request):
+        users = User.objects.all()
         return Response(UserSerializer(users, many=True).data)
+
+
+class LeaderRegisterView(APIView):
+    """Register/update the current user as a caravan leader (requires prior OTP login)"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = LeaderRegisterSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = request.user
+        user.full_name = serializer.validated_data['full_name']
+        user.national_id = serializer.validated_data['national_id']
+        user.birth_certificate_no = serializer.validated_data['birth_certificate_no']
+        user.address = serializer.validated_data['address']
+        user.messaging_apps = serializer.validated_data.get('messaging_apps', [])
+        user.leader_bio = serializer.validated_data.get('leader_bio', '')
+        user.role = 'caravan_leader'
+        user.is_leader_approved = True
+        user.save()
+        return Response({
+            "message": "ثبت‌نام مدیر کاروان با موفقیت انجام شد. اکنون می‌توانید کاروان ثبت کنید.",
+            "user": UserSerializer(user).data,
+        })
+
+
+class UpdateProfileView(APIView):
+    """Update user profile"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request):
+        user = request.user
+        allowed = {'full_name', 'national_id', 'birth_certificate_no', 'address', 'messaging_apps', 'leader_bio'}
+        for key, val in request.data.items():
+            if key in allowed:
+                setattr(user, key, val)
+        user.save()
+        return Response(UserSerializer(user).data)

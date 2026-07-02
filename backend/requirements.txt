@@ -7,3 +7,4 @@ gunicorn
 whitenoise[brotli]
 requests
 django-jazzmin
+Pillow>=10.0.0

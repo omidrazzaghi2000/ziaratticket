@@ -8,13 +8,13 @@ class BookingAdmin(admin.ModelAdmin):
     list_display = (
         'id', 'main_passenger_name', 'main_passenger_phone',
         'caravan', 'passenger_count', 'formatted_total_price',
-        'status_badge', 'current_step', 'is_paid', 'created_at'
+        'status_badge', 'is_paid', 'created_at'
     )
     list_display_links = ('id', 'main_passenger_name')
-    list_filter = ('status', 'is_paid', 'is_completed', 'transportation_type', 'current_step')
+    list_filter = ('status', 'is_paid', 'is_completed', 'transportation_type')
     search_fields = (
         'main_passenger_name', 'main_passenger_id', 'main_passenger_phone',
-        'caravan__name', 'user__phone'
+        'main_passenger_passport_no', 'caravan__name', 'user__phone'
     )
     ordering = ('-created_at',)
     readonly_fields = ('created_at', 'updated_at', 'companions_display', 'selected_seats_display')
@@ -26,18 +26,26 @@ class BookingAdmin(admin.ModelAdmin):
         }),
         ('اطلاعات سرپرست', {
             'fields': (
-                'main_passenger_name', 'main_passenger_id',
-                'main_passenger_phone', 'main_passenger_birthdate',
+                'main_passenger_name', 'main_passenger_id', 'main_passenger_phone',
+                'main_passenger_birthdate', 'main_passenger_emergency_phone',
+                'main_passenger_messaging_apps',
             ),
         }),
-        ('مسافرین', {
+        ('اطلاعات گذرنامه (سفرهای خارجی)', {
+            'fields': (
+                'main_passenger_passport_no', 'main_passenger_foreign_name',
+                'main_passenger_foreign_lastname',
+            ),
+            'classes': ('collapse',),
+        }),
+        ('همراهان', {
             'fields': ('passenger_count', 'companions_display'),
         }),
         ('صندلی‌ها', {
-            'fields': ('selected_seats_display', 'transportation_type'),
+            'fields': ('selected_seats_display',),
         }),
-        ('آدرس و درخواست‌های ویژه', {
-            'fields': ('address', 'special_requests'),
+        ('درخواست‌های خاص', {
+            'fields': ('special_requests',),
         }),
         ('پرداخت', {
             'fields': ('total_price', 'is_paid', 'payment_date', 'payment_reference'),
@@ -48,6 +56,8 @@ class BookingAdmin(admin.ModelAdmin):
         }),
     )
 
+    actions = ['mark_as_confirmed', 'mark_as_cancelled', 'mark_as_paid']
+
     def formatted_total_price(self, obj):
         return f"{obj.total_price:,} تومان"
     formatted_total_price.short_description = 'مبلغ کل'
@@ -55,60 +65,56 @@ class BookingAdmin(admin.ModelAdmin):
     def status_badge(self, obj):
         colors = {
             'pending': '#f59e0b',
-            'confirmed': '#3b82f6',
-            'completed': '#10b981',
+            'confirmed': '#10b981',
             'cancelled': '#ef4444',
-        }
-        labels = {
-            'pending': 'در انتظار',
-            'confirmed': 'تأیید شده',
-            'completed': 'تکمیل شده',
-            'cancelled': 'لغو شده',
+            'completed': '#3b82f6',
         }
         color = colors.get(obj.status, '#6b7280')
-        label = labels.get(obj.status, obj.status)
         return format_html(
-            '<span style="background:{};color:white;padding:3px 8px;border-radius:4px;font-size:12px;">{}</span>',
-            color, label
+            '<span style="background:{};color:#fff;padding:2px 8px;border-radius:12px;font-size:12px;">{}</span>',
+            color, obj.get_status_display()
         )
     status_badge.short_description = 'وضعیت'
 
     def companions_display(self, obj):
-        companions = obj.companions or []
-        if not companions:
+        if not obj.companions:
             return "بدون همراه"
-        rows = ""
-        for i, c in enumerate(companions, 1):
-            rows += f"<tr><td>{i}</td><td>{c.get('name','')}</td><td>{c.get('nationalId','')}</td><td>{c.get('relationship','')}</td><td>{c.get('birthdate','')}</td></tr>"
-        return format_html(
-            '<table border="1" style="border-collapse:collapse;width:100%;">'
-            '<thead><tr><th>#</th><th>نام</th><th>کد ملی</th><th>نسبت</th><th>تاریخ تولد</th></tr></thead>'
-            '<tbody>{}</tbody></table>',
-            format_html(rows)
+        rows = "".join(
+            f"<tr><td>{c.get('name','')}</td><td>{c.get('nationalId','') or c.get('passportNo','')}</td>"
+            f"<td>{c.get('relationship','')}</td><td>{c.get('phone','')}</td></tr>"
+            for c in obj.companions
         )
-    companions_display.short_description = 'همراهان'
+        return format_html(
+            '<table style="font-size:13px;"><thead><tr><th>نام</th><th>کد ملی/گذرنامه</th><th>نسبت</th><th>موبایل</th></tr></thead>'
+            '<tbody>{}</tbody></table>', rows
+        )
+    companions_display.short_description = 'لیست همراهان'
 
     def selected_seats_display(self, obj):
         seats = obj.selected_seats or []
         if not seats:
-            return "بدون صندلی انتخابی"
-        return ", ".join(str(s) for s in seats)
-    selected_seats_display.short_description = 'صندلی‌های انتخابی'
-
-    actions = ['mark_as_confirmed', 'mark_as_cancelled', 'mark_as_paid']
+            return "صندلی انتخاب نشده"
+        return format_html(
+            '<div style="display:flex;flex-wrap:wrap;gap:4px;">{}</div>',
+            format_html(''.join(
+                f'<span style="background:#10b981;color:#fff;padding:2px 8px;border-radius:8px;font-size:13px;">{s}</span>'
+                for s in seats
+            ))
+        )
+    selected_seats_display.short_description = 'صندلی‌های انتخاب‌شده'
 
     def mark_as_confirmed(self, request, queryset):
         queryset.update(status='confirmed')
         self.message_user(request, "رزروهای انتخابی تأیید شدند.")
-    mark_as_confirmed.short_description = "تأیید رزروهای انتخابی"
+    mark_as_confirmed.short_description = "✅ تأیید رزروها"
 
     def mark_as_cancelled(self, request, queryset):
         queryset.update(status='cancelled')
         self.message_user(request, "رزروهای انتخابی لغو شدند.")
-    mark_as_cancelled.short_description = "لغو رزروهای انتخابی"
+    mark_as_cancelled.short_description = "❌ لغو رزروها"
 
     def mark_as_paid(self, request, queryset):
         from django.utils import timezone
         queryset.update(is_paid=True, payment_date=timezone.now(), status='confirmed')
-        self.message_user(request, "رزروهای انتخابی به عنوان پرداخت شده علامت‌گذاری شدند.")
-    mark_as_paid.short_description = "علامت‌گذاری به عنوان پرداخت شده"
+        self.message_user(request, "رزروهای انتخابی پرداخت‌شده علامت‌گذاری شدند.")
+    mark_as_paid.short_description = "💰 علامت‌گذاری به عنوان پرداخت‌شده"

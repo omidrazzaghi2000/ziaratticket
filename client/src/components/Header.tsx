@@ -1,6 +1,7 @@
 import { useLocation } from "wouter";
 import { UserMenu } from "@/components/auth";
-import { Home, Search, MapPin, HelpCircle, Phone, Menu, X } from "lucide-react";
+import { useAuth } from "@/components/auth";
+import { Home, Search, MapPin, HelpCircle, Phone, Menu, X, LayoutDashboard, Bus } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -65,9 +66,13 @@ function BrandMark({ scrolled }: { scrolled: boolean }) {
 
 export default function Header() {
   const [, navigate] = useLocation();
+  const { user, isAuthenticated } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("home");
+
+  const isLeader = user?.role === "caravan_leader";
+  const isLeaderApproved = isLeader && user?.is_leader_approved;
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 30);
@@ -151,6 +156,38 @@ export default function Header() {
 
             {/* Divider */}
             <div className={cn("h-5 w-px mx-1", scrolled ? "bg-border" : "bg-white/20")} />
+
+            {isAuthenticated && isLeaderApproved && (
+              <button
+                onClick={() => navigate("/leader/dashboard")}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors",
+                  scrolled ? "bg-primary/8 text-primary hover:bg-primary/15" : "bg-white/15 text-white hover:bg-white/25"
+                )}
+              >
+                <LayoutDashboard className="h-3.5 w-3.5" />
+                داشبورد کاروان
+              </button>
+            )}
+
+            {isAuthenticated && isLeader && !isLeaderApproved && (
+              <span className={cn("text-xs px-3 py-1.5 rounded-xl", scrolled ? "bg-amber-50 text-amber-700" : "bg-white/10 text-white/70")}>
+                در انتظار تأیید
+              </span>
+            )}
+
+            {!isLeader && (
+              <button
+                onClick={() => navigate("/leader/register")}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border transition-colors",
+                  scrolled ? "border-primary/30 text-primary hover:bg-primary/5" : "border-white/25 text-white/75 hover:text-white hover:bg-white/10"
+                )}
+              >
+                <Bus className="h-3.5 w-3.5" />
+                ثبت‌نام مدیر کاروان
+              </button>
+            )}
 
             <UserMenu />
           </div>

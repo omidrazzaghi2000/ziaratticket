@@ -12,3 +12,5 @@ backend/staticfiles/
 backend/media/
 .env.local
 client/.env.local
+.env
+nginx/certbot/

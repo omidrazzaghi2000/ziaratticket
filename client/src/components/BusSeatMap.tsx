@@ -114,19 +114,14 @@ function Bus({ busIndex, busNumber, totalCapacity, occupiedSeats, selectedSeats,
 
           return (
             <div key={i} className="flex items-center gap-1">
-              {/* Left single seat */}
+              {/* Right double seats — in RTL flex, first children are on the RIGHT visually */}
               <SeatButton
-                seatNum={row.left}
-                occupied={row.left !== null && occupiedSeats.has(row.left)}
-                selected={row.left !== null && selectedSeats.includes(row.left)}
+                seatNum={row.right}
+                occupied={row.right !== null && occupiedSeats.has(row.right)}
+                selected={row.right !== null && selectedSeats.includes(row.right)}
                 disabled={!canSelectMore}
                 onToggle={onToggle}
               />
-
-              {/* Aisle */}
-              <div className="w-3" />
-
-              {/* Right double seats (mid then window, RTL: mid is closer to aisle) */}
               <SeatButton
                 seatNum={row.mid}
                 occupied={row.mid !== null && occupiedSeats.has(row.mid)}
@@ -134,10 +129,15 @@ function Bus({ busIndex, busNumber, totalCapacity, occupiedSeats, selectedSeats,
                 disabled={!canSelectMore}
                 onToggle={onToggle}
               />
+
+              {/* Aisle */}
+              <div className="w-3" />
+
+              {/* Left single seat — last child is on the LEFT in RTL flex */}
               <SeatButton
-                seatNum={row.right}
-                occupied={row.right !== null && occupiedSeats.has(row.right)}
-                selected={row.right !== null && selectedSeats.includes(row.right)}
+                seatNum={row.left}
+                occupied={row.left !== null && occupiedSeats.has(row.left)}
+                selected={row.left !== null && selectedSeats.includes(row.left)}
                 disabled={!canSelectMore}
                 onToggle={onToggle}
               />

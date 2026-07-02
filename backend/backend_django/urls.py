@@ -3,12 +3,12 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
-admin.site.site_header = "پنل مدیریت کاروان کربلا"
-admin.site.site_title = "کاروان کربلا"
-admin.site.index_title = "مدیریت سیستم رزرو کاروان"
+admin.site.site_header = "پنل مدیریت زیارت تیکت"
+admin.site.site_title = "زیارت تیکت"
+admin.site.index_title = "داشبورد مدیریت"
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('api/admin/', admin.site.urls),
     path('api/', include('accounts.urls')),
     path('api/', include('bookings.urls')),
     path('api/', include('carvans.urls')),

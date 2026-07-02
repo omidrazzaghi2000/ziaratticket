@@ -169,8 +169,37 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Newsletter */}
+          {/* Support */}
           <div>
+            <h4 className="font-heading text-base font-bold mb-5 text-white/80 flex items-center gap-2">
+              <span className="w-4 h-px bg-gold-500/50" />
+              پشتیبانی
+            </h4>
+            <div className="space-y-3 mb-6">
+              <a href="tel:09902382416"
+                className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-4 py-3 hover:bg-white/10 transition-colors group">
+                <div className="w-8 h-8 bg-gold-500/15 rounded-xl flex items-center justify-center shrink-0">
+                  <Phone className="h-4 w-4 text-gold-400" />
+                </div>
+                <div>
+                  <p className="text-white/40 text-xs">تماس مستقیم</p>
+                  <p className="text-white font-bold text-sm group-hover:text-gold-400 transition-colors">۰۹۹۰۲۳۸۲۴۱۶</p>
+                </div>
+              </a>
+              <div className="flex gap-2">
+                {[
+                  { label: "واتساپ", color: "text-emerald-400" },
+                  { label: "بله", color: "text-blue-400" },
+                  { label: "ایتا", color: "text-amber-400" },
+                ].map(app => (
+                  <span key={app.label}
+                    className={`flex-1 text-center text-xs py-2 rounded-xl bg-white/5 border border-white/10 ${app.color} font-medium`}>
+                    {app.label}
+                  </span>
+                ))}
+              </div>
+              <p className="text-white/30 text-xs text-center">پاسخگو روزهای کاری ۹ تا ۱۸</p>
+            </div>
             <h4 className="font-heading text-base font-bold mb-5 text-white/80 flex items-center gap-2">
               <span className="w-4 h-px bg-gold-500/50" />
               خبرنامه

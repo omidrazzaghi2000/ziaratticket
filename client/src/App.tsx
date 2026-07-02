@@ -9,18 +9,24 @@ import BookingStepOne from "@/pages/BookingStepOne";
 import BookingStepTwo from "@/pages/BookingStepTwo";
 import BookingStepThree from "@/pages/BookingStepThree";
 import BookingSuccess from "@/pages/BookingSuccess";
+import CaravanDetail from "@/pages/CaravanDetail";
+import CaravanLeaderRegister from "@/pages/CaravanLeaderRegister";
+import CaravanLeaderDashboard from "@/pages/CaravanLeaderDashboard";
+import CaravanLeaderAddCaravan from "@/pages/CaravanLeaderAddCaravan";
 import "./lib/fonts.css";
-// در محیط production (Docker)، از URL نسبی استفاده می‌کنیم تا nginx پروکسی کند
-// در محیط development، مستقیم به Django متصل می‌شویم
 export const djangoURL = import.meta.env.VITE_API_URL ?? "";
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/caravan/:caravanId" component={CaravanDetail} />
       <Route path="/booking/:caravanId" component={BookingStepOne} />
       <Route path="/booking/:bookingId/step2" component={BookingStepTwo} />
       <Route path="/booking/:bookingId/step3" component={BookingStepThree} />
       <Route path="/booking/:bookingId/success" component={BookingSuccess} />
+      <Route path="/leader/register" component={CaravanLeaderRegister} />
+      <Route path="/leader/dashboard" component={CaravanLeaderDashboard} />
+      <Route path="/leader/add-caravan" component={CaravanLeaderAddCaravan} />
       <Route component={NotFound} />
     </Switch>
   );

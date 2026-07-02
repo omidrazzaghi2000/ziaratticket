@@ -5,13 +5,13 @@ services:
     image: postgres:15-alpine
     restart: always
     environment:
-      POSTGRES_DB: karvan
-      POSTGRES_USER: karvan
-      POSTGRES_PASSWORD: karvan_password_prod
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U karvan"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -27,12 +27,13 @@ services:
     environment:
       - DEBUG=0
       - DB_ENGINE=postgres
-      - DB_NAME=karvan
-      - DB_USER=karvan
-      - DB_PASSWORD=karvan_password_prod
+      - DB_NAME=${POSTGRES_DB}
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
       - DB_HOST=db
       - DB_PORT=5432
-      - SECRET_KEY=karvan-karbala-super-secret-key-2026-production-use
+      - SECRET_KEY=${DJANGO_SECRET_KEY}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
     depends_on:
       db:
         condition: service_healthy
@@ -42,10 +43,30 @@ services:
       context: ./client
       dockerfile: Dockerfile
     restart: always
-    ports:
-      - "80:80"
     depends_on:
       - backend
+
+  nginx-proxy:
+    image: nginx:alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/certbot/conf:/etc/letsencrypt
+      - ./nginx/certbot/www:/var/www/certbot
+    depends_on:
+      - frontend
+      - backend
+
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./nginx/certbot/conf:/etc/letsencrypt
+      - ./nginx/certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done'"
+    restart: always
 
 volumes:
   db_data:

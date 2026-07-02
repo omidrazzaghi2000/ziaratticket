@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
-import { CheckCircle2, Phone, MessageCircle, Home, Copy, Users, CreditCard, Star } from "lucide-react";
+import { CheckCircle2, MessageCircle, Home, Copy, Users, CreditCard, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { djangoURL } from "@/App";
@@ -119,7 +119,7 @@ export default function BookingSuccess({ params }: BookingSuccessProps) {
               <h1 className="font-heading text-2xl md:text-3xl font-bold text-white mb-2">
                 رزرو با موفقیت ثبت شد!
               </h1>
-              <p className="text-white/65 text-sm">تیم ما به زودی با شما تماس خواهد گرفت.</p>
+              <p className="text-white/65 text-sm">مسئول کاروان به زودی با شما تماس خواهد گرفت.</p>
 
               {/* Gold ornament divider */}
               <div className="flex items-center justify-center gap-3 mt-4">
@@ -193,36 +193,10 @@ export default function BookingSuccess({ params }: BookingSuccessProps) {
                 <div>
                   <p className="font-semibold text-gold-800 mb-1 text-sm">در انتظار پرداخت</p>
                   <p className="text-gold-700 text-sm leading-relaxed">
-                    لینک پرداخت به شماره{" "}
-                    <span className="font-bold">{booking.main_passenger_phone}</span>{" "}
-                    از طریق تلگرام، واتساپ یا بله ارسال خواهد شد.
+                    لینک پرداخت به شماره موبایل شما ارسال خواهد شد.
                   </p>
                 </div>
               </div>
-            </motion.div>
-
-            {/* Support contact */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7 }}
-              className="bg-cream-100 border border-border rounded-2xl p-4 flex items-center justify-between"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-                  <Phone className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">پشتیبانی ۲۴ ساعته</p>
-                  <p className="font-heading font-bold text-foreground text-lg">۰۹۹۰۲۳۸۲۴۱۶</p>
-                </div>
-              </div>
-              <a
-                href="tel:09902382416"
-                className="bg-primary text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
-              >
-                تماس
-              </a>
             </motion.div>
 
             {/* CTA */}
