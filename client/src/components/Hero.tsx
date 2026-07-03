@@ -169,7 +169,15 @@ export default function Hero() {
           </div>
         </motion.div> */}
 
-        {/* Main headline */}
+        {/* Site badge */}
+        <motion.div variants={fadeUp} className="mb-4">
+          <span className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 text-white/80 text-sm font-medium px-5 py-2 rounded-full">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+            سامانه رزرو کاروان زیارتی
+          </span>
+        </motion.div>
+
+        {/* Main headline — site name */}
         <motion.h1
           variants={fadeUp}
           className="font-heading text-white mb-3"
@@ -181,7 +189,7 @@ export default function Hero() {
             letterSpacing: "0.01em",
           }}
         >
-          کاروان زیارتی کربلا
+          زیارت تیکت
         </motion.h1>
 
         {/* Gold sub-headline */}
@@ -189,13 +197,13 @@ export default function Hero() {
           variants={fadeUp}
           className="font-heading mb-5"
           style={{
-            fontSize: "clamp(1.4rem, 3.5vw, 2.2rem)",
+            fontSize: "clamp(1.2rem, 3vw, 2rem)",
             color: "hsl(42 65% 72%)",
             fontWeight: 500,
             textShadow: "0 2px 16px rgba(0,0,0,0.5)",
           }}
         >
-          سفر معنوی به سوی نور
+          رزرو آنلاین کاروان‌های زیارتی سراسر کشور
         </motion.p>
 
         {/* Ornamental divider */}
@@ -211,8 +219,8 @@ export default function Hero() {
           className="text-white/75 max-w-2xl mx-auto mb-10 leading-loose"
           style={{ fontSize: "clamp(0.9rem, 2vw, 1.05rem)", textShadow: "0 1px 12px rgba(0,0,0,0.5)" }}
         >
-          با سامانه کاروان کربلا، سفر زیارتی خود را با اطمینان کامل برنامه‌ریزی کنید.
-          رزرو آنلاین آسان، پشتیبانی ۲۴ ساعته، و کاروان‌های رسمی و معتمد در سراسر کشور.
+          با زیارت تیکت، سفر زیارتی خود را به مشهد، کربلا، حج، عمره و سایر اماکن مقدس
+          با اطمینان کامل برنامه‌ریزی کنید. رزرو آنلاین آسان و کاروان‌های رسمی در سراسر کشور.
         </motion.p>
 
         {/* CTA Buttons */}

@@ -134,15 +134,15 @@ export default function CaravanLeaderRegister() {
       <Header />
 
       {/* Hero */}
-      <div className="relative bg-gradient-to-br from-primary to-primary/70 pt-20 overflow-hidden">
+      <div className="relative bg-gradient-to-br from-primary to-primary/70 pt-20">
         <IslamicPattern opacity={0.06} />
-        <div className="container py-10 relative">
+        <div className="container px-4 py-8 relative">
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
             <div className="inline-flex items-center gap-2 bg-white/15 text-white text-xs font-semibold px-4 py-1.5 rounded-full mb-3">
-              <Bus className="h-3.5 w-3.5" />
+              <Bus className="h-3.5 w-3.5 shrink-0" />
               ثبت‌نام مدیر کاروان
             </div>
-            <h1 className="font-heading text-3xl font-black text-white mb-2">به خانواده زیارت تیکت بپیوندید</h1>
+            <h1 className="font-heading text-2xl sm:text-3xl font-black text-white mb-2">به خانواده زیارت تیکت بپیوندید</h1>
             <p className="text-white/70 text-sm max-w-xl">
               کاروان‌های خود را ثبت کنید، مسافرانتان را مدیریت کنید و تجربه زیارتی بهتری بسازید.
             </p>
@@ -151,20 +151,20 @@ export default function CaravanLeaderRegister() {
         <div className="h-px bg-gradient-to-r from-transparent via-gold-400/50 to-transparent" />
       </div>
 
-      <div className="container max-w-2xl mx-auto py-10">
+      <div className="container max-w-2xl mx-auto px-4 py-8">
         {/* Steps */}
-        <div className="flex items-center gap-0 mb-8">
+        <div className="flex items-center mb-8">
           {["ورود به سایت", "تکمیل اطلاعات", "ثبت کاروان"].map((step, i) => (
-            <div key={i} className="flex items-center gap-0 flex-1">
-              <div className="flex flex-col items-center flex-1">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 ${
+            <div key={i} className="flex items-center flex-1">
+              <div className="flex flex-col items-center">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 shrink-0 ${
                   i < 2 ? "bg-primary border-primary text-white" : "bg-background border-border text-muted-foreground"
                 }`}>
                   {i < 2 ? "✓" : i + 1}
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-1 text-center hidden sm:block">{step}</p>
+                <p className="text-[10px] text-muted-foreground mt-1 text-center hidden sm:block whitespace-nowrap">{step}</p>
               </div>
-              {i < 3 && <div className={`h-px flex-1 ${i < 1 ? "bg-primary" : "bg-border"}`} />}
+              {i < 2 && <div className={`h-px flex-1 mx-1 ${i < 1 ? "bg-primary" : "bg-border"}`} />}
             </div>
           ))}
         </div>
@@ -173,20 +173,20 @@ export default function CaravanLeaderRegister() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden"
+          className="bg-card rounded-2xl border border-border shadow-sm"
         >
-          <div className="p-6 border-b border-border">
-            <h2 className="font-heading font-bold text-xl text-foreground flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" />
+          <div className="px-4 sm:px-6 py-5 border-b border-border">
+            <h2 className="font-heading font-bold text-lg sm:text-xl text-foreground flex items-center gap-2">
+              <Users className="h-5 w-5 text-primary shrink-0" />
               اطلاعات مدیر کاروان
             </h2>
             <p className="text-muted-foreground text-sm mt-1">لطفاً اطلاعات خود را با دقت وارد کنید.</p>
           </div>
 
-          <div className="p-6">
+          <div className="px-4 sm:px-6 py-5">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
                   <FormField
                     control={form.control}
                     name="full_name"
