@@ -49,7 +49,7 @@ function BrandMark({ scrolled }: { scrolled: boolean }) {
             scrolled ? "text-primary text-[17px]" : "text-white text-[17px]"
           )}
         >
-          کاروان کربلا
+          زیارت تیکت
         </div>
         <div
           className={cn(
@@ -57,7 +57,7 @@ function BrandMark({ scrolled }: { scrolled: boolean }) {
             scrolled ? "text-gold-700" : "text-white/55"
           )}
         >
-          زیارت با آرامش
+          رزرو کاروان زیارتی
         </div>
       </div>
     </div>
@@ -254,6 +254,49 @@ export default function Header() {
                       {item.label}
                     </motion.button>
                   ))}
+
+                  {/* Divider */}
+                  <div className="h-px bg-border my-1" />
+
+                  {/* Leader dashboard / register in mobile menu */}
+                  {isAuthenticated && isLeaderApproved && (
+                    <motion.button
+                      initial={{ opacity: 0, x: 12 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: navItems.length * 0.05 }}
+                      onClick={() => { navigate("/leader/dashboard"); setMobileMenuOpen(false); }}
+                      className="px-4 py-3 rounded-xl text-sm font-medium flex items-center gap-3 bg-primary/8 text-primary"
+                    >
+                      <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <LayoutDashboard className="h-3.5 w-3.5" />
+                      </div>
+                      داشبورد کاروان
+                    </motion.button>
+                  )}
+
+                  {isAuthenticated && isLeader && !isLeaderApproved && (
+                    <div className="px-4 py-3 text-sm text-amber-700 bg-amber-50 rounded-xl flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
+                        <Bus className="h-3.5 w-3.5" />
+                      </div>
+                      در انتظار تأیید
+                    </div>
+                  )}
+
+                  {!isLeader && (
+                    <motion.button
+                      initial={{ opacity: 0, x: 12 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: navItems.length * 0.05 }}
+                      onClick={() => { navigate("/leader/register"); setMobileMenuOpen(false); }}
+                      className="px-4 py-3 rounded-xl text-sm font-medium flex items-center gap-3 border border-primary/25 text-primary hover:bg-primary/5 transition-colors"
+                    >
+                      <div className="w-7 h-7 rounded-lg bg-primary/8 flex items-center justify-center">
+                        <Bus className="h-3.5 w-3.5" />
+                      </div>
+                      ثبت‌نام مدیر کاروان
+                    </motion.button>
+                  )}
                 </nav>
               </div>
             </motion.div>
