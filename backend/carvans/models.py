@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+import uuid
 
 
 class Caravan(models.Model):
@@ -131,3 +132,26 @@ class CaravanPhoto(models.Model):
 
     def __str__(self):
         return f"تصویر {self.id} — {self.caravan.name}"
+
+
+class CaravanReview(models.Model):
+    caravan = models.ForeignKey(Caravan, on_delete=models.CASCADE, related_name='reviews', verbose_name='کاروان')
+    booking = models.OneToOneField(
+        'bookings.Booking', on_delete=models.CASCADE, related_name='review',
+        null=True, blank=True, verbose_name='رزرو'
+    )
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False, verbose_name='توکن نظرسنجی')
+    reviewer_name = models.CharField(max_length=100, blank=True, verbose_name='نام زائر')
+    rating = models.PositiveSmallIntegerField(default=0, verbose_name='امتیاز (۰-۵)')
+    comment = models.TextField(blank=True, verbose_name='نظر')
+    is_submitted = models.BooleanField(default=False, verbose_name='ثبت شده')
+    created_at = models.DateTimeField(auto_now_add=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'نظر زائر'
+        verbose_name_plural = 'نظرات زائران'
+        ordering = ['-submitted_at', '-created_at']
+
+    def __str__(self):
+        return f"نظر {self.reviewer_name} — {self.caravan.name} ({self.rating}★)"

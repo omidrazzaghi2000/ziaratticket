@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Caravan, CaravanPhoto
+from .models import Caravan, CaravanPhoto, CaravanReview
 
 
 class CaravanPhotoInline(admin.TabularInline):
@@ -138,3 +138,11 @@ class CaravanAdmin(admin.ModelAdmin):
         queryset.update(popular=False)
         self.message_user(request, "کاروان‌های انتخابی از لیست محبوب خارج شدند.")
     mark_as_not_popular.short_description = "حذف از لیست محبوب"
+
+
+@admin.register(CaravanReview)
+class CaravanReviewAdmin(admin.ModelAdmin):
+    list_display = ('id', 'caravan', 'reviewer_name', 'rating', 'is_submitted', 'submitted_at')
+    list_filter = ('is_submitted', 'rating', 'caravan')
+    search_fields = ('reviewer_name', 'comment', 'caravan__name')
+    readonly_fields = ('token', 'created_at', 'submitted_at')

@@ -13,6 +13,7 @@ import CaravanDetail from "@/pages/CaravanDetail";
 import CaravanLeaderRegister from "@/pages/CaravanLeaderRegister";
 import CaravanLeaderDashboard from "@/pages/CaravanLeaderDashboard";
 import CaravanLeaderAddCaravan from "@/pages/CaravanLeaderAddCaravan";
+import ReviewPage from "@/pages/ReviewPage";
 import "./lib/fonts.css";
 export const djangoURL = import.meta.env.VITE_API_URL ?? "";
 function Router() {
@@ -27,6 +28,7 @@ function Router() {
       <Route path="/leader/register" component={CaravanLeaderRegister} />
       <Route path="/leader/dashboard" component={CaravanLeaderDashboard} />
       <Route path="/leader/add-caravan" component={CaravanLeaderAddCaravan} />
+      <Route path="/review/:token" component={ReviewPage} />
       <Route component={NotFound} />
     </Switch>
   );

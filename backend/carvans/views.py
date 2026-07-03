@@ -2,13 +2,14 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-from .models import Caravan, CaravanPhoto
-from .serializers import CaravanSerializer, CaravanCreateSerializer, CaravanPhotoSerializer
+from .models import Caravan, CaravanPhoto, CaravanReview
+from .serializers import CaravanSerializer, CaravanCreateSerializer, CaravanPhotoSerializer, CaravanReviewSerializer
 from bookings.models import Booking
 from bookings.serializers import BookingSerializer
 import csv
 import io
 from django.http import HttpResponse
+from django.utils import timezone
 
 
 class CaravanListView(APIView):
@@ -251,3 +252,74 @@ class LeaderBookingsExportView(APIView):
                 b.created_at.strftime('%Y-%m-%d %H:%M'),
             ])
         return response
+
+
+class CaravanStatsView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        count = Caravan.objects.filter(status='approved').count()
+        return Response({'active_caravans': count})
+
+
+class CaravanReviewsView(APIView):
+    """List submitted reviews for a caravan (public)"""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, id):
+        reviews = CaravanReview.objects.filter(caravan_id=id, is_submitted=True).order_by('-submitted_at')
+        return Response(CaravanReviewSerializer(reviews, many=True).data)
+
+
+class ReviewByTokenView(APIView):
+    """Submit a review via one-time token link (public)"""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, token):
+        try:
+            review = CaravanReview.objects.select_related('caravan').get(token=token)
+        except CaravanReview.DoesNotExist:
+            return Response({"message": "لینک نظرسنجی معتبر نیست."}, status=404)
+        return Response({
+            "caravan_name": review.caravan.name,
+            "reviewer_name": review.reviewer_name,
+            "is_submitted": review.is_submitted,
+        })
+
+    def post(self, request, token):
+        try:
+            review = CaravanReview.objects.get(token=token)
+        except CaravanReview.DoesNotExist:
+            return Response({"message": "لینک نظرسنجی معتبر نیست."}, status=404)
+        if review.is_submitted:
+            return Response({"message": "این نظرسنجی قبلاً ثبت شده است."}, status=400)
+        rating = request.data.get('rating')
+        comment = request.data.get('comment', '')
+        if rating is None or not (0 <= int(rating) <= 5):
+            return Response({"message": "امتیاز باید بین ۰ تا ۵ باشد."}, status=400)
+        review.rating = int(rating)
+        review.comment = comment
+        review.is_submitted = True
+        review.submitted_at = timezone.now()
+        review.save()
+        return Response({"message": "نظر شما با موفقیت ثبت شد."})
+
+
+class LeaderGenerateReviewLinkView(APIView):
+    """Leader: generate or get review token for a booking"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            booking = Booking.objects.get(pk=pk, caravan__leader=request.user)
+        except Booking.DoesNotExist:
+            return Response({"message": "رزرو یافت نشد."}, status=404)
+        review, created = CaravanReview.objects.get_or_create(
+            booking=booking,
+            defaults={
+                'caravan': booking.caravan,
+                'reviewer_name': booking.main_passenger_name,
+            }
+        )
+        token = str(review.token)
+        return Response({"token": token, "link": f"/review/{token}"})

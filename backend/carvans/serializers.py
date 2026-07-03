@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Caravan, CaravanPhoto
+from .models import Caravan, CaravanPhoto, CaravanReview
 
 
 class CaravanPhotoSerializer(serializers.ModelSerializer):
@@ -64,3 +64,10 @@ class CaravanCreateSerializer(serializers.ModelSerializer):
         if value < 1:
             raise serializers.ValidationError("ظرفیت باید حداقل ۱ نفر باشد.")
         return value
+
+
+class CaravanReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CaravanReview
+        fields = ['id', 'reviewer_name', 'rating', 'comment', 'submitted_at', 'caravan']
+        read_only_fields = ['id', 'submitted_at', 'caravan']

@@ -1,5 +1,7 @@
-import { motion, useMotionValue, useSpring, useTransform, animate } from "framer-motion";
+import { motion, animate } from "framer-motion";
 import { useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { djangoURL } from "@/App";
 import shrineImage from "../assets/images/hasanmajed__-E0RryWDcsWw-unsplash.jpg";
 
 /* ─── Animation variants ─── */
@@ -16,11 +18,6 @@ const fadeUp = {
 const fadeIn = {
   hidden: { opacity: 0 },
   show: { opacity: 1, transition: { duration: 0.9 } },
-};
-
-const scaleIn = {
-  hidden: { opacity: 0, scale: 0.88 },
-  show: { opacity: 1, scale: 1, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } },
 };
 
 /* ─── Animated counter ─── */
@@ -81,17 +78,20 @@ function GeometricOverlay() {
   );
 }
 
-/* ─── Stats data ─── */
-const stats = [
-  { number: 500, suffix: "+", label: "کاروان فعال" },
-  { number: 10000, suffix: "+", label: "زائر راضی" },
-  { number: 15, suffix: "+", label: "سال تجربه" },
-  { number: 24, suffix: "/۷", label: "پشتیبانی" },
-];
-
 export default function Hero() {
+  const { data: statsData } = useQuery<{ active_caravans: number }>({
+    queryKey: ["caravan-stats"],
+    queryFn: () => fetch(`${djangoURL}/api/stats`).then(r => r.json()),
+    staleTime: 60_000,
+  });
+
+  const stats = [
+    { number: statsData?.active_caravans ?? 0, suffix: "", label: "کاروان فعال" },
+    { number: 15, suffix: "+", label: "سال تجربه" },
+    { number: 24, suffix: "/۷", label: "پشتیبانی" },
+  ];
   return (
-    <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden">
+    <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden" id="hero">
 
       {/* ── Background image ── */}
       <div className="absolute inset-0 z-0">
@@ -257,7 +257,7 @@ export default function Hero() {
         {/* Stats row */}
         <motion.div
           variants={fadeIn}
-          className="grid grid-cols-2 md:grid-cols-4 gap-px bg-white/8 rounded-2xl overflow-hidden backdrop-blur-sm border border-white/10 w-full max-w-2xl"
+          className="grid grid-cols-3 gap-px bg-white/8 rounded-2xl overflow-hidden backdrop-blur-sm border border-white/10 w-full max-w-xl"
         >
           {stats.map((stat, i) => (
             <div

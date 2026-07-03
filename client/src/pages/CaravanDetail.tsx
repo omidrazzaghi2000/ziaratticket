@@ -148,6 +148,106 @@ function MessagingAppBadge({ app }: { app: string }) {
   );
 }
 
+interface ReviewItem {
+  id: number;
+  reviewer_name: string;
+  rating: number;
+  comment: string;
+  submitted_at: string;
+}
+
+function StarDisplay({ rating }: { rating: number }) {
+  return (
+    <div className="flex gap-0.5" dir="ltr">
+      {[1, 2, 3, 4, 5].map(s => (
+        <Star
+          key={s}
+          className="w-4 h-4"
+          fill={rating >= s ? "#f59e0b" : "none"}
+          stroke={rating >= s ? "#f59e0b" : "#d1d5db"}
+        />
+      ))}
+    </div>
+  );
+}
+
+function CaravanReviews({ caravanId, caravanName }: { caravanId: number; caravanName: string }) {
+  const { data: reviews = [], isLoading } = useQuery<ReviewItem[]>({
+    queryKey: ["caravan-reviews", caravanId],
+    queryFn: () => fetch(`${djangoURL}/api/caravans/${caravanId}/reviews`).then(r => r.json()),
+  });
+
+  const avgRating = reviews.length
+    ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length
+    : 0;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.45 }}
+      className="mt-8 bg-card rounded-2xl border border-border shadow-sm p-6"
+    >
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="font-heading font-bold text-lg text-foreground flex items-center gap-2">
+          <Star className="h-5 w-5 text-amber-400" fill="#fbbf24" />
+          نظرات زائران
+        </h2>
+        {reviews.length > 0 && (
+          <div className="flex items-center gap-2">
+            <StarDisplay rating={Math.round(avgRating)} />
+            <span className="font-bold text-foreground text-sm">
+              {avgRating.toFixed(1)}
+            </span>
+            <span className="text-muted-foreground text-xs">از {reviews.length} نظر</span>
+          </div>
+        )}
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3">
+          {[1, 2].map(i => (
+            <div key={i} className="h-20 bg-muted animate-pulse rounded-xl" />
+          ))}
+        </div>
+      ) : reviews.length === 0 ? (
+        <div className="text-center py-10 text-muted-foreground">
+          <Star className="h-10 w-10 mx-auto mb-3 opacity-20" />
+          <p className="text-sm">هنوز نظری برای این کاروان ثبت نشده است.</p>
+          <p className="text-xs mt-1 opacity-70">پس از پایان سفر، زائران می‌توانند نظر خود را ثبت کنند.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {reviews.map((review, i) => (
+            <motion.div
+              key={review.id}
+              initial={{ opacity: 0, x: 12 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.06 }}
+              className="bg-muted/40 rounded-xl p-4 border border-border/50"
+            >
+              <div className="flex items-start justify-between gap-3 mb-2">
+                <div>
+                  <span className="font-semibold text-sm text-foreground">{review.reviewer_name || "زائر"}</span>
+                  {review.submitted_at && (
+                    <span className="text-xs text-muted-foreground mr-2">
+                      {new Date(review.submitted_at).toLocaleDateString("fa-IR")}
+                    </span>
+                  )}
+                </div>
+                <StarDisplay rating={review.rating} />
+              </div>
+              {review.comment && (
+                <p className="text-sm text-foreground/80 leading-6">{review.comment}</p>
+              )}
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
 interface CaravanDetailProps {
   params: { caravanId: string };
 }
@@ -618,6 +718,9 @@ export default function CaravanDetail({ params }: CaravanDetailProps) {
             )}
           </div>
         </div>
+
+        {/* Reviews section */}
+        <CaravanReviews caravanId={caravan.id} caravanName={caravan.name} />
 
         {/* Bottom booking CTA */}
         <motion.div

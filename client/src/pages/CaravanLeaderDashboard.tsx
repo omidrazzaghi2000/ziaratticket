@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Bus, Plus, Users, CalendarCheck, Download, Eye, Edit2, Trash2,
   ChevronLeft, TrendingUp, Clock, CheckCircle2, XCircle, AlertCircle,
-  Phone, Armchair, X, Image, Upload,
+  Phone, Armchair, X, Image, Upload, Link2, Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -71,6 +71,38 @@ interface Caravan {
   capacity: number;
   remaining_capacity: number;
   status: string;
+}
+
+function ReviewLinkButton({ bookingId }: { bookingId: number }) {
+  const { toast } = useToast();
+  const generate = useMutation({
+    mutationFn: () =>
+      fetch(`${djangoURL}/api/leader/bookings/${bookingId}/review-link`, {
+        method: "POST",
+        headers: { Authorization: localStorage.getItem("AUTH_TOKEN_KEY") || "" },
+      }).then(r => r.json()),
+    onSuccess: (data) => {
+      const link = `${window.location.origin}${data.link}`;
+      navigator.clipboard.writeText(link).then(() => {
+        toast({ title: "لینک کپی شد", description: "لینک نظرسنجی در کلیپ‌بورد کپی شد. آن را برای زائر ارسال کنید." });
+      });
+    },
+  });
+
+  return (
+    <button
+      onClick={() => generate.mutate()}
+      disabled={generate.isPending}
+      className="text-primary hover:bg-primary/10 p-2 rounded-xl transition-colors"
+      title="دریافت و کپی لینک نظرسنجی"
+    >
+      {generate.isPending ? (
+        <div className="h-4 w-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+      ) : (
+        <Link2 className="h-4 w-4" />
+      )}
+    </button>
+  );
 }
 
 export default function CaravanLeaderDashboard() {
@@ -448,14 +480,17 @@ export default function CaravanLeaderDashboard() {
                               </span>
                             </div>
                           </div>
-                          <button
-                            onClick={() => setConfirmCancel(booking.id)}
-                            disabled={booking.status === 'cancelled'}
-                            className="text-red-500 hover:bg-red-50 p-2 rounded-xl transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                            title="لغو رزرو"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <ReviewLinkButton bookingId={booking.id} />
+                            <button
+                              onClick={() => setConfirmCancel(booking.id)}
+                              disabled={booking.status === 'cancelled'}
+                              className="text-red-500 hover:bg-red-50 p-2 rounded-xl transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                              title="لغو رزرو"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
                         </div>
                       </motion.div>
                     );
