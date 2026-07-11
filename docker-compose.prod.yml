@@ -57,6 +57,7 @@ services:
       - ./nginx/ssl.conf:/etc/nginx/ssl.conf.available
       - ./nginx/certbot/conf:/etc/letsencrypt
       - ./nginx/certbot/www:/var/www/certbot
+      - media_files:/app/media:ro
     depends_on:
       - frontend
       - backend
