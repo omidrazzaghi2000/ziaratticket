@@ -61,9 +61,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const logout = async () => {
     try {
       await apiRequest("POST", "/api/auth/logout");
-      setUser(null);
     } catch (error) {
       console.error("Error logging out:", error);
+    } finally {
+      localStorage.removeItem("AUTH_TOKEN_KEY");
+      localStorage.removeItem("AUTH_REFRESH_KEY");
+      setUser(null);
     }
   };
 
