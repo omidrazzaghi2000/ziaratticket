@@ -18,6 +18,12 @@ class Caravan(models.Model):
         ('combined', 'ترکیبی'),
     ]
 
+    BUS_TYPE_CHOICES = [
+        (25, 'اتوبوس ۲۵ نفره (VIP)'),
+        (32, 'اتوبوس ۳۲ نفره'),
+        (44, 'اتوبوس ۴۴ نفره'),
+    ]
+
     ACCOMMODATION_CHOICES = [
         ('hotel', 'هتل'),
         ('hosseinieh', 'حسینیه'),
@@ -57,6 +63,11 @@ class Caravan(models.Model):
 
     # Transport
     transportation_type = models.CharField(max_length=20, choices=TRANSPORT_CHOICES, default='bus', verbose_name='نوع حمل‌ونقل')
+    bus_type = models.PositiveSmallIntegerField(
+        choices=BUS_TYPE_CHOICES, default=44,
+        verbose_name='نوع اتوبوس (ظرفیت هر اتوبوس)',
+        help_text='برای سفرهای زمینی: تعداد صندلی هر اتوبوس. چیدمان صندلی رزرو بر همین اساس ساخته می‌شود.',
+    )
     origin_city = models.CharField(max_length=100, blank=True, verbose_name='مبدأ حرکت')
     transit_cities = models.JSONField(default=list, blank=True, verbose_name='شهرهای بین‌راهی')
 
@@ -109,6 +120,18 @@ class Caravan(models.Model):
     @property
     def is_air_travel(self):
         return self.transportation_type in ('airplane', 'combined')
+
+    @property
+    def is_ground_transport(self):
+        """سفرهای زمینی (اتوبوسی) — انتخاب صندلی برای این سفرها الزامی است."""
+        return self.transportation_type in ('bus', 'combined')
+
+    @property
+    def bus_count(self):
+        """تعداد اتوبوس‌های لازم برای پوشش ظرفیت کاروان."""
+        if not self.is_ground_transport or not self.bus_type:
+            return 0
+        return -(-(self.capacity or 0) // self.bus_type)  # ceil division
 
 
 class CaravanPhoto(models.Model):

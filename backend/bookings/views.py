@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -8,6 +9,49 @@ from .serializers import (
     BookingStep1Serializer, BookingStep2Serializer,
     BookingStep3Serializer, BookingSerializer, CompanionSerializer
 )
+
+
+def occupied_seats_for(caravan, exclude_booking_id=None):
+    """صندلی‌های اشغال‌شده توسط سایر رزروهای فعال همین کاروان."""
+    qs = Booking.objects.filter(
+        caravan=caravan,
+        status__in=['pending', 'confirmed', 'completed'],
+    )
+    if exclude_booking_id:
+        qs = qs.exclude(id=exclude_booking_id)
+    occupied = {}
+    for b in qs:
+        for seat_num in (b.selected_seats or []):
+            occupied[seat_num] = b.main_passenger_name
+    return occupied
+
+
+def validate_seats(booking, seats):
+    """اعتبارسنجی صندلی‌های انتخابی. در صورت خطا پیام فارسی برمی‌گرداند، در غیر این صورت None."""
+    caravan = booking.caravan
+    if not caravan.is_ground_transport:
+        return None
+
+    seats = [int(s) for s in (seats or [])]
+    if len(seats) != booking.passenger_count:
+        return (
+            f"باید دقیقاً {booking.passenger_count} صندلی انتخاب کنید "
+            f"({len(seats)} صندلی انتخاب شده است)."
+        )
+    if len(set(seats)) != len(seats):
+        return "هر صندلی فقط یک بار قابل انتخاب است."
+
+    capacity = caravan.capacity or 0
+    invalid = [s for s in seats if s < 1 or s > capacity]
+    if invalid:
+        return "شماره صندلی انتخاب‌شده خارج از ظرفیت کاروان است."
+
+    occupied = occupied_seats_for(caravan, exclude_booking_id=booking.id)
+    taken = [s for s in seats if s in occupied]
+    if taken:
+        nums = '، '.join(str(s) for s in taken)
+        return f"صندلی‌های {nums} توسط زائر دیگری رزرو شده است. لطفاً صندلی دیگری انتخاب کنید."
+    return None
 
 
 class BookingStep1View(APIView):
@@ -26,20 +70,24 @@ class BookingStep1View(APIView):
             return Response({"message": "این کاروان هنوز تأیید نشده است."}, status=status.HTTP_400_BAD_REQUEST)
 
         passenger_count = serializer.validated_data['passenger_count']
+        if caravan.remaining_capacity < passenger_count:
+            return Response(
+                {"message": f"ظرفیت باقیمانده کاروان ({caravan.remaining_capacity} نفر) کافی نیست."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         total_price = caravan.price * passenger_count
+        first_name = serializer.validated_data['first_name'].strip()
+        last_name = serializer.validated_data['last_name'].strip()
 
         booking = Booking.objects.create(
             user=request.user,
             caravan=caravan,
-            main_passenger_name=serializer.validated_data['main_passenger_name'],
-            main_passenger_id=serializer.validated_data.get('main_passenger_id', ''),
+            main_passenger_first_name=first_name,
+            main_passenger_last_name=last_name,
+            main_passenger_name=f"{first_name} {last_name}".strip(),
+            main_passenger_id=serializer.validated_data['main_passenger_id'],
             main_passenger_phone=serializer.validated_data['main_passenger_phone'],
-            main_passenger_birthdate=serializer.validated_data['main_passenger_birthdate'],
-            main_passenger_emergency_phone=serializer.validated_data.get('main_passenger_emergency_phone', ''),
-            main_passenger_messaging_apps=serializer.validated_data.get('main_passenger_messaging_apps', []),
-            main_passenger_passport_no=serializer.validated_data.get('main_passenger_passport_no', ''),
-            main_passenger_foreign_name=serializer.validated_data.get('main_passenger_foreign_name', ''),
-            main_passenger_foreign_lastname=serializer.validated_data.get('main_passenger_foreign_lastname', ''),
             passenger_count=passenger_count,
             total_price=total_price,
             transportation_type=caravan.transportation_type,
@@ -48,6 +96,7 @@ class BookingStep1View(APIView):
         return Response({
             "message": "مرحله اول رزرو با موفقیت ثبت شد.",
             "bookingId": booking.id,
+            "bookingCode": booking.booking_code,
             "step": 1
         }, status=status.HTTP_201_CREATED)
 
@@ -63,18 +112,28 @@ class AddCompanionView(APIView):
         except Booking.DoesNotExist:
             return Response({"message": "رزرو یافت نشد."}, status=status.HTTP_404_NOT_FOUND)
 
+        first_name = serializer.validated_data['first_name'].strip()
+        last_name = serializer.validated_data['last_name'].strip()
         companion_data = {
-            "name": serializer.validated_data['name'],
-            "nationalId": serializer.validated_data.get('national_id', ''),
-            "passportNo": serializer.validated_data.get('passport_no', ''),
-            "foreignName": serializer.validated_data.get('foreign_name', ''),
-            "foreignLastname": serializer.validated_data.get('foreign_lastname', ''),
-            "relationship": serializer.validated_data['relationship'],
-            "birthdate": serializer.validated_data['birthdate'],
+            "firstName": first_name,
+            "lastName": last_name,
+            "name": f"{first_name} {last_name}".strip(),
+            "nationalId": serializer.validated_data['national_id'],
             "phone": serializer.validated_data.get('phone', ''),
         }
 
         companions = booking.companions or []
+        if len(companions) >= max(0, booking.passenger_count - 1):
+            return Response(
+                {"message": "تعداد همراهان از تعداد مسافرین ثبت‌شده بیشتر است."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if any(c.get('nationalId') == companion_data['nationalId'] for c in companions) \
+                or companion_data['nationalId'] == booking.main_passenger_id:
+            return Response(
+                {"message": "این کد ملی قبلاً در همین رزرو ثبت شده است."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         companions.append(companion_data)
         booking.companions = companions
         booking.current_step = 2
@@ -113,8 +172,13 @@ class BookingStep3View(APIView):
             booking = Booking.objects.get(id=id, user=request.user)
         except Booking.DoesNotExist:
             return Response({"message": "رزرو یافت نشد."}, status=status.HTTP_404_NOT_FOUND)
+        seats = serializer.validated_data.get('selected_seats', [])
+        error = validate_seats(booking, seats)
+        if error:
+            return Response({"message": error}, status=status.HTTP_400_BAD_REQUEST)
+
         booking.special_requests = serializer.validated_data.get('special_requests', '')
-        booking.selected_seats = serializer.validated_data.get('selected_seats', [])
+        booking.selected_seats = seats
         booking.current_step = 3
         booking.save()
         return Response({"message": "مرحله سوم رزرو ثبت شد.", "step": 3})
@@ -131,25 +195,27 @@ class BookingSeatsView(APIView):
 
         caravan = booking.caravan
         capacity = caravan.capacity or 50
+        occupied = occupied_seats_for(caravan, exclude_booking_id=booking.id)
+        mine = set(booking.selected_seats or [])
 
-        other_bookings = Booking.objects.filter(
-            caravan=caravan,
-            status__in=['pending', 'confirmed', 'completed']
-        ).exclude(id=booking.id)
+        seats = [
+            {
+                "number": i,
+                "isOccupied": i in occupied,
+                "isSelected": i in mine,
+                "passengerName": occupied.get(i),
+            }
+            for i in range(1, capacity + 1)
+        ]
 
-        occupied = {}
-        for b in other_bookings:
-            for seat_num in (b.selected_seats or []):
-                occupied[seat_num] = b.main_passenger_name
-
-        seats = []
-        for i in range(1, capacity + 1):
-            if i in occupied:
-                seats.append({"number": i, "isOccupied": True, "isSelected": i in (booking.selected_seats or []), "passengerName": occupied[i]})
-            else:
-                seats.append({"number": i, "isOccupied": False, "isSelected": i in (booking.selected_seats or []), "passengerName": None})
-
-        return Response(seats)
+        return Response({
+            "seats": seats,
+            "busType": caravan.bus_type,
+            "busCount": caravan.bus_count,
+            "capacity": capacity,
+            "isGroundTransport": caravan.is_ground_transport,
+            "passengerCount": booking.passenger_count,
+        })
 
 
 class CompleteBookingView(APIView):
@@ -160,18 +226,47 @@ class CompleteBookingView(APIView):
         if not booking:
             return Response({"message": "رزرو یافت نشد."}, status=status.HTTP_404_NOT_FOUND)
 
+        if booking.is_completed:
+            return Response({
+                "message": "این رزرو قبلاً تکمیل شده است.",
+                "bookingId": booking.id,
+                "bookingCode": booking.booking_code,
+            })
+
+        expected_companions = max(0, booking.passenger_count - 1)
+        if len(booking.companions or []) != expected_companions:
+            return Response(
+                {"message": f"اطلاعات {expected_companions} همراه باید ثبت شود."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         selected_seats = request.data.get('selected_seats', booking.selected_seats or [])
-        booking.selected_seats = selected_seats
-        booking.status = 'completed'
-        booking.is_completed = True
-        booking.save()
+        error = validate_seats(booking, selected_seats)
+        if error:
+            return Response({"message": error}, status=status.HTTP_400_BAD_REQUEST)
 
         caravan = booking.caravan
-        if caravan.remaining_capacity >= booking.passenger_count:
-            caravan.remaining_capacity -= booking.passenger_count
-            caravan.save()
+        if caravan.remaining_capacity < booking.passenger_count:
+            return Response(
+                {"message": "ظرفیت کاروان تکمیل شده است."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        return Response({"message": "رزرو تکمیل شد.", "bookingId": booking.id})
+        with transaction.atomic():
+            booking.selected_seats = [int(s) for s in (selected_seats or [])]
+            booking.status = 'completed'
+            booking.is_completed = True
+            booking.current_step = 4
+            booking.save()
+
+            caravan.remaining_capacity -= booking.passenger_count
+            caravan.save(update_fields=['remaining_capacity'])
+
+        return Response({
+            "message": "رزرو تکمیل شد.",
+            "bookingId": booking.id,
+            "bookingCode": booking.booking_code,
+        })
 
 
 class UserBookingsView(APIView):

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Bus, Plus, Users, CalendarCheck, Download, Eye, Edit2, Trash2,
   ChevronLeft, TrendingUp, Clock, CheckCircle2, XCircle, AlertCircle,
-  Phone, Armchair, X, Image, Upload, Link2, Copy,
+  Phone, Armchair, X, Image, Upload, Link2, Copy, CreditCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -57,6 +57,8 @@ interface Booking {
   selected_seats: number[];
   created_at: string;
   is_paid: boolean;
+  booking_code?: string;
+  payment_link?: string;
 }
 
 interface Caravan {
@@ -71,6 +73,93 @@ interface Caravan {
   capacity: number;
   remaining_capacity: number;
   status: string;
+  bus_type?: number;
+  bus_type_display?: string;
+  is_ground_transport?: boolean;
+}
+
+/**
+ * ثبت/ویرایش لینک پرداخت یک رزرو. لینک پس از ثبت، در صفحه‌ی نهایی (رسید) زائر
+ * نمایش داده می‌شود.
+ */
+function PaymentLinkButton({ booking, onSaved }: { booking: Booking; onSaved: () => void }) {
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [link, setLink] = useState(booking.payment_link || "");
+
+  const save = useMutation({
+    mutationFn: async (value: string) => {
+      const res = await fetch(`${djangoURL}/api/leader/bookings/${booking.id}`, {
+        method: "PATCH",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ payment_link: value }),
+      });
+      if (!res.ok) throw new Error("خطا در ذخیره لینک پرداخت");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: link ? "لینک پرداخت ثبت شد" : "لینک پرداخت حذف شد",
+        description: link ? "لینک در صفحه رسید زائر نمایش داده می‌شود." : undefined,
+      });
+      setOpen(false);
+      onSaved();
+    },
+    onError: (e: Error) => toast({ title: "خطا", description: e.message, variant: "destructive" }),
+  });
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className={`p-2 rounded-xl transition-colors ${
+          booking.payment_link ? "text-emerald-600 hover:bg-emerald-50" : "text-muted-foreground hover:bg-muted"
+        }`}
+        title={booking.payment_link ? "ویرایش لینک پرداخت" : "ثبت لینک پرداخت"}
+      >
+        <CreditCard className="h-4 w-4" />
+      </button>
+
+      {open && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setOpen(false)}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            className="bg-card rounded-2xl border border-border p-6 max-w-md w-full shadow-xl"
+          >
+            <h3 className="font-heading font-bold text-lg text-foreground mb-1">لینک پرداخت</h3>
+            <p className="text-muted-foreground text-xs mb-4">
+              رزرو {booking.booking_code || `#${booking.id}`} — {booking.main_passenger_name}
+              <br />
+              پس از ثبت، لینک در صفحه‌ی نهایی رزرو (رسید) برای زائر نمایش داده می‌شود.
+            </p>
+            <input
+              type="url"
+              dir="ltr"
+              value={link}
+              onChange={e => setLink(e.target.value)}
+              placeholder="https://..."
+              className="w-full h-11 rounded-xl border border-border bg-background px-3 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setOpen(false)}>
+                انصراف
+              </Button>
+              <Button
+                className="flex-1 rounded-xl"
+                disabled={save.isPending}
+                onClick={() => save.mutate(link.trim())}
+              >
+                {save.isPending ? "در حال ذخیره..." : "ذخیره"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
 
 function ReviewLinkButton({ bookingId }: { bookingId: number }) {
@@ -132,7 +221,9 @@ export default function CaravanLeaderDashboard() {
   const { data: bookings = [], isLoading: loadingBookings } = useQuery<Booking[]>({
     queryKey: ["leader-bookings", selectedCaravanId],
     queryFn: () => apiFetch(bookingsUrl),
-    enabled: isAuthenticated && activeTab === "bookings",
+    // آمار بالای صفحه از همین داده ساخته می‌شود، پس نباید به تب فعال وابسته باشد
+    // (قبلاً تا زمانی که تب «مسافران» باز نمی‌شد همه آمارها صفر نمایش داده می‌شد).
+    enabled: isAuthenticated,
   });
 
   const cancelBooking = useMutation({
@@ -145,14 +236,42 @@ export default function CaravanLeaderDashboard() {
     },
   });
 
-  const exportCSV = () => {
+  const [exporting, setExporting] = useState(false);
+
+  /**
+   * دانلود CSV باید با هدر Authorization انجام شود؛ لینک ساده‌ی <a> هدر را
+   * نمی‌فرستد و سرور ۴۰۱ برمی‌گرداند (فایل خراب دانلود می‌شد).
+   */
+  const exportCSV = async () => {
     const url = selectedCaravanId
       ? `${djangoURL}/api/leader/bookings/export?caravan_id=${selectedCaravanId}`
       : `${djangoURL}/api/leader/bookings/export`;
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "bookings.csv";
-    a.click();
+    setExporting(true);
+    try {
+      const res = await fetch(url, { headers: authHeaders() });
+      if (!res.ok) throw new Error("خطا در دریافت فایل");
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(
+        new Blob([blob], { type: "text/csv;charset=utf-8" })
+      );
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = selectedCaravanId
+        ? `bookings-caravan-${selectedCaravanId}.csv`
+        : "bookings.csv";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      toast({
+        title: "خطا در دانلود",
+        description: "دریافت فایل وضعیت مسافران ناموفق بود. دوباره تلاش کنید.",
+        variant: "destructive",
+      });
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handlePhotoUpload = async () => {
@@ -350,9 +469,14 @@ export default function CaravanLeaderDashboard() {
                           </div>
                           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground mt-1">
                             <span>{caravan.destination_display}</span>
-                            <span>{caravan.departure_date}</span>
+                            <span>{toPersian(caravan.departure_date)}</span>
                             <span>{caravan.duration} روز</span>
-                            <span>{caravan.transportation_display}</span>
+                            <span>
+                              {caravan.transportation_display}
+                              {caravan.is_ground_transport && caravan.bus_type
+                                ? ` (${caravan.bus_type_display || `${toPersian(caravan.bus_type)} نفره`})`
+                                : ""}
+                            </span>
                             <span>{toPersian(caravan.capacity - caravan.remaining_capacity)}/{toPersian(caravan.capacity)} نفر رزرو شده</span>
                           </div>
                         </div>
@@ -421,9 +545,19 @@ export default function CaravanLeaderDashboard() {
                     ))}
                   </select>
                 </div>
-                <Button variant="outline" size="sm" onClick={exportCSV} className="rounded-xl gap-1.5 text-xs">
-                  <Download className="h-3.5 w-3.5" />
-                  دانلود CSV
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={exportCSV}
+                  disabled={exporting || bookings.length === 0}
+                  className="rounded-xl gap-1.5 text-xs"
+                >
+                  {exporting ? (
+                    <div className="h-3.5 w-3.5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                  ) : (
+                    <Download className="h-3.5 w-3.5" />
+                  )}
+                  دانلود CSV وضعیت مسافران
                 </Button>
               </div>
 
@@ -453,6 +587,11 @@ export default function CaravanLeaderDashboard() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap mb-1.5">
                               <span className="font-bold text-foreground">{booking.main_passenger_name}</span>
+                              {booking.booking_code && (
+                                <span className="text-[11px] font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded-md" dir="ltr">
+                                  {booking.booking_code}
+                                </span>
+                              )}
                               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${st.color}`}>
                                 {st.label}
                               </span>
@@ -481,6 +620,10 @@ export default function CaravanLeaderDashboard() {
                             </div>
                           </div>
                           <div className="flex items-center gap-1">
+                            <PaymentLinkButton
+                              booking={booking}
+                              onSaved={() => qc.invalidateQueries({ queryKey: ["leader-bookings"] })}
+                            />
                             <ReviewLinkButton bookingId={booking.id} />
                             <button
                               onClick={() => setConfirmCancel(booking.id)}

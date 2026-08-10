@@ -172,6 +172,10 @@ class LeaderBookingsView(APIView):
         caravan_id = request.query_params.get('caravan_id')
         if caravan_id:
             bookings = bookings.filter(caravan_id=caravan_id)
+        # رزروهای نیمه‌کاره (کاربر فرم را رها کرده) نباید در فهرست و آمار مسافران
+        # کاروان‌دار شمرده شوند. با include_drafts=1 قابل مشاهده‌اند.
+        if request.query_params.get('include_drafts') not in ('1', 'true'):
+            bookings = bookings.filter(is_completed=True)
         return Response(BookingSerializer(bookings, many=True).data)
 
 
@@ -198,7 +202,7 @@ class LeaderBookingDetailView(APIView):
         booking = self._get_booking(request, pk)
         if not booking:
             return Response({"message": "رزرو یافت نشد."}, status=404)
-        allowed = {'status', 'special_requests', 'selected_seats', 'is_paid', 'payment_reference'}
+        allowed = {'status', 'special_requests', 'selected_seats', 'is_paid', 'payment_reference', 'payment_link'}
         for key, val in request.data.items():
             if key in allowed:
                 setattr(booking, key, val)
@@ -225,32 +229,59 @@ class LeaderBookingsExportView(APIView):
     def get(self, request):
         caravans = Caravan.objects.filter(leader=request.user)
         caravan_id = request.query_params.get('caravan_id')
-        bookings = Booking.objects.filter(caravan__in=caravans).select_related('caravan')
+        bookings = Booking.objects.filter(caravan__in=caravans, is_completed=True).select_related('caravan')
         if caravan_id:
             bookings = bookings.filter(caravan_id=caravan_id)
 
-        response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+        bookings = bookings.order_by('caravan_id', 'id')
+
+        response = HttpResponse(content_type='text/csv; charset=utf-8')
         response['Content-Disposition'] = 'attachment; filename="bookings.csv"'
+        # BOM تا اکسل فارسی فایل را درست باز کند
+        response.write('﻿')
 
         writer = csv.writer(response)
         writer.writerow([
-            'شناسه', 'نام کاروان', 'نام سرپرست', 'کد ملی', 'موبایل', 'شماره اضطراری',
-            'تعداد مسافر', 'مبلغ کل', 'وضعیت', 'صندلی‌ها', 'تاریخ ثبت'
+            'کد رزرو', 'نام کاروان', 'ردیف مسافر', 'نوع مسافر', 'نام', 'نام خانوادگی',
+            'کد ملی', 'شماره موبایل', 'تعداد مسافر رزرو', 'مبلغ کل (تومان)',
+            'وضعیت', 'صندلی‌ها', 'تاریخ ثبت',
         ])
         for b in bookings:
-            writer.writerow([
-                b.id,
-                b.caravan.name,
-                b.main_passenger_name,
+            code = b.booking_code or f"#{b.id}"
+            seats = '، '.join(str(s) for s in (b.selected_seats or [])) or '-'
+            created = b.created_at.strftime('%Y-%m-%d %H:%M')
+            rows = [(
+                'سرپرست',
+                b.main_passenger_first_name or b.main_passenger_name,
+                b.main_passenger_last_name or '',
                 b.main_passenger_id,
                 b.main_passenger_phone,
-                b.main_passenger_emergency_phone,
-                b.passenger_count,
-                f"{b.total_price:,}",
-                b.get_status_display(),
-                ', '.join(str(s) for s in (b.selected_seats or [])),
-                b.created_at.strftime('%Y-%m-%d %H:%M'),
-            ])
+            )]
+            for c in (b.companions or []):
+                rows.append((
+                    'همراه',
+                    c.get('firstName') or c.get('name', ''),
+                    c.get('lastName', ''),
+                    c.get('nationalId', ''),
+                    c.get('phone', ''),
+                ))
+            for idx, (kind, first, last, nid, tel) in enumerate(rows, start=1):
+                writer.writerow([
+                    code,
+                    b.caravan.name,
+                    idx,
+                    kind,
+                    first,
+                    last,
+                    # جلوگیری از حذف صفر ابتدایی کد ملی در اکسل
+                    f'="{nid}"' if nid else '',
+                    f'="{tel}"' if tel else '',
+                    b.passenger_count,
+                    b.total_price,
+                    b.get_status_display(),
+                    seats if idx == 1 else '',
+                    created,
+                ])
         return response
 
 

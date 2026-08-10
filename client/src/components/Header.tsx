@@ -198,9 +198,14 @@ export default function Header() {
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label={mobileMenuOpen ? "بستن منو" : "باز کردن منو"}
+              aria-expanded={mobileMenuOpen}
               className={cn(
-                "p-2 rounded-xl transition-colors",
-                scrolled ? "hover:bg-primary/5 text-foreground" : "hover:bg-white/10 text-white"
+                // دکمه همیشه پس‌زمینه دارد تا روی صفحات روشن هم دیده شود
+                "p-2 rounded-xl border transition-colors shadow-sm",
+                scrolled || mobileMenuOpen
+                  ? "bg-primary/10 border-primary/20 text-primary hover:bg-primary/15"
+                  : "bg-black/35 border-white/30 text-white backdrop-blur-sm hover:bg-black/45"
               )}
             >
               <AnimatePresence mode="wait">

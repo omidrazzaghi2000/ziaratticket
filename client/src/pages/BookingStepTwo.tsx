@@ -17,19 +17,27 @@ import {
 } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion } from "framer-motion";
 import { djangoURL } from "@/App";
+import { nationalIdSchema, toLatinDigits } from "./BookingStepOne";
 
+/**
+ * همراهان مثل سرپرست: نام، نام خانوادگی و کد ملی.
+ * شماره موبایل اختیاری است چون همراهان اغلب فرزند یا سالمند هستند و ممکن است
+ * شماره نداشته باشند؛ ولی اگر وارد شود باید فرمت درستی داشته باشد.
+ */
 const companionSchema = z.object({
-  name: z.string().min(3, { message: "نام و نام خانوادگی الزامی است" }),
-  nationalId: z.string().optional(),
-  passportNo: z.string().optional(),
-  foreignName: z.string().optional(),
-  foreignLastname: z.string().optional(),
-  relationship: z.string().min(1, { message: "نسبت الزامی است" }),
-  birthdate: z.string().min(5, { message: "تاریخ تولد الزامی است" }),
-  phone: z.string().optional(),
+  firstName: z.string().trim().min(2, { message: "نام الزامی است" }),
+  lastName: z.string().trim().min(2, { message: "نام خانوادگی الزامی است" }),
+  nationalId: nationalIdSchema,
+  phone: z
+    .string()
+    .transform(toLatinDigits)
+    .refine(v => v === "" || /^09\d{9}$/.test(v), {
+      message: "شماره موبایل باید ۱۱ رقم و با ۰۹ شروع شود",
+    })
+    .optional()
+    .default(""),
 });
 
 type CompanionFormValues = z.infer<typeof companionSchema>;
@@ -96,18 +104,12 @@ export default function BookingStepTwo({ params }: BookingStepTwoProps) {
     }
   }, [booking?.passengerCount, bookingId, navigate]);
 
-  const isInternational = booking?.caravan_is_international ?? false;
-
   const form = useForm<CompanionFormValues>({
     resolver: zodResolver(companionSchema),
     defaultValues: {
-      name: "",
+      firstName: "",
+      lastName: "",
       nationalId: "",
-      passportNo: "",
-      foreignName: "",
-      foreignLastname: "",
-      relationship: "",
-      birthdate: "",
       phone: "",
     },
   });
@@ -121,19 +123,15 @@ export default function BookingStepTwo({ params }: BookingStepTwoProps) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name: data.name,
-          national_id: data.nationalId || "",
-          passport_no: data.passportNo || "",
-          foreign_name: data.foreignName || "",
-          foreign_lastname: data.foreignLastname || "",
-          relationship: data.relationship,
-          birthdate: data.birthdate,
+          first_name: data.firstName,
+          last_name: data.lastName,
+          national_id: data.nationalId,
           phone: data.phone || "",
         }),
       });
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
-        throw new Error(err.message || "خطا در ثبت اطلاعات همراه");
+        throw new Error(err.message || err.national_id?.[0] || err.phone?.[0] || "خطا در ثبت اطلاعات همراه");
       }
       return response.json();
     },
@@ -202,12 +200,11 @@ export default function BookingStepTwo({ params }: BookingStepTwoProps) {
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}
               className="bg-card rounded-2xl p-7 border border-border shadow-card">
               <h2 className="font-heading text-xl font-bold text-foreground mb-6 pb-4 border-b border-border">اطلاعات سرپرست</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {[
                   { label: "نام و نام خانوادگی", value: booking?.main_passenger_name },
-                  { label: isInternational ? "شماره پاسپورت" : "کد ملی", value: isInternational ? booking?.main_passenger_passport_no : booking?.main_passenger_id },
+                  { label: "کد ملی", value: booking?.main_passenger_id },
                   { label: "شماره موبایل", value: booking?.main_passenger_phone },
-                  { label: "تاریخ تولد", value: booking?.main_passenger_birthdate },
                 ].map((item, i) => (
                   <div key={i}>
                     <p className="text-xs text-muted-foreground mb-1">{item.label}</p>
@@ -240,83 +237,57 @@ export default function BookingStepTwo({ params }: BookingStepTwoProps) {
 
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(d => addCompanionMutation.mutate(d))} className="space-y-5">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField control={form.control} name="name" render={({ field }) => (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <FormField control={form.control} name="firstName" render={({ field }) => (
                         <FormItem>
-                          <FormLabel>نام و نام خانوادگی *</FormLabel>
+                          <FormLabel>نام *</FormLabel>
                           <FormControl><Input className="rounded-xl" {...field} /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )} />
 
-                      {!isInternational ? (
-                        <FormField control={form.control} name="nationalId" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>کد ملی *</FormLabel>
-                            <FormControl><Input className="rounded-xl" maxLength={10} {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )} />
-                      ) : (
-                        <FormField control={form.control} name="passportNo" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>شماره پاسپورت *</FormLabel>
-                            <FormControl><Input className="rounded-xl" {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )} />
-                      )}
-
-                      {isInternational && (
-                        <>
-                          <FormField control={form.control} name="foreignName" render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>نام لاتین *</FormLabel>
-                              <FormControl><Input className="rounded-xl" placeholder="FIRST NAME" {...field} /></FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )} />
-                          <FormField control={form.control} name="foreignLastname" render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>نام خانوادگی لاتین *</FormLabel>
-                              <FormControl><Input className="rounded-xl" placeholder="LAST NAME" {...field} /></FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )} />
-                        </>
-                      )}
-
-                      <FormField control={form.control} name="relationship" render={({ field }) => (
+                      <FormField control={form.control} name="lastName" render={({ field }) => (
                         <FormItem>
-                          <FormLabel>نسبت *</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger className="rounded-xl"><SelectValue placeholder="انتخاب کنید" /></SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="spouse">همسر</SelectItem>
-                              <SelectItem value="child">فرزند</SelectItem>
-                              <SelectItem value="parent">والدین</SelectItem>
-                              <SelectItem value="sibling">خواهر/برادر</SelectItem>
-                              <SelectItem value="other">سایر</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <FormLabel>نام خانوادگی *</FormLabel>
+                          <FormControl><Input className="rounded-xl" {...field} /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )} />
 
-                      <FormField control={form.control} name="birthdate" render={({ field }) => (
+                      <FormField control={form.control} name="nationalId" render={({ field }) => (
                         <FormItem>
-                          <FormLabel>تاریخ تولد *</FormLabel>
-                          <FormControl><Input className="rounded-xl" placeholder="مثال: ۱۳۷۰/۰۴/۲۰" {...field} /></FormControl>
+                          <FormLabel>کد ملی *</FormLabel>
+                          <FormControl>
+                            <Input
+                              className="rounded-xl"
+                              inputMode="numeric"
+                              maxLength={10}
+                              placeholder="۱۰ رقم"
+                              {...field}
+                              onChange={(e) => field.onChange(toLatinDigits(e.target.value).replace(/\D/g, ""))}
+                            />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )} />
 
                       <FormField control={form.control} name="phone" render={({ field }) => (
                         <FormItem>
-                          <FormLabel>شماره موبایل <span className="text-muted-foreground font-normal">(اختیاری)</span></FormLabel>
-                          <FormControl><Input className="rounded-xl" type="tel" {...field} /></FormControl>
+                          <FormLabel>
+                            شماره موبایل <span className="text-muted-foreground font-normal">(اختیاری)</span>
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              className="rounded-xl"
+                              type="tel"
+                              inputMode="numeric"
+                              maxLength={11}
+                              dir="ltr"
+                              placeholder="۰۹۱۲۳۴۵۶۷۸۹"
+                              {...field}
+                              onChange={(e) => field.onChange(toLatinDigits(e.target.value).replace(/\D/g, ""))}
+                            />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )} />
@@ -373,20 +344,13 @@ export default function BookingStepTwo({ params }: BookingStepTwoProps) {
                     <span className="inline-block w-1 h-1 rounded-full bg-primary mt-1.5 shrink-0" />
                     اطلاعات باید دقیقاً مطابق با مدارک شناسایی باشد.
                   </li>
-                  {isInternational ? (
-                    <li className="flex items-start gap-2">
-                      <span className="inline-block w-1 h-1 rounded-full bg-primary mt-1.5 shrink-0" />
-                      شماره پاسپورت و نام لاتین الزامی است.
-                    </li>
-                  ) : (
-                    <li className="flex items-start gap-2">
-                      <span className="inline-block w-1 h-1 rounded-full bg-primary mt-1.5 shrink-0" />
-                      کد ملی باید ۱۰ رقم باشد.
-                    </li>
-                  )}
                   <li className="flex items-start gap-2">
                     <span className="inline-block w-1 h-1 rounded-full bg-primary mt-1.5 shrink-0" />
-                    شماره تماس همراهان اختیاری است.
+                    کد ملی باید ۱۰ رقم باشد.
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="inline-block w-1 h-1 rounded-full bg-primary mt-1.5 shrink-0" />
+                    برای هر همراه نام، نام خانوادگی و کد ملی لازم است؛ شماره موبایل اختیاری.
                   </li>
                 </ul>
               </div>

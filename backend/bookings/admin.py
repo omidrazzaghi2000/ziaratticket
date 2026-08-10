@@ -6,26 +6,27 @@ from .models import Booking
 @admin.register(Booking)
 class BookingAdmin(admin.ModelAdmin):
     list_display = (
-        'id', 'main_passenger_name', 'main_passenger_phone',
+        'id', 'booking_code', 'main_passenger_name', 'main_passenger_id',
         'caravan', 'passenger_count', 'formatted_total_price',
         'status_badge', 'is_paid', 'created_at'
     )
-    list_display_links = ('id', 'main_passenger_name')
+    list_display_links = ('id', 'booking_code', 'main_passenger_name')
     list_filter = ('status', 'is_paid', 'is_completed', 'transportation_type')
     search_fields = (
-        'main_passenger_name', 'main_passenger_id', 'main_passenger_phone',
+        'booking_code', 'main_passenger_name', 'main_passenger_id', 'main_passenger_phone',
         'main_passenger_passport_no', 'caravan__name', 'user__phone'
     )
     ordering = ('-created_at',)
-    readonly_fields = ('created_at', 'updated_at', 'companions_display', 'selected_seats_display')
+    readonly_fields = ('booking_code', 'created_at', 'updated_at', 'companions_display', 'selected_seats_display')
     date_hierarchy = 'created_at'
 
     fieldsets = (
         ('اطلاعات رزرو', {
-            'fields': ('user', 'caravan', 'status', 'current_step', 'is_completed'),
+            'fields': ('booking_code', 'user', 'caravan', 'status', 'current_step', 'is_completed'),
         }),
         ('اطلاعات سرپرست', {
             'fields': (
+                'main_passenger_first_name', 'main_passenger_last_name',
                 'main_passenger_name', 'main_passenger_id', 'main_passenger_phone',
                 'main_passenger_birthdate', 'main_passenger_emergency_phone',
                 'main_passenger_messaging_apps',
@@ -48,7 +49,7 @@ class BookingAdmin(admin.ModelAdmin):
             'fields': ('special_requests',),
         }),
         ('پرداخت', {
-            'fields': ('total_price', 'is_paid', 'payment_date', 'payment_reference'),
+            'fields': ('total_price', 'is_paid', 'payment_date', 'payment_reference', 'payment_link'),
         }),
         ('تاریخ‌های سیستمی', {
             'fields': ('created_at', 'updated_at'),
@@ -80,12 +81,12 @@ class BookingAdmin(admin.ModelAdmin):
         if not obj.companions:
             return "بدون همراه"
         rows = "".join(
-            f"<tr><td>{c.get('name','')}</td><td>{c.get('nationalId','') or c.get('passportNo','')}</td>"
-            f"<td>{c.get('relationship','')}</td><td>{c.get('phone','')}</td></tr>"
+            f"<tr><td>{c.get('firstName','') or c.get('name','')}</td><td>{c.get('lastName','')}</td>"
+            f"<td>{c.get('nationalId','') or c.get('passportNo','')}</td><td>{c.get('phone','') or '—'}</td></tr>"
             for c in obj.companions
         )
         return format_html(
-            '<table style="font-size:13px;"><thead><tr><th>نام</th><th>کد ملی/گذرنامه</th><th>نسبت</th><th>موبایل</th></tr></thead>'
+            '<table style="font-size:13px;"><thead><tr><th>نام</th><th>نام خانوادگی</th><th>کد ملی</th><th>موبایل</th></tr></thead>'
             '<tbody>{}</tbody></table>', rows
         )
     companions_display.short_description = 'لیست همراهان'

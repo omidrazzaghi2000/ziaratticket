@@ -1,0 +1,63 @@
+/* هماهنگ‌سازی ظاهر تقویم شمسی با تم سایت */
+.rmdp-container {
+  display: block !important;
+  width: 100%;
+}
+
+.rmdp-wrapper,
+.rmdp-calendar,
+.rmdp-time-picker {
+  font-family: inherit;
+}
+
+.rmdp-wrapper {
+  border-radius: 1rem;
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  z-index: 60;
+}
+
+.rmdp-day.rmdp-selected span:not(.highlight),
+.rmdp-time-picker div input:focus {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  box-shadow: none;
+}
+
+.rmdp-day:not(.rmdp-disabled):not(.rmdp-day-hidden) span:hover {
+  background-color: hsl(var(--primary) / 0.15);
+  color: hsl(var(--primary));
+}
+
+.rmdp-day.rmdp-today span {
+  background-color: hsl(var(--primary) / 0.12);
+  color: hsl(var(--primary));
+}
+
+.rmdp-arrow {
+  border-color: hsl(var(--primary));
+}
+
+.rmdp-arrow-container:hover {
+  background-color: hsl(var(--primary));
+}
+
+.rmdp-arrow-container:hover .rmdp-arrow {
+  border-color: #fff;
+}
+
+.rmdp-header-values,
+.rmdp-week-day {
+  color: hsl(var(--foreground));
+}
+
+.rmdp-week-day {
+  color: hsl(var(--muted-foreground));
+}
+
+/* روی موبایل تقویم نباید از لبه بیرون بزند */
+@media (max-width: 480px) {
+  .rmdp-wrapper {
+    max-width: calc(100vw - 2rem);
+  }
+}

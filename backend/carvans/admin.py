@@ -51,7 +51,7 @@ class CaravanAdmin(admin.ModelAdmin):
             'fields': ('departure_date', 'duration', 'start_date', 'end_date'),
         }),
         ('حمل‌ونقل و مسیر', {
-            'fields': ('transportation_type', 'origin_city', 'transit_cities'),
+            'fields': ('transportation_type', 'bus_type', 'origin_city', 'transit_cities'),
         }),
         ('اقامتگاه', {
             'fields': ('accommodation_type', 'accommodation_name', 'accommodation_city', 'accommodation_distance'),

@@ -11,17 +11,27 @@ import { motion } from "framer-motion";
 import { djangoURL } from "@/App";
 
 interface Companion {
+  firstName?: string;
+  lastName?: string;
   name: string;
   nationalId: string;
-  relationship: string;
-  birthdate: string;
+  phone?: string;
 }
 
 interface Seat {
   number: number;
   isOccupied: boolean;
   isSelected: boolean;
-  passengerName?: string;
+  passengerName?: string | null;
+}
+
+interface SeatsResponse {
+  seats: Seat[];
+  busType: number;
+  busCount: number;
+  capacity: number;
+  isGroundTransport: boolean;
+  passengerCount: number;
 }
 
 interface BookingStepThreeProps {
@@ -35,15 +45,11 @@ interface BookingStep3Data {
   selectedSeats?: number[];
 }
 
-const SEATS_PER_BUS = 25;
+const DEFAULT_BUS_TYPE = 44;
 
-const RELATIONSHIP_LABELS: Record<string, string> = {
-  spouse: "همسر",
-  child: "فرزند",
-  parent: "والدین",
-  sibling: "خواهر/برادر",
-  other: "سایر",
-};
+/** تبدیل ارقام لاتین یک رشته به فارسی (برای تاریخ‌های ذخیره‌شده با ارقام لاتین) */
+const toPersianText = (v?: string) =>
+  (v || "").replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[+d]);
 
 function StepIndicator({ current }: { current: 1 | 2 | 3 }) {
   const steps = [
@@ -105,14 +111,19 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
     enabled: !!booking?.caravan,
   });
 
-  const { data: seats = [] } = useQuery<Seat[]>({
+  const { data: seatData } = useQuery<SeatsResponse>({
     queryKey: ["seats3", bookingId],
     queryFn: async () => {
       const response = await fetch(djangoURL + `/api/bookings/${bookingId}/seats`, { headers: authHeader });
       return response.json();
     },
     enabled: !!bookingId,
+    // صندلی‌ها ممکن است همزمان توسط زائر دیگری رزرو شوند
+    refetchInterval: 20000,
+    refetchOnWindowFocus: true,
   });
+
+  const seats: Seat[] = seatData?.seats ?? [];
 
   const saveStep3Mutation = useMutation({
     mutationFn: async (data: BookingStep3Data) => {
@@ -122,9 +133,14 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
           Authorization: localStorage.getItem("AUTH_TOKEN_KEY") || "",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          special_requests: data.specialRequests || "",
+          selected_seats: data.selectedSeats || [],
+        }),
       });
-      return response.json();
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(json.message || "خطا در ذخیره اطلاعات.");
+      return json;
     },
     onError: (error: Error) => {
       toast({
@@ -146,7 +162,8 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
         headers: { ...authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({ selected_seats: selectedSeats }),
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || "خطا در تکمیل رزرو.");
       return data;
     },
     onSuccess: () => {
@@ -206,10 +223,22 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
   }
 
   const companions: Companion[] = Array.isArray(booking.companions) ? booking.companions : [];
+
+  // سفر زمینی = اتوبوسی. قبلاً با رشته «زمینی» مقایسه می‌شد که هیچ‌وقت با مقدار
+  // واقعی ('bus') برابر نمی‌شد؛ در نتیجه نقشه صندلی نمایش داده نمی‌شد و رزرو
+  // بدون انتخاب صندلی ثبت می‌گردید.
   const isGroundTransport =
-    caravan?.transportation_type === "زمینی" || booking?.transportation_type === "زمینی";
+    seatData?.isGroundTransport ??
+    booking?.caravan_is_ground_transport ??
+    ["bus", "combined", "زمینی"].includes(
+      caravan?.transportation_type || booking?.transportation_type || ""
+    );
+
+  const busType = seatData?.busType || caravan?.bus_type || DEFAULT_BUS_TYPE;
+  const totalCapacity = seatData?.capacity || caravan?.capacity || busType;
   const seatsRequired = booking?.passenger_count || 1;
-  const canSubmit = !isGroundTransport || selectedSeats.length === seatsRequired;
+  const seatsMissing = Math.max(0, seatsRequired - selectedSeats.length);
+  const canSubmit = !isGroundTransport || seatsMissing === 0;
 
   return (
     <div className="bg-background min-h-screen">
@@ -253,9 +282,10 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {[
                     { label: "نام کاروان", value: caravan.name },
-                    { label: "تاریخ حرکت", value: caravan.departure_date },
-                    { label: "مدت سفر", value: `${caravan.duration} روز` },
-                    { label: "نوع اقامتگاه", value: caravan.accommodation_type },
+                    { label: "تاریخ حرکت", value: toPersianText(caravan.departure_date) },
+                    { label: "مدت سفر", value: `${toPersian(caravan.duration)} روز` },
+                    // باید عنوان فارسی نمایش داده شود نه کلید انگلیسی (hotel)
+                    { label: "نوع اقامتگاه", value: caravan.accommodation_display || caravan.accommodation_type },
                   ].map((item, i) => (
                     <div key={i}>
                       <p className="text-xs text-muted-foreground mb-1">{item.label}</p>
@@ -282,12 +312,12 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
                   </div>
                   سرپرست
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-cream-100 rounded-xl p-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-cream-100 rounded-xl p-4">
                   {[
-                    { label: "نام و نام خانوادگی", value: booking?.main_passenger_name },
+                    { label: "نام", value: booking?.main_passenger_first_name || booking?.main_passenger_name },
+                    { label: "نام خانوادگی", value: booking?.main_passenger_last_name || "—" },
                     { label: "کد ملی", value: booking?.main_passenger_id },
-                    { label: "شماره موبایل", value: booking?.main_passenger_phone },
-                    { label: "تاریخ تولد", value: booking?.main_passenger_birthdate },
+                    { label: "شماره موبایل", value: toPersianText(booking?.main_passenger_phone) || "—" },
                   ].map((item, i) => (
                     <div key={i}>
                       <p className="text-xs text-muted-foreground mb-1">{item.label}</p>
@@ -308,24 +338,24 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
                   <div className="space-y-3">
                     {companions.map((companion, index) => (
                       <div key={index} className="bg-cream-100 rounded-xl p-4 border border-border">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                           <div>
-                            <p className="text-xs text-muted-foreground mb-1">نام و نام خانوادگی</p>
-                            <p className="font-medium text-foreground text-sm">{companion.name}</p>
+                            <p className="text-xs text-muted-foreground mb-1">نام</p>
+                            <p className="font-medium text-foreground text-sm">{companion.firstName || companion.name}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">نام خانوادگی</p>
+                            <p className="font-medium text-foreground text-sm">{companion.lastName || "—"}</p>
                           </div>
                           <div>
                             <p className="text-xs text-muted-foreground mb-1">کد ملی</p>
                             <p className="font-medium text-foreground text-sm">{companion.nationalId}</p>
                           </div>
                           <div>
-                            <p className="text-xs text-muted-foreground mb-1">نسبت</p>
+                            <p className="text-xs text-muted-foreground mb-1">شماره موبایل</p>
                             <p className="font-medium text-foreground text-sm">
-                              {RELATIONSHIP_LABELS[companion.relationship] || companion.relationship}
+                              {toPersianText(companion.phone) || "—"}
                             </p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground mb-1">تاریخ تولد</p>
-                            <p className="font-medium text-foreground text-sm">{companion.birthdate}</p>
                           </div>
                         </div>
                       </div>
@@ -343,13 +373,26 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
                 transition={{ duration: 0.5, delay: 0.2 }}
                 className="bg-card rounded-2xl p-7 border border-border shadow-card"
               >
-                <h2 className="font-heading text-xl font-bold text-foreground mb-5 pb-4 border-b border-border flex items-center gap-2">
-                  <Bus className="h-5 w-5 text-primary" strokeWidth={1.5} />
-                  انتخاب صندلی
-                </h2>
+                <div className="mb-5 pb-4 border-b border-border">
+                  <h2 className="font-heading text-xl font-bold text-foreground flex items-center gap-2">
+                    <Bus className="h-5 w-5 text-primary" strokeWidth={1.5} />
+                    انتخاب صندلی *
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-1.5">
+                    این کاروان با {caravan?.bus_type_display || `اتوبوس ${toPersian(busType)} نفره`} حرکت می‌کند.
+                    برای هر مسافر یک صندلی انتخاب کنید.
+                  </p>
+                </div>
+
+                {seatsMissing > 0 && (
+                  <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                    هنوز {toPersian(seatsMissing)} صندلی انتخاب نشده است. تا انتخاب همه صندلی‌ها امکان ثبت نهایی وجود ندارد.
+                  </div>
+                )}
 
                 <BusSeatMap
-                  totalCapacity={caravan?.capacity || SEATS_PER_BUS}
+                  totalCapacity={totalCapacity}
+                  busType={busType}
                   occupiedSeats={seats.filter(s => s.isOccupied).map(s => s.number)}
                   selectedSeats={selectedSeats}
                   maxSelectable={seatsRequired}
@@ -451,7 +494,9 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
                   <MessageCircle className="h-4 w-4" />
                   لینک پرداخت
                 </h3>
-                <p className="text-emerald-600 text-xs">لینک پرداخت به شماره موبایل شما ارسال خواهد شد.</p>
+                <p className="text-emerald-600 text-xs">
+                  لینک پرداخت پس از تأیید نهایی شما ارسال می‌شود.
+                </p>
               </div>
 
               <div className="bg-gold-50 border border-gold-200 rounded-xl p-4">
@@ -459,7 +504,7 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
                 <ul className="text-gold-600 text-xs space-y-1">
                   <li>• تمام اطلاعات را با دقت بررسی کنید.</li>
                   <li>• پس از تایید، امکان ویرایش وجود ندارد.</li>
-                  <li>• لینک پرداخت تا ۲۴ ساعت معتبر است.</li>
+                  {isGroundTransport && <li>• انتخاب صندلی برای سفرهای زمینی الزامی است.</li>}
                 </ul>
               </div>
             </div>

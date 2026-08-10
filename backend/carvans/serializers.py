@@ -25,8 +25,11 @@ class CaravanSerializer(serializers.ModelSerializer):
     leader_name = serializers.SerializerMethodField()
     leader_phone = serializers.SerializerMethodField()
     image_full_url = serializers.SerializerMethodField()
+    bus_type_display = serializers.CharField(source='get_bus_type_display', read_only=True)
     is_international = serializers.BooleanField(read_only=True)
     is_air_travel = serializers.BooleanField(read_only=True)
+    is_ground_transport = serializers.BooleanField(read_only=True)
+    bus_count = serializers.IntegerField(read_only=True)
     photos = CaravanPhotoSerializer(many=True, read_only=True)
 
     class Meta:

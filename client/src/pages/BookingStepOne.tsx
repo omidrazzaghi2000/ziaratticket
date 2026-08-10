@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -25,24 +25,35 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { djangoURL } from "@/App";
 
-const MESSAGING_APPS = [
-  { id: "whatsapp", label: "واتساپ" },
-  { id: "bale", label: "بله" },
-  { id: "eitaa", label: "ایتا" },
-];
+/** تبدیل ارقام فارسی/عربی به لاتین تا کد ملی همیشه یکدست ذخیره شود */
+export const toLatinDigits = (v: string) =>
+  (v || "").replace(/[۰-۹]/g, d => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)))
+           .replace(/[٠-٩]/g, d => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
 
+export const nationalIdSchema = z
+  .string()
+  .min(1, { message: "کد ملی الزامی است" })
+  .transform(toLatinDigits)
+  .refine(v => /^\d{10}$/.test(v), { message: "کد ملی باید دقیقاً ۱۰ رقم باشد" });
+
+/** تبدیل ارقام لاتین یک رشته به فارسی (برای نمایش) */
+export const toPersianDigits = (v?: string | number) =>
+  String(v ?? "").replace(/\d/g, d => "۰۱۲۳۴۵۶۷۸۹"[+d]);
+
+export const phoneSchema = z
+  .string()
+  .min(1, { message: "شماره موبایل الزامی است" })
+  .transform(toLatinDigits)
+  .refine(v => /^09\d{9}$/.test(v), { message: "شماره موبایل باید ۱۱ رقم و با ۰۹ شروع شود" });
+
+/** ثبت‌نام ساده: نام، نام خانوادگی، کد ملی و شماره موبایل — برای همه‌ی سفرها یکسان */
 const bookingStep1Schema = z.object({
   caravanId: z.coerce.number(),
   passengerCount: z.coerce.number().min(1).max(10),
-  mainPassengerName: z.string().min(3, { message: "نام و نام خانوادگی الزامی است" }),
-  mainPassengerId: z.string().optional(),
-  mainPassengerPhone: z.string().min(10, { message: "شماره موبایل معتبر نیست" }),
-  mainPassengerBirthdate: z.string().min(5, { message: "تاریخ تولد الزامی است" }),
-  mainPassengerEmergencyPhone: z.string().min(10, { message: "شماره اضطراری معتبر نیست" }),
-  mainPassengerMessagingApps: z.array(z.string()).default([]),
-  mainPassengerPassportNo: z.string().optional(),
-  mainPassengerForeignName: z.string().optional(),
-  mainPassengerForeignLastname: z.string().optional(),
+  firstName: z.string().trim().min(2, { message: "نام الزامی است" }),
+  lastName: z.string().trim().min(2, { message: "نام خانوادگی الزامی است" }),
+  nationalId: nationalIdSchema,
+  phone: phoneSchema,
   termsAccepted: z.boolean().refine(val => val === true, {
     message: "پذیرش قوانین و مقررات الزامی است",
   }),
@@ -70,6 +81,9 @@ interface Caravan {
   manager: string;
   description?: string;
   is_international?: boolean;
+  is_ground_transport?: boolean;
+  bus_type?: number;
+  bus_type_display?: string;
   destination?: string;
   leader_name?: string;
   leader_phone?: string;
@@ -113,7 +127,7 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
   const caravanId = parseInt(params.caravanId);
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   const { data: caravan, isLoading: isLoadingCaravan } = useQuery<Caravan>({
@@ -132,18 +146,22 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
     defaultValues: {
       caravanId,
       passengerCount: 1,
-      mainPassengerName: "",
-      mainPassengerId: "",
-      mainPassengerPhone: "",
-      mainPassengerBirthdate: "",
-      mainPassengerEmergencyPhone: "",
-      mainPassengerMessagingApps: [],
-      mainPassengerPassportNo: "",
-      mainPassengerForeignName: "",
-      mainPassengerForeignLastname: "",
+      firstName: "",
+      lastName: "",
+      nationalId: "",
+      // شماره حساب کاربری به‌عنوان پیش‌فرض؛ کاربر می‌تواند تغییرش دهد
+      phone: user?.phone || "",
       termsAccepted: false,
     },
   });
+
+  // اطلاعات کاربر ممکن است بعد از ساخت فرم برسد؛ اگر کاربر هنوز شماره‌ای وارد
+  // نکرده، شماره حساب کاربری‌اش را پیش‌فرض بگذار.
+  useEffect(() => {
+    if (user?.phone && !form.getFieldState("phone").isDirty && !form.getValues("phone")) {
+      form.setValue("phone", user.phone);
+    }
+  }, [user?.phone, form]);
 
   const bookingStep1Mutation = useMutation({
     mutationFn: async (data: BookingStep1FormValues) => {
@@ -156,20 +174,22 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
         body: JSON.stringify({
           caravan_id: data.caravanId,
           passenger_count: data.passengerCount,
-          main_passenger_name: data.mainPassengerName,
-          main_passenger_id: data.mainPassengerId || "",
-          main_passenger_phone: data.mainPassengerPhone,
-          main_passenger_birthdate: data.mainPassengerBirthdate,
-          main_passenger_emergency_phone: data.mainPassengerEmergencyPhone,
-          main_passenger_messaging_apps: data.mainPassengerMessagingApps,
-          main_passenger_passport_no: data.mainPassengerPassportNo || "",
-          main_passenger_foreign_name: data.mainPassengerForeignName || "",
-          main_passenger_foreign_lastname: data.mainPassengerForeignLastname || "",
+          first_name: data.firstName,
+          last_name: data.lastName,
+          main_passenger_id: data.nationalId,
+          main_passenger_phone: data.phone,
         }),
       });
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
-        throw new Error(err.message || "خطا در ثبت اطلاعات");
+        throw new Error(
+          err.message ||
+          err.main_passenger_id?.[0] ||
+          err.main_passenger_phone?.[0] ||
+          err.first_name?.[0] ||
+          err.last_name?.[0] ||
+          "خطا در ثبت اطلاعات"
+        );
       }
       return response.json();
     },
@@ -232,102 +252,65 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <div className="bg-card rounded-2xl p-7 border border-border shadow-card">
-                  <h2 className="font-heading text-xl font-bold text-foreground mb-6 pb-4 border-b border-border">اطلاعات سرپرست</h2>
+                  <h2 className="font-heading text-xl font-bold text-foreground mb-2">اطلاعات سرپرست</h2>
+                  <p className="text-muted-foreground text-sm mb-6 pb-4 border-b border-border">
+                    ثبت‌نام ساده است؛ فقط نام، نام خانوادگی، کد ملی و شماره موبایل لازم است.
+                  </p>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <FormField control={form.control} name="mainPassengerName" render={({ field }) => (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <FormField control={form.control} name="firstName" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>نام و نام خانوادگی *</FormLabel>
-                        <FormControl><Input className="rounded-xl" {...field} /></FormControl>
+                        <FormLabel>نام *</FormLabel>
+                        <FormControl><Input className="rounded-xl" autoComplete="given-name" {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
 
-                    {!isInternational ? (
-                      <FormField control={form.control} name="mainPassengerId" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>کد ملی *</FormLabel>
-                          <FormControl><Input className="rounded-xl" maxLength={10} {...field} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )} />
-                    ) : (
-                      <FormField control={form.control} name="mainPassengerPassportNo" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>شماره پاسپورت *</FormLabel>
-                          <FormControl><Input className="rounded-xl" {...field} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )} />
-                    )}
+                    <FormField control={form.control} name="lastName" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>نام خانوادگی *</FormLabel>
+                        <FormControl><Input className="rounded-xl" autoComplete="family-name" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
 
-                    <FormField control={form.control} name="mainPassengerPhone" render={({ field }) => (
+                    <FormField control={form.control} name="nationalId" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>کد ملی *</FormLabel>
+                        <FormControl>
+                          <Input
+                            className="rounded-xl"
+                            inputMode="numeric"
+                            maxLength={10}
+                            placeholder="۱۰ رقم"
+                            {...field}
+                            onChange={(e) => field.onChange(toLatinDigits(e.target.value).replace(/\D/g, ""))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name="phone" render={({ field }) => (
                       <FormItem>
                         <FormLabel>شماره موبایل *</FormLabel>
-                        <FormControl><Input className="rounded-xl" type="tel" {...field} /></FormControl>
+                        <FormControl>
+                          <Input
+                            className="rounded-xl"
+                            type="tel"
+                            inputMode="numeric"
+                            maxLength={11}
+                            dir="ltr"
+                            placeholder="۰۹۱۲۳۴۵۶۷۸۹"
+                            autoComplete="tel"
+                            {...field}
+                            onChange={(e) => field.onChange(toLatinDigits(e.target.value).replace(/\D/g, ""))}
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
-
-                    <FormField control={form.control} name="mainPassengerBirthdate" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>تاریخ تولد *</FormLabel>
-                        <FormControl><Input className="rounded-xl" placeholder="مثال: ۱۳۶۵/۰۶/۱۰" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-
-                    <FormField control={form.control} name="mainPassengerEmergencyPhone" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>شماره اضطراری (ولی/سرپرست) *</FormLabel>
-                        <FormControl><Input className="rounded-xl" type="tel" placeholder="در صورت عدم دسترسی به سرپرست" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-
-                    {isInternational && (
-                      <>
-                        <FormField control={form.control} name="mainPassengerForeignName" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>نام (لاتین طبق پاسپورت) *</FormLabel>
-                            <FormControl><Input className="rounded-xl" placeholder="FIRST NAME" {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )} />
-                        <FormField control={form.control} name="mainPassengerForeignLastname" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>نام خانوادگی (لاتین طبق پاسپورت) *</FormLabel>
-                            <FormControl><Input className="rounded-xl" placeholder="LAST NAME" {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )} />
-                      </>
-                    )}
                   </div>
-
-                  {/* Messaging apps */}
-                  <FormField control={form.control} name="mainPassengerMessagingApps" render={({ field }) => (
-                    <FormItem className="mb-6">
-                      <FormLabel>پیام‌رسان‌های سرپرست</FormLabel>
-                      <div className="flex gap-4 flex-wrap mt-1">
-                        {MESSAGING_APPS.map(app => (
-                          <label key={app.id} className="flex items-center gap-2 cursor-pointer">
-                            <Checkbox
-                              checked={(field.value || []).includes(app.id)}
-                              onCheckedChange={(c) => {
-                                const next = c
-                                  ? [...(field.value || []), app.id]
-                                  : (field.value || []).filter(v => v !== app.id);
-                                field.onChange(next);
-                              }}
-                            />
-                            <span className="text-sm">{app.label}</span>
-                          </label>
-                        ))}
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
 
                   {/* Passenger count */}
                   <FormField control={form.control} name="passengerCount" render={({ field }) => (
@@ -340,7 +323,10 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {Array.from({ length: 10 }, (_, i) => i + 1).map(n => (
+                          {Array.from(
+                            { length: Math.max(1, Math.min(10, caravan.remaining_capacity || 10)) },
+                            (_, i) => i + 1
+                          ).map(n => (
                             <SelectItem key={n} value={String(n)}>
                               {n} نفر {n === 1 ? "(فقط خودم)" : `(خودم + ${n - 1} همراه)`}
                             </SelectItem>
@@ -416,7 +402,7 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
                   <div>
                     <h3 className="font-heading font-bold text-foreground">{caravan.name}</h3>
                     <p className="text-muted-foreground text-sm mt-0.5">
-                      تاریخ حرکت: {caravan.departure_date} — {caravan.duration} روزه
+                      تاریخ حرکت: {toPersianDigits(caravan.departure_date)} — {toPersianDigits(caravan.duration)} روزه
                     </p>
                   </div>
                 </div>
@@ -426,21 +412,26 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
                     <div className="w-7 h-7 bg-primary/10 rounded-lg flex items-center justify-center">
                       <Car className="h-3.5 w-3.5 text-primary" />
                     </div>
-                    <span className="text-foreground/80 text-sm">{caravan.transportation_display || caravan.transportation_type}</span>
+                    <span className="text-foreground/80 text-sm">
+                      {caravan.transportation_display || caravan.transportation_type}
+                      {caravan.is_ground_transport && caravan.bus_type
+                        ? ` — ${caravan.bus_type_display || `${toPersianDigits(caravan.bus_type)} نفره`}`
+                        : ""}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <div className="w-7 h-7 bg-primary/10 rounded-lg flex items-center justify-center">
                       <MapPin className="h-3.5 w-3.5 text-primary" />
                     </div>
                     <span className="text-foreground/80 text-sm">
-                      {caravan.accommodation_display || caravan.accommodation_type} — {caravan.accommodation_distance} متر تا حرم
+                      {caravan.accommodation_display || caravan.accommodation_type} — {toPersianDigits(caravan.accommodation_distance)} متر تا حرم
                     </span>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <div className="w-7 h-7 bg-primary/10 rounded-lg flex items-center justify-center">
                       <Users className="h-3.5 w-3.5 text-primary" />
                     </div>
-                    <span className="text-foreground/80 text-sm">ظرفیت باقیمانده: {caravan.remaining_capacity} نفر</span>
+                    <span className="text-foreground/80 text-sm">ظرفیت باقیمانده: {toPersianDigits(caravan.remaining_capacity)} نفر</span>
                   </div>
                 </div>
 

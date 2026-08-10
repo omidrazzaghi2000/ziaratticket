@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PersianDatePicker, jalaliToISO } from "@/components/ui/date-time-picker";
 import { Loader2, Plus, Trash2, ArrowRight, CheckCircle2, Bus } from "lucide-react";
 
 const MESSAGING_APPS = [
@@ -31,6 +32,9 @@ const schema = z.object({
   start_date: z.string().min(1, "تاریخ میلادی شروع الزامی است"),
   end_date: z.string().min(1, "تاریخ میلادی پایان الزامی است"),
   transportation_type: z.enum(["bus", "train", "airplane", "combined"]),
+  bus_type: z.coerce.number().refine(v => [25, 32, 44].includes(v), {
+    message: "نوع اتوبوس را انتخاب کنید",
+  }),
   origin_city: z.string().min(2, "مبدأ حرکت الزامی است"),
   transit_cities_str: z.string().optional(),
   accommodation_type: z.enum(["hotel", "hosseinieh", "apartment", "mixed"]),
@@ -71,6 +75,7 @@ export default function CaravanLeaderAddCaravan() {
       start_date: "",
       end_date: "",
       transportation_type: "bus",
+      bus_type: 44,
       origin_city: "",
       transit_cities_str: "",
       accommodation_type: "hotel",
@@ -106,6 +111,9 @@ export default function CaravanLeaderAddCaravan() {
         ...data,
         transit_cities,
         remaining_capacity: data.capacity,
+        // تاریخ‌های شمسی انتخاب‌شده برای ذخیره در سرور به میلادی تبدیل می‌شوند
+        start_date: jalaliToISO(data.start_date),
+        end_date: jalaliToISO(data.end_date),
       };
       delete (payload as Record<string, unknown>).transit_cities_str;
 
@@ -130,6 +138,11 @@ export default function CaravanLeaderAddCaravan() {
   });
 
   const duration = form.watch("duration");
+  const transportationType = form.watch("transportation_type");
+  const busType = form.watch("bus_type");
+  const capacity = form.watch("capacity");
+  const isGroundTransport = transportationType === "bus" || transportationType === "combined";
+  const busCount = busType ? Math.ceil((capacity || 0) / busType) : 0;
 
   if (success) {
     return (
@@ -225,21 +238,27 @@ export default function CaravanLeaderAddCaravan() {
                 <FormField control={form.control} name="departure_date" render={({ field }) => (
                   <FormItem>
                     <FormLabel>تاریخ حرکت (شمسی) *</FormLabel>
-                    <FormControl><Input className="rounded-xl" placeholder="۱۴۰۳/۰۸/۱۵" {...field} /></FormControl>
+                    <FormControl>
+                      <PersianDatePicker value={field.value} onChange={field.onChange} futureOnly />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="start_date" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>تاریخ شروع (میلادی) *</FormLabel>
-                    <FormControl><Input type="datetime-local" className="rounded-xl" {...field} /></FormControl>
+                    <FormLabel>تاریخ و ساعت شروع سفر *</FormLabel>
+                    <FormControl>
+                      <PersianDatePicker value={field.value} onChange={field.onChange} withTime futureOnly />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="end_date" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>تاریخ پایان (میلادی) *</FormLabel>
-                    <FormControl><Input type="datetime-local" className="rounded-xl" {...field} /></FormControl>
+                    <FormLabel>تاریخ و ساعت پایان سفر *</FormLabel>
+                    <FormControl>
+                      <PersianDatePicker value={field.value} onChange={field.onChange} withTime futureOnly />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -273,6 +292,28 @@ export default function CaravanLeaderAddCaravan() {
                     <FormMessage />
                   </FormItem>
                 )} />
+                {isGroundTransport && (
+                  <FormField control={form.control} name="bus_type" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>نوع اتوبوس *</FormLabel>
+                      <Select onValueChange={(v) => field.onChange(Number(v))} value={String(field.value)}>
+                        <FormControl>
+                          <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="25">اتوبوس ۲۵ نفره (VIP — ۲+۱)</SelectItem>
+                          <SelectItem value="32">اتوبوس ۳۲ نفره (۲+۱)</SelectItem>
+                          <SelectItem value="44">اتوبوس ۴۴ نفره (۲+۲)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        نقشه انتخاب صندلی زائران بر اساس همین اتوبوس ساخته می‌شود.
+                        {busCount > 1 && ` با ظرفیت ${capacity} نفر، ${busCount} اتوبوس نمایش داده می‌شود.`}
+                      </p>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                )}
                 <FormField control={form.control} name="origin_city" render={({ field }) => (
                   <FormItem>
                     <FormLabel>مبدأ حرکت *</FormLabel>

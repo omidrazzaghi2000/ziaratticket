@@ -2,29 +2,62 @@ from rest_framework import serializers
 from .models import Booking
 
 
+NATIONAL_ID_ERROR = "کد ملی باید ۱۰ رقم باشد."
+
+
+def normalize_digits(value):
+    """تبدیل ارقام فارسی/عربی به لاتین."""
+    if not value:
+        return value
+    table = str.maketrans('۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩', '01234567890123456789')
+    return str(value).translate(table).strip()
+
+
+def validate_national_id(value):
+    value = normalize_digits(value)
+    if not value or not value.isdigit() or len(value) != 10:
+        raise serializers.ValidationError(NATIONAL_ID_ERROR)
+    return value
+
+
+def validate_mobile(value):
+    value = normalize_digits(value)
+    if not value or not value.isdigit() or len(value) != 11 or not value.startswith('09'):
+        raise serializers.ValidationError("شماره موبایل باید ۱۱ رقم و با ۰۹ شروع شود.")
+    return value
+
+
 class BookingStep1Serializer(serializers.Serializer):
+    """ثبت‌نام ساده: نام، نام خانوادگی، کد ملی و موبایل — برای همه سفرها یکسان است."""
     caravan_id = serializers.IntegerField()
-    main_passenger_name = serializers.CharField(max_length=100)
-    main_passenger_id = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    first_name = serializers.CharField(max_length=50)
+    last_name = serializers.CharField(max_length=50)
+    main_passenger_id = serializers.CharField(max_length=20)
     main_passenger_phone = serializers.CharField(max_length=20)
-    main_passenger_birthdate = serializers.CharField(max_length=15)
-    main_passenger_emergency_phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
-    main_passenger_messaging_apps = serializers.ListField(child=serializers.CharField(), required=False, default=list)
-    main_passenger_passport_no = serializers.CharField(max_length=20, required=False, allow_blank=True)
-    main_passenger_foreign_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
-    main_passenger_foreign_lastname = serializers.CharField(max_length=100, required=False, allow_blank=True)
     passenger_count = serializers.IntegerField(min_value=1, max_value=10)
+
+    def validate_main_passenger_id(self, value):
+        return validate_national_id(value)
+
+    def validate_main_passenger_phone(self, value):
+        return validate_mobile(value)
 
 
 class CompanionSerializer(serializers.Serializer):
-    name = serializers.CharField(max_length=100)
-    national_id = serializers.CharField(max_length=20, required=False, allow_blank=True)
-    passport_no = serializers.CharField(max_length=20, required=False, allow_blank=True)
-    foreign_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
-    foreign_lastname = serializers.CharField(max_length=100, required=False, allow_blank=True)
-    relationship = serializers.CharField(max_length=30)
-    birthdate = serializers.CharField(max_length=15)
-    phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    """همراه: نام، نام خانوادگی، کد ملی و شماره موبایل (اختیاری)."""
+    first_name = serializers.CharField(max_length=50)
+    last_name = serializers.CharField(max_length=50)
+    national_id = serializers.CharField(max_length=20)
+    phone = serializers.CharField(max_length=20, required=False, allow_blank=True, default='')
+
+    def validate_national_id(self, value):
+        return validate_national_id(value)
+
+    def validate_phone(self, value):
+        value = normalize_digits(value)
+        if not value:
+            return ''
+        return validate_mobile(value)
 
 
 class BookingStep2Serializer(serializers.Serializer):
@@ -43,6 +76,9 @@ class BookingSerializer(serializers.ModelSerializer):
     caravan_destination = serializers.SerializerMethodField()
     caravan_destination_display = serializers.SerializerMethodField()
     caravan_is_international = serializers.SerializerMethodField()
+    caravan_is_ground_transport = serializers.SerializerMethodField()
+    caravan_bus_type = serializers.SerializerMethodField()
+    caravan_capacity = serializers.SerializerMethodField()
     caravan_leader_phone = serializers.SerializerMethodField()
     caravan_leader_name = serializers.SerializerMethodField()
 
@@ -67,6 +103,15 @@ class BookingSerializer(serializers.ModelSerializer):
 
     def get_caravan_is_international(self, obj):
         return obj.caravan.is_international if obj.caravan else False
+
+    def get_caravan_is_ground_transport(self, obj):
+        return obj.caravan.is_ground_transport if obj.caravan else False
+
+    def get_caravan_bus_type(self, obj):
+        return obj.caravan.bus_type if obj.caravan else None
+
+    def get_caravan_capacity(self, obj):
+        return obj.caravan.capacity if obj.caravan else None
 
     def get_caravan_leader_phone(self, obj):
         if obj.caravan and obj.caravan.leader:

@@ -4,6 +4,7 @@ import {
   Calendar, Clock, Hotel, Search, MapPin, DollarSign,
   Users, Plane, Bus, PackageCheck, Star, ChevronLeft, SlidersHorizontal, Eye,
 } from "lucide-react";
+import { PersianDatePicker } from "@/components/ui/date-time-picker";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -256,9 +257,11 @@ export default function SearchAndFilter() {
                     <Label className="mb-2 font-medium flex items-center text-foreground/75 text-xs gap-1.5">
                       <Calendar className="h-3.5 w-3.5 text-primary" />تاریخ حرکت
                     </Label>
-                    <Input type="text" placeholder="مثال: ۱۴۰۳-۰۵-۰۱" value={filters.departure_date}
-                      onChange={e => handleFilterChange("departure_date", e.target.value)}
-                      className="border-border rounded-xl h-11 text-sm bg-background" />
+                    <PersianDatePicker
+                      value={filters.departure_date}
+                      onChange={v => handleFilterChange("departure_date", v)}
+                      placeholder="انتخاب تاریخ حرکت"
+                      className="[&_input]:h-11 [&_input]:rounded-xl [&_input]:text-sm" />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <Select value={filters.duration} onValueChange={v => handleFilterChange("duration", v)}>
@@ -305,9 +308,11 @@ export default function SearchAndFilter() {
                 <Label className="mb-2 font-medium flex items-center text-foreground/75 text-xs gap-1.5">
                   <Calendar className="h-3.5 w-3.5 text-primary" />تاریخ حرکت
                 </Label>
-                <Input type="text" placeholder="مثال: ۱۴۰۳-۰۵-۰۱" value={filters.departure_date}
-                  onChange={e => handleFilterChange("departure_date", e.target.value)}
-                  className="border-border focus:border-primary focus:ring-1 focus:ring-primary/20 rounded-xl h-11 text-sm bg-background" />
+                <PersianDatePicker
+                  value={filters.departure_date}
+                  onChange={v => handleFilterChange("departure_date", v)}
+                  placeholder="انتخاب تاریخ حرکت"
+                  className="[&_input]:h-11 [&_input]:rounded-xl [&_input]:text-sm" />
               </div>
 
               <div>

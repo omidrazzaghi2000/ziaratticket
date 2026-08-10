@@ -114,3 +114,54 @@
     color: hsl(var(--primary));
   }
 }
+
+/* ---------------------------------------------------------------
+   چاپ رسید رزرو — صفحه نهایی رزرو باید به عنوان رسید قابل چاپ باشد
+   --------------------------------------------------------------- */
+.only-print {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  /* عناصری که در نسخه چاپی معنا ندارند */
+  header,
+  footer,
+  .no-print,
+  .no-print * {
+    display: none !important;
+  }
+
+  .only-print {
+    display: block !important;
+  }
+
+  /* رسید باید تمام عرض کاغذ را بگیرد و سایه/انیمیشن نداشته باشد */
+  .print-receipt {
+    box-shadow: none !important;
+    border: 1px solid #cbd5e1 !important;
+    max-width: 100% !important;
+    opacity: 1 !important;
+    transform: none !important;
+    break-inside: avoid;
+  }
+
+  .print-receipt * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-container {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+}
