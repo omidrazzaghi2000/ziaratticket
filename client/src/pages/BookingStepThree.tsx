@@ -333,7 +333,7 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
                     <div className="w-6 h-6 bg-primary/10 rounded-lg flex items-center justify-center">
                       <User className="h-3.5 w-3.5 text-primary" />
                     </div>
-                    همراهان ({companions.length} نفر)
+                    همراهان ({toPersian(companions.length)} نفر)
                   </h3>
                   <div className="space-y-3">
                     {companions.map((companion, index) => (
