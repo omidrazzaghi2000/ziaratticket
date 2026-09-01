@@ -470,7 +470,7 @@ export default function CaravanLeaderDashboard() {
                           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground mt-1">
                             <span>{caravan.destination_display}</span>
                             <span>{toPersian(caravan.departure_date)}</span>
-                            <span>{caravan.duration} روز</span>
+                            <span>{toPersian(caravan.duration)} روز</span>
                             <span>
                               {caravan.transportation_display}
                               {caravan.is_ground_transport && caravan.bus_type

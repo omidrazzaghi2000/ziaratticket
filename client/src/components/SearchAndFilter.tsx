@@ -269,7 +269,7 @@ export default function SearchAndFilter() {
                       <SelectTrigger className="border-border rounded-xl h-11 text-sm bg-background"><SelectValue placeholder="مدت سفر" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">همه</SelectItem>
-                        {[3,4,5,6,7,8,9].map(d => <SelectItem key={d} value={String(d)}>{d} روز</SelectItem>)}
+                        {[3,4,5,6,7,8,9].map(d => <SelectItem key={d} value={String(d)}>{toPersianDigits(d)} روز</SelectItem>)}
                       </SelectContent>
                     </Select>
                     <Select value={filters.transportation_type} onValueChange={v => handleFilterChange("transportation_type", v)}>
@@ -324,7 +324,7 @@ export default function SearchAndFilter() {
                   <SelectTrigger className="border-border rounded-xl h-11 text-sm bg-background"><SelectValue placeholder="همه" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">همه</SelectItem>
-                    {[3,4,5,6,7,8,9].map(d => <SelectItem key={d} value={String(d)}>{d} روز</SelectItem>)}
+                    {[3,4,5,6,7,8,9].map(d => <SelectItem key={d} value={String(d)}>{toPersianDigits(d)} روز</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

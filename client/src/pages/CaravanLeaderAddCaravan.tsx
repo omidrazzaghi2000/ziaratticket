@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toPersianDigits } from "@/lib/digits";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { useForm, useFieldArray } from "react-hook-form";
@@ -228,7 +229,7 @@ export default function CaravanLeaderAddCaravan() {
                       </FormControl>
                       <SelectContent>
                         {[3,4,5,6,7,8,9].map(d => (
-                          <SelectItem key={d} value={String(d)}>{d} روز</SelectItem>
+                          <SelectItem key={d} value={String(d)}>{toPersianDigits(d)} روز</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
