@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { toPersianDigits } from "@/lib/digits";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -199,7 +200,7 @@ function CaravanReviews({ caravanId, caravanName }: { caravanId: number; caravan
             <span className="font-bold text-foreground text-sm">
               {avgRating.toFixed(1)}
             </span>
-            <span className="text-muted-foreground text-xs">از {reviews.length} نظر</span>
+            <span className="text-muted-foreground text-xs">از {toPersianDigits(reviews.length)} نظر</span>
           </div>
         )}
       </div>

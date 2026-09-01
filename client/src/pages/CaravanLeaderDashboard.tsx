@@ -740,7 +740,7 @@ export default function CaravanLeaderDashboard() {
                   <label className="flex flex-col items-center justify-center w-full border-2 border-dashed border-border rounded-xl py-6 px-4 cursor-pointer hover:border-primary/40 hover:bg-primary/3 transition-colors">
                     <Upload className="h-8 w-8 text-muted-foreground mb-2" />
                     <span className="text-sm text-muted-foreground">
-                      {uploadFiles ? `${uploadFiles.length} فایل انتخاب شد` : "کلیک کنید یا فایل را اینجا بکشید"}
+                      {uploadFiles ? `${toPersian(uploadFiles.length)} فایل انتخاب شد` : "کلیک کنید یا فایل را اینجا بکشید"}
                     </span>
                     <span className="text-xs text-muted-foreground/60 mt-1">JPG, PNG, WEBP — حداکثر ۵ مگابایت</span>
                     <input

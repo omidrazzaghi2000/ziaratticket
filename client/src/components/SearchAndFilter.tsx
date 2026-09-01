@@ -1,4 +1,5 @@
 import { useState, FormEvent } from "react";
+import { toPersianDigits } from "@/lib/digits";
 import { useQuery } from "@tanstack/react-query";
 import {
   Calendar, Clock, Hotel, Search, MapPin, DollarSign,
@@ -235,7 +236,7 @@ export default function SearchAndFilter() {
           </motion.button>
           {caravans && (
             <span className="bg-primary/10 text-primary text-xs font-semibold px-3 py-1.5 rounded-full">
-              {caravans.length} کاروان
+              {toPersianDigits(caravans.length)} کاروان
             </span>
           )}
         </div>
@@ -392,7 +393,7 @@ export default function SearchAndFilter() {
             </h3>
             {caravans && (
               <span className="bg-primary/10 text-primary text-xs font-semibold px-2.5 py-1 rounded-full">
-                {caravans.length} کاروان
+                {toPersianDigits(caravans.length)} کاروان
               </span>
             )}
           </div>

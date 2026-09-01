@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toPersianDigits } from "@/lib/digits";
 import { useRoute } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -166,7 +167,7 @@ export default function ReviewPage() {
               className="resize-none text-sm"
               maxLength={1000}
             />
-            <p className="text-xs text-muted-foreground mt-1 text-left">{comment.length}/۱۰۰۰</p>
+            <p className="text-xs text-muted-foreground mt-1 text-left">{toPersianDigits(comment.length)}/۱۰۰۰</p>
           </div>
 
           {submit.isError && (
