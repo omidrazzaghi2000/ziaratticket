@@ -24,21 +24,15 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { djangoURL } from "@/App";
-
-/** تبدیل ارقام فارسی/عربی به لاتین تا کد ملی همیشه یکدست ذخیره شود */
-export const toLatinDigits = (v: string) =>
-  (v || "").replace(/[۰-۹]/g, d => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)))
-           .replace(/[٠-٩]/g, d => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
+// ارقام فارسی و انگلیسی هر دو پذیرفته می‌شوند (نرمال‌سازی در ابزار مشترک)
+import { toLatinDigits, toPersianDigits } from "@/lib/digits";
+export { toLatinDigits, toPersianDigits };
 
 export const nationalIdSchema = z
   .string()
   .min(1, { message: "کد ملی الزامی است" })
   .transform(toLatinDigits)
   .refine(v => /^\d{10}$/.test(v), { message: "کد ملی باید دقیقاً ۱۰ رقم باشد" });
-
-/** تبدیل ارقام لاتین یک رشته به فارسی (برای نمایش) */
-export const toPersianDigits = (v?: string | number) =>
-  String(v ?? "").replace(/\d/g, d => "۰۱۲۳۴۵۶۷۸۹"[+d]);
 
 export const phoneSchema = z
   .string()
@@ -299,7 +293,6 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
                             className="rounded-xl"
                             type="tel"
                             inputMode="numeric"
-                            maxLength={11}
                             dir="ltr"
                             placeholder="۰۹۱۲۳۴۵۶۷۸۹"
                             autoComplete="tel"

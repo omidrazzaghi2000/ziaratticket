@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from core.digits import NormalizeDigitsMixin
 from .models import Caravan, CaravanPhoto, CaravanReview
 
 
@@ -53,7 +54,13 @@ class CaravanSerializer(serializers.ModelSerializer):
         return obj.image_url or None
 
 
-class CaravanCreateSerializer(serializers.ModelSerializer):
+class CaravanCreateSerializer(NormalizeDigitsMixin, serializers.ModelSerializer):
+    # اعداد این فیلدها ممکن است فارسی وارد شوند؛ پیش از اعتبارسنجی لاتین می‌شوند.
+    numeric_fields = (
+        'duration', 'bus_type', 'accommodation_distance',
+        'price', 'capacity', 'remaining_capacity', 'contact_phone',
+    )
+
     class Meta:
         model = Caravan
         exclude = ['leader', 'status', 'created_at', 'updated_at']

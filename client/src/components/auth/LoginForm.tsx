@@ -169,6 +169,9 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                     <FormLabel>شماره موبایل</FormLabel>
                     <FormControl>
                       <Input
+                        type="tel"
+                        inputMode="numeric"
+                        dir="ltr"
                         placeholder="مثال: ۰۹۱۲۳۴۵۶۷۸۹"
                         {...field}
                         disabled={sendCodeMutation.isPending}

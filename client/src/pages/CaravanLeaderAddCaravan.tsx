@@ -368,7 +368,7 @@ export default function CaravanLeaderAddCaravan() {
                 <FormField control={form.control} name="accommodation_distance" render={({ field }) => (
                   <FormItem>
                     <FormLabel>فاصله تا حرم (متر)</FormLabel>
-                    <FormControl><Input type="number" className="rounded-xl" {...field} /></FormControl>
+                    <FormControl><Input type="number" className="rounded-xl" dir="ltr" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -402,14 +402,14 @@ export default function CaravanLeaderAddCaravan() {
                 <FormField control={form.control} name="price" render={({ field }) => (
                   <FormItem>
                     <FormLabel>قیمت هر نفر (تومان) *</FormLabel>
-                    <FormControl><Input type="number" className="rounded-xl" placeholder="۳۵۰۰۰۰۰" {...field} /></FormControl>
+                    <FormControl><Input type="number" className="rounded-xl" dir="ltr" placeholder="۳۵۰۰۰۰۰" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="capacity" render={({ field }) => (
                   <FormItem>
                     <FormLabel>ظرفیت کل (نفر) *</FormLabel>
-                    <FormControl><Input type="number" className="rounded-xl" {...field} /></FormControl>
+                    <FormControl><Input type="number" className="rounded-xl" dir="ltr" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -422,7 +422,7 @@ export default function CaravanLeaderAddCaravan() {
                 <FormField control={form.control} name="contact_phone" render={({ field }) => (
                   <FormItem>
                     <FormLabel>شماره تماس کاروان *</FormLabel>
-                    <FormControl><Input className="rounded-xl" placeholder="۰۹۱۲..." {...field} /></FormControl>
+                    <FormControl><Input className="rounded-xl" type="tel" inputMode="numeric" dir="ltr" maxLength={11} placeholder="۰۹۱۲..." {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />

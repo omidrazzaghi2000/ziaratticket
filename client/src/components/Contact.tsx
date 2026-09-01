@@ -172,7 +172,7 @@ export default function Contact() {
                       <FormItem>
                         <FormLabel className="text-sm font-medium text-foreground/80">شماره تماس</FormLabel>
                         <FormControl>
-                          <Input {...field} className="rounded-xl border-border bg-background h-11 focus:border-primary focus:ring-primary/20" />
+                          <Input {...field} type="tel" inputMode="numeric" dir="ltr" className="rounded-xl border-border bg-background h-11 focus:border-primary focus:ring-primary/20" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

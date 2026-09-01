@@ -281,7 +281,6 @@ export default function BookingStepTwo({ params }: BookingStepTwoProps) {
                               className="rounded-xl"
                               type="tel"
                               inputMode="numeric"
-                              maxLength={11}
                               dir="ltr"
                               placeholder="۰۹۱۲۳۴۵۶۷۸۹"
                               {...field}

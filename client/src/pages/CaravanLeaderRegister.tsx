@@ -204,7 +204,7 @@ export default function CaravanLeaderRegister() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>کد ملی *</FormLabel>
-                        <FormControl><Input className="rounded-xl" placeholder="۱۲۳۴۵۶۷۸۹۰" maxLength={10} {...field} /></FormControl>
+                        <FormControl><Input className="rounded-xl" inputMode="numeric" dir="ltr" placeholder="۱۲۳۴۵۶۷۸۹۰" maxLength={10} {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -215,7 +215,7 @@ export default function CaravanLeaderRegister() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>شماره شناسنامه *</FormLabel>
-                        <FormControl><Input className="rounded-xl" {...field} /></FormControl>
+                        <FormControl><Input className="rounded-xl" inputMode="numeric" dir="ltr" {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
