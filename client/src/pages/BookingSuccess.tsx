@@ -254,7 +254,7 @@ export default function BookingSuccess({ params }: BookingSuccessProps) {
               <div className="border border-border rounded-2xl overflow-hidden">
                 <div className="bg-cream-100 px-4 py-2.5 border-b border-border">
                   <p className="text-sm font-semibold text-foreground">
-                    همراهان ({booking.companions.length} نفر)
+                    همراهان ({fa(booking.companions.length)} نفر)
                   </p>
                 </div>
                 <table className="w-full text-sm">
