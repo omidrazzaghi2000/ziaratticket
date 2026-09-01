@@ -388,7 +388,7 @@ export default function CaravanDetail({ params }: CaravanDetailProps) {
               </span>
               <span className="flex items-center gap-1.5">
                 <Clock className="h-4 w-4" />
-                {caravan.duration} روزه
+                {toPersianDigits(caravan.duration)} روزه
               </span>
               <span className="flex items-center gap-1.5">
                 <MapPin className="h-4 w-4" />
@@ -396,7 +396,7 @@ export default function CaravanDetail({ params }: CaravanDetailProps) {
               </span>
               <span className="flex items-center gap-1.5">
                 <Users className="h-4 w-4" />
-                {caravan.remaining_capacity} صندلی باقیمانده
+                {toPersianDigits(caravan.remaining_capacity)} صندلی باقیمانده
               </span>
             </div>
           </motion.div>
@@ -639,7 +639,7 @@ export default function CaravanDetail({ params }: CaravanDetailProps) {
                 </p>
                 {caravan.remaining_capacity > 0 && caravan.remaining_capacity < 5 && (
                   <p className="text-amber-300 text-xs mt-2 font-medium">
-                    ⚡ فقط {caravan.remaining_capacity} صندلی باقیمانده
+                    ⚡ فقط {toPersianDigits(caravan.remaining_capacity)} صندلی باقیمانده
                   </p>
                 )}
                 {caravan.remaining_capacity === 0 && (
@@ -651,10 +651,10 @@ export default function CaravanDetail({ params }: CaravanDetailProps) {
                 {[
                   { label: "مقصد", value: destinationLabels[caravan.destination] || caravan.destination },
                   { label: "تاریخ حرکت", value: caravan.departure_date },
-                  { label: "مدت سفر", value: `${caravan.duration} روز` },
+                  { label: "مدت سفر", value: `${toPersianDigits(caravan.duration)} روز` },
                   { label: "حمل‌ونقل", value: caravan.transportation_display || caravan.transportation_type },
                   { label: "اقامتگاه", value: caravan.accommodation_display || caravan.accommodation_type },
-                  { label: "ظرفیت کل", value: `${caravan.capacity} نفر` },
+                  { label: "ظرفیت کل", value: `${toPersianDigits(caravan.capacity)} نفر` },
                 ].map((item, i) => (
                   <div key={i} className="flex items-center justify-between text-sm border-b border-border pb-2.5 last:border-0 last:pb-0">
                     <span className="text-muted-foreground">{item.label}</span>

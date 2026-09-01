@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toPersianDigits } from "@/lib/digits";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -70,7 +71,7 @@ export default function CaravanCard({
           className="w-full h-full object-cover"
         />
         <div className="absolute top-4 right-4 bg-green-600 text-white px-3 py-1 rounded-full text-sm">
-          {availableSpots} نفر باقیمانده
+          {toPersianDigits(availableSpots)} نفر باقیمانده
         </div>
       </div>
       
@@ -92,7 +93,7 @@ export default function CaravanCard({
           </div>
           <div className="flex items-center text-gray-600">
             <FontAwesomeIcon icon={faUsers} className="w-4 h-4 ml-2" />
-            <span className="text-sm">{capacity} نفر</span>
+            <span className="text-sm">{toPersianDigits(capacity)} نفر</span>
           </div>
           <div className="flex items-center text-gray-600">
             <FontAwesomeIcon icon={faBed} className="w-4 h-4 ml-2" />

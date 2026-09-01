@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { toPersianDigits } from "@/lib/digits";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -359,8 +360,8 @@ export default function BookingStepTwo({ params }: BookingStepTwoProps) {
                   وضعیت ثبت
                 </h3>
                 <div className="text-emerald-600 text-xs space-y-1">
-                  <p>تعداد کل همراهان: {totalSteps} نفر</p>
-                  <p>تعداد ثبت شده: {currentStep} نفر</p>
+                  <p>تعداد کل همراهان: {toPersianDigits(totalSteps)} نفر</p>
+                  <p>تعداد ثبت شده: {toPersianDigits(currentStep)} نفر</p>
                 </div>
               </div>
               <div className="bg-gold-50 border border-gold-200 rounded-xl p-4">

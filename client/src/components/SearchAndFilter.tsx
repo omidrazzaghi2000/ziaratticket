@@ -476,8 +476,8 @@ export default function SearchAndFilter() {
                         <div className="space-y-2.5 mb-4 flex-grow">
                           {[
                             { icon: Calendar, label: "تاریخ حرکت",  value: caravan.departure_date },
-                            { icon: Clock,    label: "مدت سفر",     value: `${caravan.duration} روز` },
-                            { icon: MapPin,   label: "فاصله تا حرم", value: `${caravan.accommodation_distance} متر` },
+                            { icon: Clock,    label: "مدت سفر",     value: `${toPersianDigits(caravan.duration)} روز` },
+                            { icon: MapPin,   label: "فاصله تا حرم", value: `${toPersianDigits(caravan.accommodation_distance)} متر` },
                             { icon: Hotel,    label: "اقامت",         value: caravan.accommodation_display || caravan.accommodation_type },
                           ].map((item, i) => (
                             <div key={i} className="flex items-center gap-2 text-sm">

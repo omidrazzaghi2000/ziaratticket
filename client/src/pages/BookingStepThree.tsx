@@ -471,7 +471,7 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
                   {new Intl.NumberFormat("fa-IR").format(booking?.total_price || 0)}
                   <span className="text-sm font-normal mr-1">تومان</span>
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">{booking?.passenger_count} نفر</p>
+                <p className="text-xs text-muted-foreground mt-1">{toPersian(booking?.passenger_count || 0)} نفر</p>
               </div>
 
               {(booking?.caravan_leader_phone || caravan?.contact_phone) && (

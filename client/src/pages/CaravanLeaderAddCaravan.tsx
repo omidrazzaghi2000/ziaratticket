@@ -309,7 +309,7 @@ export default function CaravanLeaderAddCaravan() {
                       </Select>
                       <p className="text-xs text-muted-foreground mt-1">
                         نقشه انتخاب صندلی زائران بر اساس همین اتوبوس ساخته می‌شود.
-                        {busCount > 1 && ` با ظرفیت ${capacity} نفر، ${busCount} اتوبوس نمایش داده می‌شود.`}
+                        {busCount > 1 && ` با ظرفیت ${toPersianDigits(capacity)} نفر، ${toPersianDigits(busCount)} اتوبوس نمایش داده می‌شود.`}
                       </p>
                       <FormMessage />
                     </FormItem>

@@ -321,7 +321,7 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
                             (_, i) => i + 1
                           ).map(n => (
                             <SelectItem key={n} value={String(n)}>
-                              {n} نفر {n === 1 ? "(فقط خودم)" : `(خودم + ${n - 1} همراه)`}
+                              {toPersianDigits(n)} نفر {n === 1 ? "(فقط خودم)" : `(خودم + ${toPersianDigits(n - 1)} همراه)`}
                             </SelectItem>
                           ))}
                         </SelectContent>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toPersianDigits } from "@/lib/digits";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useBookingModal } from "@/hooks/use-booking-modal";
@@ -166,7 +167,7 @@ export default function BookingModal() {
               </div>
               <div className="flex justify-between mb-2">
                 <span className="text-gray-500">مدت سفر:</span>
-                <span className="font-medium">{caravan.duration} روز</span>
+                <span className="font-medium">{toPersianDigits(caravan.duration)} روز</span>
               </div>
               <div className="flex justify-between mb-2">
                 <span className="text-gray-500">نوع سفر:</span>
