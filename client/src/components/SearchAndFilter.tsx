@@ -1,4 +1,5 @@
 import { useState, FormEvent } from "react";
+import { djangoURL } from "@/App";
 import { toPersianDigits } from "@/lib/digits";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -78,7 +79,7 @@ export const fetchCaravans = async (filters: FilterState): Promise<Caravan[]> =>
   if (filters.transportation_type && filters.transportation_type !== "all") params.append("transportation_type", filters.transportation_type);
   if (filters.price_range && filters.price_range !== "all") params.append("price_range", filters.price_range);
   if (filters.destination) params.append("destination", filters.destination);
-  const response = await fetch(`/api/caravans?${params}`);
+  const response = await fetch(`${djangoURL}/api/caravans?${params}`);
   if (!response.ok) throw new Error(`خطا: ${response.status}`);
   return response.json();
 };

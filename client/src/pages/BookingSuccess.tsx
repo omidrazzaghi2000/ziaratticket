@@ -270,7 +270,7 @@ export default function BookingSuccess({ params }: BookingSuccessProps) {
                   <tbody>
                     {booking.companions.map((c: { firstName?: string; lastName?: string; name?: string; nationalId?: string; phone?: string }, i: number) => (
                       <tr key={i} className="border-b border-border last:border-0">
-                        <td className="px-4 py-2 text-muted-foreground">{i + 1}</td>
+                        <td className="px-4 py-2 text-muted-foreground">{fa(i + 1)}</td>
                         <td className="px-4 py-2">{c.firstName || c.name || "—"}</td>
                         <td className="px-4 py-2">{c.lastName || "—"}</td>
                         <td className="px-4 py-2" dir="ltr">{c.nationalId || "—"}</td>
