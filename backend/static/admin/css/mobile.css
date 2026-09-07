@@ -1,0 +1,156 @@
+/*
+ * پنل مدیریت — اصلاحات نمایش در موبایل
+ *
+ * مشکلاتی که این فایل حل می‌کند (اندازه‌گیری‌شده روی صفحه ۳۹۰ پیکسلی):
+ *  ۱) محتوا فقط ۲۹۶ پیکسل از ۳۹۰ پیکسل صفحه را می‌گرفت و بقیه هدر می‌رفت.
+ *  ۲) جدول فهرست (۱۱ ستون) بریده می‌شد؛ حالا هر سطر یک کارت است.
+ *  ۳) نوار بالا سه کادر جستجوی ۴۶ پیکسلی روی هم نشان می‌داد.
+ */
+
+@media (max-width: 767.98px) {
+
+  /* ── ۱) استفاده از تمام عرض صفحه ───────────────────────────── */
+  .content-wrapper > .content { padding: 0 !important; }
+  .content-wrapper .container-fluid {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+  .content-wrapper .row { margin-left: 0 !important; margin-right: 0 !important; }
+  .content-wrapper .col-12,
+  .content-wrapper [class^="col-"],
+  .content-wrapper [class*=" col-"] { padding-left: 0 !important; padding-right: 0 !important; }
+  #content-main, #changelist-form, .module, .module.filtered, .card {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  /* ── ۲) جدول‌ها → کارت ─────────────────────────────────────
+     روی موبایل هر سطر جدول به یک کارت با «برچسب: مقدار» تبدیل می‌شود.
+     برچسب‌ها را mobile-cards.js از سربرگ جدول می‌خواند. */
+  table[data-cards],
+  table[data-cards] > tbody,
+  table[data-cards] > tbody > tr,
+  table[data-cards] > tbody > tr > td,
+  table[data-cards] > tbody > tr > th {
+    display: block;
+    width: 100% !important;
+  }
+
+  /* سربرگ به نوار چیپ قابل کلیک تبدیل می‌شود تا مرتب‌سازی از دست نرود */
+  table[data-cards] > thead { display: block; }
+  table[data-cards] > thead > tr {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 6px 2px;
+    border: 0;
+  }
+  table[data-cards] > thead > tr > th {
+    display: inline-block;
+    flex: 0 0 auto;
+    white-space: nowrap;
+    font-size: 11px;
+    padding: 4px 10px !important;
+    border: 1px solid rgba(128,128,128,.25) !important;
+    border-radius: 999px;
+  }
+  table[data-cards] > thead > tr > th:empty,
+  table[data-cards] > thead > tr > th.action-checkbox-column { display: none; }
+
+  /* هر سطر = یک کارت */
+  table[data-cards] > tbody > tr {
+    position: relative;
+    border: 1px solid rgba(128,128,128,.25) !important;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    padding: 6px 0;
+    background: rgba(128,128,128,.03);
+  }
+  table[data-cards] > tbody > tr:last-child { margin-bottom: 0; }
+
+  table[data-cards] > tbody > tr > td,
+  table[data-cards] > tbody > tr > th {
+    display: flex !important;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    border: 0 !important;
+    padding: 5px 12px !important;
+    white-space: normal !important;
+    text-align: left;
+  }
+  table[data-cards] > tbody > tr > td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    font-size: 11px;
+    opacity: .65;
+    text-align: right;
+  }
+  table[data-cards] > tbody > tr > td[data-label=""]::before { content: none; }
+
+  /* عنوان کارت: بزرگ‌تر، بدون برچسب */
+  table[data-cards] > tbody > tr > td[data-card-title] {
+    justify-content: flex-start;
+    font-weight: 700;
+    font-size: 14px;
+    padding-bottom: 2px !important;
+  }
+  table[data-cards] > tbody > tr > td[data-card-title]::before { content: none; }
+
+  /* چک‌باکس انتخاب: سطر جداگانه در بالای کارت (بدون شناور شدن، تا با
+     عنوان کارت هم‌پوشانی نکند) */
+  table[data-cards] > tbody > tr > td[data-select-cell] {
+    justify-content: flex-start;
+    padding: 6px 12px 0 !important;
+    min-height: 0;
+  }
+  table[data-cards] > tbody > tr > td[data-select-cell]::before { content: none; }
+
+  /* جدول‌های داخل فرم ویرایش (مثل فهرست همراهان) هم کارتی شوند */
+  .form-row table[data-cards] > tbody > tr,
+  .readonly table[data-cards] > tbody > tr { background: transparent; }
+
+  /* ── ۳) نوار بالا: کادرهای جستجوی تکراری حذف شوند ──────────── */
+  /* هر صفحه‌ی فهرست جستجوی اختصاصی خودش را دارد؛ این‌ها روی موبایل
+     فقط سه کادر ۴۶ پیکسلی روی هم می‌سازند. */
+  .main-header .navbar-nav + form.form-inline,
+  .main-header form.form-inline.ml-3 { display: none !important; }
+  .main-header .navbar-nav.ml-auto { margin-right: auto !important; }
+
+  /* ── فیلترها و ابزارها ─────────────────────────────────────── */
+  #changelist-filter { width: 100% !important; float: none !important; margin: 0 0 12px !important; }
+  #toolbar form#changelist-search { display: flex; gap: 8px; flex-wrap: wrap; }
+  #toolbar #searchbar { flex: 1 1 auto; min-width: 0; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .actions select { flex: 1 1 auto; min-width: 0; }
+  .object-tools { float: none !important; margin: 0 0 12px !important; }
+  .object-tools li { display: block; margin: 0 0 8px !important; }
+  .object-tools a { display: block; text-align: center; }
+
+  /* ── فرم‌های ویرایش ────────────────────────────────────────── */
+  .form-row, .form-group { display: block !important; width: 100% !important; }
+  .form-row > div, fieldset .form-group > div { width: 100% !important; }
+  label { display: block; margin-bottom: 4px; }
+  input[type=text], input[type=url], input[type=email], input[type=number],
+  input[type=password], select, textarea, .form-control, .vTextField {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+  }
+  .submit-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .submit-row input, .submit-row a { flex: 1 1 auto; text-align: center; margin: 0 !important; }
+
+  /* ── جزئیات ────────────────────────────────────────────────── */
+  .paginator { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .breadcrumb { flex-wrap: wrap; font-size: 12px; }
+  .content-header h1 { font-size: 20px; }
+  /* هیچ عنصری نباید صفحه را به‌صورت افقی بکشد */
+  body, .wrapper { overflow-x: hidden; }
+}

@@ -165,3 +165,74 @@
     max-width: 100% !important;
   }
 }
+
+/* ---------------------------------------------------------------
+   جدول‌های واکنش‌گرا — روی موبایل هر سطر به یک کارت تبدیل می‌شود
+   -------------------------------------------------------------
+   کاربرد: روی <table> کلاس `responsive-table` بگذارید و برای هر <td>
+   صفت `data-label` با عنوان ستون. روی نمایشگرهای کوچک سربرگ جدول
+   پنهان و هر سطر به‌صورت کارتی با برچسب‌های کنار مقدار نمایش داده
+   می‌شود؛ در چاپ و نمایشگر بزرگ همان جدول معمولی است.
+   --------------------------------------------------------------- */
+@media (max-width: 639px) {
+  .responsive-table,
+  .responsive-table tbody,
+  .responsive-table tr,
+  .responsive-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .responsive-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .responsive-table tr {
+    border: 1px solid hsl(var(--border));
+    border-radius: 0.75rem;
+    padding: 0.25rem 0;
+    margin-bottom: 0.6rem;
+    background: hsl(var(--card));
+  }
+  .responsive-table tr:last-child { margin-bottom: 0; }
+
+  .responsive-table td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.4rem 0.85rem !important;
+    border: 0;
+    text-align: left;
+  }
+
+  /* برچسب ستون کنار مقدار */
+  .responsive-table td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    color: hsl(var(--muted-foreground));
+    font-size: 0.72rem;
+    font-weight: 500;
+    text-align: right;
+  }
+
+  /* سلولی که به‌عنوان عنوان کارت علامت خورده باشد */
+  .responsive-table td[data-card-title] {
+    justify-content: flex-start;
+    font-weight: 700;
+    padding-bottom: 0.15rem !important;
+  }
+  .responsive-table td[data-card-title]::before { display: none; }
+}
+
+/* در چاپ همیشه جدول واقعی نمایش داده شود */
+@media print {
+  .responsive-table, .responsive-table tbody, .responsive-table tr, .responsive-table td { display: revert; }
+  .responsive-table thead { position: static; width: auto; height: auto; clip: auto; }
+  .responsive-table td::before { content: none; }
+}

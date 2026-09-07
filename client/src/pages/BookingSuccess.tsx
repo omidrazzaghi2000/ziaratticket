@@ -257,7 +257,8 @@ export default function BookingSuccess({ params }: BookingSuccessProps) {
                     همراهان ({fa(booking.companions.length)} نفر)
                   </p>
                 </div>
-                <table className="w-full text-sm">
+                {/* روی موبایل هر همراه به‌صورت یک کارت نمایش داده می‌شود (کلاس responsive-table) */}
+                <table className="responsive-table w-full text-sm">
                   <thead className="text-xs text-muted-foreground">
                     <tr className="border-b border-border">
                       <th className="text-right px-4 py-2 font-medium">#</th>
@@ -269,12 +270,20 @@ export default function BookingSuccess({ params }: BookingSuccessProps) {
                   </thead>
                   <tbody>
                     {booking.companions.map((c: { firstName?: string; lastName?: string; name?: string; nationalId?: string; phone?: string }, i: number) => (
-                      <tr key={i} className="border-b border-border last:border-0">
-                        <td className="px-4 py-2 text-muted-foreground">{fa(i + 1)}</td>
-                        <td className="px-4 py-2">{c.firstName || c.name || "—"}</td>
-                        <td className="px-4 py-2">{c.lastName || "—"}</td>
-                        <td className="px-4 py-2" dir="ltr">{c.nationalId || "—"}</td>
-                        <td className="px-4 py-2" dir="ltr">{fa(c.phone) || "—"}</td>
+                      <tr key={i} className="border-b border-border last:border-0 sm:mb-0">
+                        <td className="px-4 py-2 text-muted-foreground" data-label="#" data-card-title="">
+                          همراه {fa(i + 1)}
+                        </td>
+                        <td className="px-4 py-2" data-label="نام">{c.firstName || c.name || "—"}</td>
+                        <td className="px-4 py-2" data-label="نام خانوادگی">{c.lastName || "—"}</td>
+                        {/* جهت لاتین فقط روی خود مقدار، نه سلول — وگرنه در حالت
+                            کارت، برچسب و مقدار جای هم عوض می‌شوند */}
+                        <td className="px-4 py-2" data-label="کد ملی">
+                          <bdi dir="ltr">{c.nationalId || "—"}</bdi>
+                        </td>
+                        <td className="px-4 py-2" data-label="موبایل">
+                          <bdi dir="ltr">{fa(c.phone) || "—"}</bdi>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

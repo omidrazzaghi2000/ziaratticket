@@ -122,6 +122,7 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [BASE_DIR / 'static']
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = '/media/'
@@ -230,8 +231,9 @@ JAZZMIN_SETTINGS = {
 
     "related_modal_active": True,
 
-    "custom_css": None,
-    "custom_js": None,
+    # اصلاحات نمایش پنل مدیریت روی موبایل
+    "custom_css": "admin/css/mobile.css",
+    "custom_js": "admin/js/mobile-cards.js",
     "use_google_fonts_cdn": True,
     "show_ui_builder": False,
 
