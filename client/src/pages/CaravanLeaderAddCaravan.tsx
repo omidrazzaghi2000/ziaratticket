@@ -148,7 +148,7 @@ export default function CaravanLeaderAddCaravan() {
   if (success) {
     return (
       <div className="bg-background min-h-screen">
-        <Header />
+        <Header solid />
         <div className="container max-w-lg mx-auto py-24 pt-32 text-center">
           <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
             className="bg-card border border-border rounded-3xl p-10 shadow-lg">
@@ -175,7 +175,7 @@ export default function CaravanLeaderAddCaravan() {
 
   return (
     <div className="bg-background min-h-screen">
-      <Header />
+      <Header solid />
 
       <div className="bg-gradient-to-br from-primary to-primary/70 pt-20 pb-6 relative overflow-hidden">
         <div className="container relative">

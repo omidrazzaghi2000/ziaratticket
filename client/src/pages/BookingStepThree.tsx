@@ -201,7 +201,7 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
   if (isLoadingBooking) {
     return (
       <div className="bg-background min-h-screen">
-        <Header />
+        <Header solid />
         <div className="container py-10 pt-32 flex flex-col items-center justify-center min-h-[50vh]">
           <div className="w-12 h-12 rounded-full border-4 border-primary/20 border-t-primary animate-spin mb-4" />
           <p className="text-muted-foreground">در حال بارگذاری اطلاعات رزرو...</p>
@@ -213,7 +213,7 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
   if (!booking) {
     return (
       <div className="bg-background min-h-screen">
-        <Header />
+        <Header solid />
         <div className="container py-10 pt-32 text-center">
           <h2 className="font-heading text-2xl font-bold text-foreground mb-4">رزرو یافت نشد</h2>
           <Button variant="outline" onClick={() => navigate("/")}>بازگشت به صفحه اصلی</Button>
@@ -242,7 +242,7 @@ export default function BookingStepThree({ params }: BookingStepThreeProps) {
 
   return (
     <div className="bg-background min-h-screen">
-      <Header />
+      <Header solid />
       <div className="container py-12 pt-28">
         {/* Page header */}
         <motion.div

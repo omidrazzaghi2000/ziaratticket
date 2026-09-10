@@ -64,10 +64,17 @@ function BrandMark({ scrolled }: { scrolled: boolean }) {
   );
 }
 
-export default function Header() {
+/**
+ * `solid` هدر را همیشه در حالت پُر (پس‌زمینه روشن، متن تیره) نگه می‌دارد.
+ * حالت پیش‌فرض شفاف است و متن سفید دارد؛ آن حالت فقط وقتی خواناست که پشت
+ * هدر تصویر یا پس‌زمینه‌ی تیره باشد. در صفحه‌هایی با پس‌زمینه‌ی روشن
+ * (مراحل رزرو، داشبورد، صفحه ۴۰۴) متن سفید عملاً نامرئی می‌شد.
+ */
+export default function Header({ solid = false }: { solid?: boolean } = {}) {
   const [, navigate] = useLocation();
   const { user, isAuthenticated } = useAuth();
-  const [scrolled, setScrolled] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const scrolled = solid || isScrolled;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("home");
 
@@ -75,7 +82,7 @@ export default function Header() {
   const isLeaderApproved = isLeader && user?.is_leader_approved;
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 30);
+    const handleScroll = () => setIsScrolled(window.scrollY > 30);
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);

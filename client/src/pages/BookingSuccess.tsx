@@ -39,7 +39,7 @@ export default function BookingSuccess({ params }: BookingSuccessProps) {
   if (isLoading) {
     return (
       <div className="bg-background min-h-screen">
-        <Header />
+        <Header solid />
         <div className="flex flex-col items-center justify-center min-h-[60vh]">
           <div className="w-12 h-12 rounded-full border-4 border-primary/20 border-t-primary animate-spin mb-4" />
           <p className="text-muted-foreground">در حال بارگذاری...</p>
@@ -51,7 +51,7 @@ export default function BookingSuccess({ params }: BookingSuccessProps) {
   if (!booking) {
     return (
       <div className="bg-background min-h-screen">
-        <Header />
+        <Header solid />
         <div className="container py-10 pt-32 text-center">
           <h2 className="font-heading text-2xl font-bold text-foreground mb-4">رزرو یافت نشد</h2>
           <Button variant="outline" onClick={() => navigate("/")}>بازگشت به صفحه اصلی</Button>
@@ -62,7 +62,7 @@ export default function BookingSuccess({ params }: BookingSuccessProps) {
 
   return (
     <div className="bg-background min-h-screen">
-      <Header />
+      <Header solid />
 
       <div className="container py-16 pt-28 max-w-2xl mx-auto print-container">
         <motion.div

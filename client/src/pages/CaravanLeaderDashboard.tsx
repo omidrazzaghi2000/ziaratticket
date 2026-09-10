@@ -304,7 +304,7 @@ export default function CaravanLeaderDashboard() {
   if (!isAuthenticated) {
     return (
       <div className="bg-background min-h-screen">
-        <Header />
+        <Header solid />
         <div className="container pt-32 text-center">
           <p className="text-muted-foreground mb-4">برای دسترسی به داشبورد، لطفاً وارد شوید.</p>
           <Button onClick={() => navigate("/")}>بازگشت به صفحه اصلی</Button>
@@ -316,7 +316,7 @@ export default function CaravanLeaderDashboard() {
   if (user && (user as any).role !== 'caravan_leader') {
     return (
       <div className="bg-background min-h-screen">
-        <Header />
+        <Header solid />
         <div className="container pt-32 text-center max-w-md mx-auto">
           <AlertCircle className="h-12 w-12 text-amber-500 mx-auto mb-4" />
           <h2 className="font-heading text-xl font-bold mb-3">دسترسی محدود</h2>
@@ -341,7 +341,7 @@ export default function CaravanLeaderDashboard() {
 
   return (
     <div className="bg-background min-h-dvh">
-      <Header />
+      <Header solid />
 
       {/* Dashboard header */}
       <div className="bg-gradient-to-br from-primary to-primary/75 pt-20 pb-6 relative overflow-hidden">
