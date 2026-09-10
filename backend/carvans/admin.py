@@ -90,9 +90,19 @@ class CaravanAdmin(admin.ModelAdmin):
     destination_badge.short_description = 'مقصد'
 
     def transport_badge(self, obj):
-        icons = {'bus': '🚌', 'train': '🚂', 'airplane': '✈️', 'combined': '🔀'}
-        icon = icons.get(obj.transportation_type, '🚌')
-        return format_html('{} {}', icon, obj.get_transportation_type_display())
+        # آیکن برداری به جای ایموجی: ایموجی روی هر سیستم‌عامل شکل و اندازه‌ی
+        # متفاوتی دارد و با رنگ و اندازه‌ی قلم پنل هماهنگ نمی‌شود.
+        icons = {
+            'bus': 'fa-bus',
+            'train': 'fa-train',
+            'airplane': 'fa-plane',
+            'combined': 'fa-route',
+        }
+        icon = icons.get(obj.transportation_type, 'fa-bus')
+        return format_html(
+            '<i class="fas {}" aria-hidden="true"></i> {}',
+            icon, obj.get_transportation_type_display()
+        )
     transport_badge.short_description = 'حمل‌ونقل'
 
     def status_badge(self, obj):

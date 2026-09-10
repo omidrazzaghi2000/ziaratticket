@@ -1,0 +1,23 @@
+# ترجمه‌ی رشته‌هایی که قالب Jazzmin برایشان ترجمه‌ی فارسی ندارد.
+# فایل .mo کنار همین فایل کامپایل و کامیت شده تا ساخت داکر به gettext نیاز نداشته باشد.
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: fa\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Dashboard"
+msgstr "داشبورد"
+
+msgid "Home"
+msgstr "خانه"
+
+msgid "Support"
+msgstr "پشتیبانی"
+
+msgid "All rights reserved."
+msgstr "همه‌ی حقوق محفوظ است."
+
+msgid "Copyright"
+msgstr "حق نشر"

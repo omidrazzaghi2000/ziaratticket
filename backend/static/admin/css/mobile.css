@@ -1,13 +1,48 @@
 /*
- * پنل مدیریت — اصلاحات نمایش در موبایل
+ * پنل مدیریت — اصلاحات ساختار و واکنش‌گرایی
  *
- * مشکلاتی که این فایل حل می‌کند (اندازه‌گیری‌شده روی صفحه ۳۹۰ پیکسلی):
- *  ۱) محتوا فقط ۲۹۶ پیکسل از ۳۹۰ پیکسل صفحه را می‌گرفت و بقیه هدر می‌رفت.
- *  ۲) جدول فهرست (۱۱ ستون) بریده می‌شد؛ حالا هر سطر یک کارت است.
- *  ۳) نوار بالا سه کادر جستجوی ۴۶ پیکسلی روی هم نشان می‌داد.
+ * بخش اول روی همه‌ی اندازه‌ها اعمال می‌شود (اشکالات راست‌چین بودن قالب)
+ * و بخش دوم فقط زیر ۷۶۸ پیکسل (چیدمان موبایل).
  */
 
-@media (max-width: 767.98px) {
+/* ══════════════════════════════════════════════════════════════
+   بخش ۱ — اصلاحات راست‌چین (روی کامپیوتر و موبایل)
+   ══════════════════════════════════════════════════════════════ */
+
+/* منوی کناری: AdminLTE برای هر لینک عرض ثابت calc(250px - 1rem) می‌گذارد.
+   در حالت راست‌چین این عرض از قاب منو بیرون می‌زند و ابتدای متن آیتم‌های
+   تودرتو (کاربران، کاروان‌ها، Dashboard …) بریده می‌شود. */
+body:not(.sidebar-collapse) .main-sidebar .nav-sidebar .nav-link {
+  width: auto !important;
+  max-width: 100%;
+}
+.main-sidebar .nav-sidebar .nav-link p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* مسیر راهنما: بوت‌استرپ جداکننده را float:left می‌کند و در حالت راست‌چین
+   از جریان خارج می‌شود، در نتیجه «خانه» و «کاروان‌ها» به هم می‌چسبیدند. */
+.breadcrumb-item + .breadcrumb-item::before {
+  float: none !important;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+.breadcrumb-item + .breadcrumb-item { padding-left: 0; }
+
+/* شماره‌ی نسخه‌ی قالب جایی در پنل کاربر نهایی ندارد */
+.main-footer .float-right { display: none !important; }
+
+/* نوار بالا: سه کادر جستجو کل عرض را می‌گرفتند و لینک‌های منو را له می‌کردند */
+.main-header form.form-inline .input-group { max-width: 190px; }
+
+/* ══════════════════════════════════════════════════════════════
+   بخش ۲ — چیدمان موبایل و تبلت
+   مرز ۹۹۲ پیکسل است، همان نقطه‌ای که AdminLTE منوی کناری را کشویی
+   می‌کند. روی ۷۶۸ پیکسل جدول یازده‌ستونی از کادر بیرون می‌زد و دو ستون
+   آخر (وضعیت و محبوب) بریده می‌شد.
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width: 991.98px) {
 
   /* ── ۱) استفاده از تمام عرض صفحه ───────────────────────────── */
   .content-wrapper > .content { padding: 0 !important; }
@@ -30,9 +65,63 @@
     margin-right: 0 !important;
   }
 
-  /* ── ۲) جدول‌ها → کارت ─────────────────────────────────────
-     روی موبایل هر سطر جدول به یک کارت با «برچسب: مقدار» تبدیل می‌شود.
-     برچسب‌ها را mobile-cards.js از سربرگ جدول می‌خواند. */
+  /* ── ۲) منوی کشویی: پرده‌ی تیره پشت آن ──────────────────────
+     منو ۲۵۰ از ۳۹۰ پیکسل صفحه را می‌پوشاند؛ بدون پرده، نوار باریکِ
+     باقی‌مانده مثل «محتوای خراب» دیده می‌شود نه «محتوای پشت منو». */
+  body.sidebar-open .content-wrapper::after,
+  body.sidebar-open .main-header::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .55);
+    z-index: 1035;
+    pointer-events: none;
+  }
+  body.sidebar-open .main-sidebar { z-index: 1040; }
+
+  /* ── ۳) ترتیب محتوا: اول جستجو، بعد فیلتر، بعد داده ───────── */
+  #change-list-filters form#changelist-search { display: flex; flex-direction: column; gap: 10px; }
+  #change-list-filters form#changelist-search > .form-group { width: 100% !important; margin: 0 !important; }
+  /* گروه فیلترها داخل آکاردئون «فیلترها» می‌رود (mobile-cards.js) */
+  details.mobile-filters {
+    border: 1px solid rgba(128,128,128,.25);
+    border-radius: 10px;
+    margin: 0 0 10px;
+    background: rgba(128,128,128,.04);
+  }
+  details.mobile-filters > summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 12px;
+    min-height: 44px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  details.mobile-filters > summary::-webkit-details-marker { display: none; }
+  details.mobile-filters > summary::after { content: "▾"; margin-inline-start: auto; opacity: .6; }
+  details.mobile-filters[open] > summary::after { content: "▴"; }
+  details.mobile-filters > .mobile-filters-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0 12px 12px;
+  }
+  details.mobile-filters .badge-count {
+    font-size: 11px;
+    background: #2dce89;
+    color: #fff;
+    border-radius: 999px;
+    padding: 1px 7px;
+  }
+
+  /* select2 عرض ثابت پیکسلی روی خودش می‌گذارد */
+  .select2-container { width: 100% !important; max-width: 100% !important; }
+
+  /* ── ۴) جدول‌ها → کارت ─────────────────────────────────────
+     هر سطر یک کارت با «برچسب | مقدار» می‌شود. برچسب‌ها را
+     mobile-cards.js از سربرگ جدول می‌خواند. */
   table[data-cards],
   table[data-cards] > tbody,
   table[data-cards] > tbody > tr,
@@ -52,105 +141,163 @@
     padding: 6px 2px;
     border: 0;
   }
+  /* فقط روی گوشی که چیپ‌ها قطعاً جا نمی‌شوند: لبه‌ی محو تا معلوم باشد نوار
+     مرتب‌سازی کشویی است، نه بریده */
+  @media (max-width: 767.98px) {
+    table[data-cards] > thead > tr {
+      -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent);
+      mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent);
+    }
+  }
   table[data-cards] > thead > tr > th {
     display: inline-block;
     flex: 0 0 auto;
     white-space: nowrap;
-    font-size: 11px;
-    padding: 4px 10px !important;
+    font-size: 12px;
+    padding: 8px 12px !important;
     border: 1px solid rgba(128,128,128,.25) !important;
     border-radius: 999px;
   }
   table[data-cards] > thead > tr > th:empty,
   table[data-cards] > thead > tr > th.action-checkbox-column { display: none; }
 
-  /* هر سطر = یک کارت */
+  /* هر سطر = یک کارت؛ ستون‌ها با order مرتب می‌شوند */
   table[data-cards] > tbody > tr {
-    position: relative;
+    display: flex !important;
+    flex-direction: column;
     border: 1px solid rgba(128,128,128,.25) !important;
     border-radius: 12px;
-    margin-bottom: 10px;
-    padding: 6px 0;
+    margin-bottom: 12px;
+    padding: 8px 0;
     background: rgba(128,128,128,.03);
   }
   table[data-cards] > tbody > tr:last-child { margin-bottom: 0; }
 
+  /* از ۶۰۰ پیکسل به بالا کارت‌ها کنار هم می‌نشینند تا عرض هدر نرود */
+  @media (min-width: 600px) {
+    table[data-cards] > tbody {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 12px;
+    }
+    table[data-cards] > tbody > tr { margin-bottom: 0; }
+  }
+
+  /* حالت پیش‌فرض سلول: دو ستون چسبیده — برچسب کنار مقدار، نه دو سرِ کارت */
   table[data-cards] > tbody > tr > td,
   table[data-cards] > tbody > tr > th {
     display: flex !important;
+    flex-wrap: wrap;
+    gap: 2px 10px;
     align-items: baseline;
-    justify-content: space-between;
-    gap: 10px;
     border: 0 !important;
     padding: 5px 12px !important;
     white-space: normal !important;
-    text-align: left;
+    overflow-wrap: anywhere;
   }
-  table[data-cards] > tbody > tr > td::before {
+  /* flex به‌جای grid: بعضی سلول‌ها بیش از یک فرزند دارند (مثل آیکن + متن
+     حمل‌ونقل) و در grid هر فرزند به سطر بعدی می‌افتاد. */
+  table[data-cards] > tbody > tr > td::before,
+  table[data-cards] > tbody > tr > th::before {
     content: attr(data-label);
-    flex: 0 0 auto;
+    flex: 0 0 76px;
     font-size: 11px;
     opacity: .65;
     text-align: right;
   }
-  table[data-cards] > tbody > tr > td[data-label=""]::before { content: none; }
+  table[data-cards] > tbody > tr > td[data-label=""]::before,
+  table[data-cards] > tbody > tr > th[data-label=""]::before { content: none; }
 
-  /* عنوان کارت: بزرگ‌تر، بدون برچسب */
-  table[data-cards] > tbody > tr > td[data-card-title] {
-    justify-content: flex-start;
+  /* عنوان کارت (نام رکورد، نه شناسه): بالای کارت، بزرگ و بدون برچسب */
+  table[data-cards] > tbody > tr > td[data-card-title],
+  table[data-cards] > tbody > tr > th[data-card-title] {
+    order: -1;
+    display: block !important;
     font-weight: 700;
-    font-size: 14px;
-    padding-bottom: 2px !important;
+    font-size: 15px;
+    line-height: 1.5;
+    padding: 2px 12px 6px !important;
   }
-  table[data-cards] > tbody > tr > td[data-card-title]::before { content: none; }
+  table[data-cards] > tbody > tr > td[data-card-title]::before,
+  table[data-cards] > tbody > tr > th[data-card-title]::before { content: none; }
+  table[data-cards] > tbody > tr > [data-card-title] a { text-decoration: none; }
 
-  /* چک‌باکس انتخاب: سطر جداگانه در بالای کارت (بدون شناور شدن، تا با
-     عنوان کارت هم‌پوشانی نکند) */
+  /* چک‌باکس انتخاب سطر: اولین چیز داخل کارت */
   table[data-cards] > tbody > tr > td[data-select-cell] {
+    order: -2;
+    display: flex !important;
     justify-content: flex-start;
-    padding: 6px 12px 0 !important;
-    min-height: 0;
+    padding: 4px 12px 0 !important;
   }
   table[data-cards] > tbody > tr > td[data-select-cell]::before { content: none; }
+  table[data-cards] > tbody > tr > td[data-select-cell] input[type=checkbox] {
+    width: 20px; height: 20px;
+  }
+
+  /* شناسه و ستون‌های کم‌اهمیت به انتهای کارت می‌روند */
+  table[data-cards] > tbody > tr > [data-row-meta] {
+    order: 90;
+    font-size: 12px;
+    opacity: .75;
+    padding-top: 8px !important;
+    border-top: 1px solid rgba(128,128,128,.2) !important;
+    margin-top: 4px;
+  }
+
+  /* سلول‌های ویرایش‌پذیر داخل فهرست (list_editable) باید برچسبشان را نگه دارند */
+  table[data-cards] > tbody > tr > td input[type=checkbox],
+  table[data-cards] > tbody > tr > td input[type=text],
+  table[data-cards] > tbody > tr > td select { max-width: 100%; }
 
   /* جدول‌های داخل فرم ویرایش (مثل فهرست همراهان) هم کارتی شوند */
   .form-row table[data-cards] > tbody > tr,
   .readonly table[data-cards] > tbody > tr { background: transparent; }
 
-  /* ── ۳) نوار بالا: کادرهای جستجوی تکراری حذف شوند ──────────── */
+  /* ── ۵) نوار بالا: کادرهای جستجوی تکراری حذف شوند ──────────── */
   /* هر صفحه‌ی فهرست جستجوی اختصاصی خودش را دارد؛ این‌ها روی موبایل
      فقط سه کادر ۴۶ پیکسلی روی هم می‌سازند. */
   .main-header .navbar-nav + form.form-inline,
   .main-header form.form-inline.ml-3 { display: none !important; }
   .main-header .navbar-nav.ml-auto { margin-right: auto !important; }
 
-  /* ── فیلترها و ابزارها ─────────────────────────────────────── */
-  #changelist-filter { width: 100% !important; float: none !important; margin: 0 0 12px !important; }
-  #toolbar form#changelist-search { display: flex; gap: 8px; flex-wrap: wrap; }
-  #toolbar #searchbar { flex: 1 1 auto; min-width: 0; }
+  /* ── ۶) ابزارها و عملیات گروهی ─────────────────────────────── */
   .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .actions label { width: 100%; margin: 0; }
   .actions select { flex: 1 1 auto; min-width: 0; }
+  .actions button, .actions .button { min-height: 44px; }
   .object-tools { float: none !important; margin: 0 0 12px !important; }
   .object-tools li { display: block; margin: 0 0 8px !important; }
-  .object-tools a { display: block; text-align: center; }
+  .object-tools a { display: block; text-align: center; min-height: 44px; line-height: 28px; }
 
-  /* ── فرم‌های ویرایش ────────────────────────────────────────── */
+  /* ── ۷) فرم‌های ویرایش ──────────────────────────────────────── */
   .form-row, .form-group { display: block !important; width: 100% !important; }
   .form-row > div, fieldset .form-group > div { width: 100% !important; }
   label { display: block; margin-bottom: 4px; }
   input[type=text], input[type=url], input[type=email], input[type=number],
-  input[type=password], select, textarea, .form-control, .vTextField {
+  input[type=password], input[type=search], select, textarea, .form-control, .vTextField {
     width: 100% !important;
     max-width: 100% !important;
+    min-height: 44px;           /* هدف لمسی + جلوگیری از زوم خودکار iOS */
+    font-size: 16px;
     box-sizing: border-box;
   }
+  textarea { min-height: 96px; }
   .submit-row { display: flex; flex-wrap: wrap; gap: 8px; }
-  .submit-row input, .submit-row a { flex: 1 1 auto; text-align: center; margin: 0 !important; }
+  .submit-row input, .submit-row a {
+    flex: 1 1 auto; text-align: center; margin: 0 !important; min-height: 44px;
+  }
 
-  /* ── جزئیات ────────────────────────────────────────────────── */
+  /* ── ۸) داشبورد: دکمه‌های «تغییر» و «اضافه‌کردن» به هم چسبیده بودند ── */
+  .dashboard .table td .btn-group,
+  #content-main .btn-group { gap: 8px; }
+  #content-main .btn-group > .btn { border-radius: 6px !important; min-height: 44px; }
+
+  /* ── ۹) جزئیات ──────────────────────────────────────────────── */
   .paginator { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-  .breadcrumb { flex-wrap: wrap; font-size: 12px; }
+  .paginator a, .paginator .this-page { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  .breadcrumb { flex-wrap: wrap; font-size: 12px; gap: 4px; }
   .content-header h1 { font-size: 20px; }
+  .main-footer { font-size: 12px; text-align: center; }
   /* هیچ عنصری نباید صفحه را به‌صورت افقی بکشد */
   body, .wrapper { overflow-x: hidden; }
 }

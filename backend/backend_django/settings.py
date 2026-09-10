@@ -118,6 +118,9 @@ AUTH_PASSWORD_VALIDATORS = [
 LANGUAGE_CODE = 'fa-ir'
 TIME_ZONE = 'Asia/Tehran'
 USE_I18N = True
+
+# ترجمه‌ی رشته‌های انگلیسیِ باقی‌مانده در قالب پنل مدیریت (Dashboard و …)
+LOCALE_PATHS = [BASE_DIR / 'locale']
 USE_TZ = True
 
 STATIC_URL = '/static/'
@@ -183,7 +186,7 @@ JAZZMIN_SETTINGS = {
     "site_logo_classes": "img-circle",
     "site_icon": None,
     "welcome_sign": "خوش آمدید به پنل مدیریت زیارت تیکت",
-    "copyright": "زیارت تیکت © ۱۴۰۳",
+    "copyright": "زیارت تیکت",
     "search_model": ["accounts.User", "carvans.Caravan", "bookings.Booking"],
     "user_avatar": None,
 
