@@ -3,7 +3,7 @@ set -e
 
 # ===== KarvanKarbala Production Deployment =====
 # Run on VPS as root: bash deploy.sh
-# Domain: ziaratticket.ir  |  Server: 213.176.121.111
+# Domain: karbalafori.ir  |  Server: 213.176.121.111
 
 SERVER_DIR="/opt/karvankarbala"
 
