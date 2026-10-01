@@ -99,9 +99,9 @@ export default {
         },
       },
       fontFamily: {
-        sans: ["Mahsa", "Vazirmatn", "Tahoma", "sans-serif"],
-        heading: ["Mahsa", "Vazirmatn", "Tahoma", "sans-serif"],
-        display: ["Mahsa", "Vazirmatn", "Tahoma", "sans-serif"],
+        sans: ["Vazirmatn", "sans-serif"],
+        heading: ["'Markazi Text'", "serif"],
+        display: ["'Markazi Text'", "serif"],
         special: ["Lalezar", "cursive"],
       },
       fontSize: {

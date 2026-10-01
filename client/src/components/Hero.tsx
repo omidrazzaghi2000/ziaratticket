@@ -230,7 +230,7 @@ export default function Hero() {
         </motion.div> */}
 
         {/* Site badge */}
-        <motion.div variants={fadeUp} className="mb-4">
+        <motion.div variants={fadeUp} className="mb-4 hidden sm:block">
           <span className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 text-white/80 text-sm font-medium px-5 py-2 rounded-full">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
             سامانه رزرو کاروان زیارتی
@@ -240,7 +240,7 @@ export default function Hero() {
         {/* Main headline — site name */}
         <motion.h1
           variants={fadeUp}
-          className="font-heading text-white mb-3"
+          className="font-heading text-white mb-3 hidden sm:block"
           style={{
             fontSize: "clamp(3rem, 9vw, 7.5rem)",
             lineHeight: 1.05,
@@ -255,7 +255,7 @@ export default function Hero() {
         {/* Gold sub-headline */}
         <motion.p
           variants={fadeUp}
-          className="font-heading mb-5"
+          className="font-heading mb-5 hidden sm:block"
           style={{
             fontSize: "clamp(1.2rem, 3vw, 2rem)",
             color: "hsl(42 65% 72%)",
@@ -267,7 +267,7 @@ export default function Hero() {
         </motion.p>
 
         {/* Ornamental divider */}
-        <motion.div variants={fadeIn} className="flex items-center justify-center gap-4 mb-7">
+        <motion.div variants={fadeIn} className="hidden sm:flex items-center justify-center gap-4 mb-7">
           <div className="h-px w-20 bg-gradient-to-r from-transparent via-gold-400/60 to-gold-400/80" />
           <StarOrnament size={18} opacity={0.8} />
           <div className="h-px w-20 bg-gradient-to-l from-transparent via-gold-400/60 to-gold-400/80" />
@@ -276,12 +276,15 @@ export default function Hero() {
         {/* Description */}
         <motion.p
           variants={fadeUp}
-          className="text-white/75 max-w-2xl mx-auto mb-10 leading-loose"
+          className="text-white/75 max-w-2xl mx-auto mb-10 leading-loose hidden sm:block"
           style={{ fontSize: "clamp(0.9rem, 2vw, 1.05rem)", textShadow: "0 1px 12px rgba(0,0,0,0.5)" }}
         >
           با زیارت تیکت، سفر زیارتی خود را به مشهد، کربلا، حج، عمره و سایر اماکن مقدس
           با اطمینان کامل برنامه‌ریزی کنید. رزرو آنلاین آسان و کاروان‌های رسمی در سراسر کشور.
         </motion.p>
+
+        {/* Shrine shortcuts */}
+        <ShrineButtons />
 
         {/* CTA Buttons */}
         <motion.div
@@ -321,9 +324,6 @@ export default function Hero() {
             راهنمای سفر
           </motion.a>
         </motion.div>
-
-        {/* Shrine shortcuts */}
-        <ShrineButtons />
 
         {/* Stats row */}
         <motion.div
