@@ -1,4 +1,4 @@
-import { useState, FormEvent } from "react";
+import { useState, useEffect, FormEvent } from "react";
 import { djangoURL } from "@/App";
 import { toPersianDigits } from "@/lib/digits";
 import { useQuery } from "@tanstack/react-query";
@@ -144,6 +144,16 @@ export default function SearchAndFilter() {
     departure_date: "", duration: "", transportation_type: "", price_range: "", destination: "",
   });
   const [, setLocation] = useLocation();
+
+  // The hero's shrine buttons pick a destination for this list
+  useEffect(() => {
+    const onSelect = (e: Event) => {
+      const key = (e as CustomEvent<string>).detail;
+      setFilters(prev => ({ ...prev, destination: key }));
+    };
+    window.addEventListener("select-destination", onSelect);
+    return () => window.removeEventListener("select-destination", onSelect);
+  }, []);
   const [filterOpen, setFilterOpen] = useState(false);
 
   const { data: caravans, isLoading, isError, refetch } = useQuery<Caravan[]>({

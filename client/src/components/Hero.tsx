@@ -3,6 +3,8 @@ import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { djangoURL } from "@/App";
 import shrineImage from "../assets/images/hasanmajed__-E0RryWDcsWw-unsplash.jpg";
+import karbalaShrine from "../assets/images/imam-hussain-shrine.jpg";
+import mashhadShrine from "../assets/images/EmamReza.jpeg";
 
 /* ─── Animation variants ─── */
 const stagger = {
@@ -75,6 +77,64 @@ function GeometricOverlay() {
       </defs>
       <rect width="100%" height="100%" fill="url(#geo)" />
     </svg>
+  );
+}
+
+/* ─── Big shrine shortcuts: pick a destination straight from the hero ─── */
+const SHRINES = [
+  {
+    key: "mashhad",
+    title: "حرم امام رضا (ع)",
+    subtitle: "کاروان‌های مشهد مقدس",
+    image: mashhadShrine,
+  },
+  {
+    key: "karbala",
+    title: "حرم امام حسین (ع)",
+    subtitle: "کاروان‌های کربلای معلا",
+    image: karbalaShrine,
+  },
+];
+
+function ShrineButtons() {
+  const goToDestination = (key: string) => {
+    window.dispatchEvent(new CustomEvent("select-destination", { detail: key }));
+    document.getElementById("caravans")?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  return (
+    <motion.div
+      variants={fadeUp}
+      className="grid grid-cols-1 sm:grid-cols-2 gap-5 w-full max-w-3xl mb-12"
+    >
+      {SHRINES.map(shrine => (
+        <motion.button
+          key={shrine.key}
+          onClick={() => goToDestination(shrine.key)}
+          whileHover={{ scale: 1.03, y: -4 }}
+          whileTap={{ scale: 0.98 }}
+          transition={{ duration: 0.25, ease: "easeOut" }}
+          className="group relative h-44 sm:h-52 rounded-3xl overflow-hidden border-2 border-white/20 hover:border-gold-400/70 shadow-2xl text-right"
+        >
+          <img
+            src={shrine.image}
+            alt={shrine.title}
+            loading="lazy"
+            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+          />
+          <span
+            className="absolute inset-0"
+            style={{ background: "linear-gradient(to top, rgba(6,16,10,0.88) 0%, rgba(6,16,10,0.35) 55%, rgba(6,16,10,0.15) 100%)" }}
+          />
+          <span className="absolute inset-x-0 bottom-0 p-5 flex flex-col items-start gap-1">
+            <span className="font-heading font-bold text-white text-2xl sm:text-3xl leading-tight drop-shadow-lg">
+              {shrine.title}
+            </span>
+            <span className="text-gold-200/90 text-sm">{shrine.subtitle}</span>
+          </span>
+        </motion.button>
+      ))}
+    </motion.div>
   );
 }
 
@@ -261,6 +321,9 @@ export default function Hero() {
             راهنمای سفر
           </motion.a>
         </motion.div>
+
+        {/* Shrine shortcuts */}
+        <ShrineButtons />
 
         {/* Stats row */}
         <motion.div
