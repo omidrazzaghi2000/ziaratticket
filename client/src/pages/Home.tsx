@@ -10,15 +10,17 @@ import FAQ from "@/components/FAQ";
 import Contact from "@/components/Contact";
 import Footer from "@/components/Footer";
 import BookingModal from "@/components/BookingModal";
+import CaravansFab from "@/components/CaravansFab";
 
 export default function Home() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
       <Hero />
+      {/* Caravans come first: visitors see what they can book without scrolling far */}
+      <SearchAndFilter />
       <PrayerTimes />
       <Features />
-      <SearchAndFilter />
       <Gallery />
       <LanternStrip />
       <PilgrimageGuide />
@@ -26,6 +28,7 @@ export default function Home() {
       <Contact />
       <Footer />
       <BookingModal />
+      <CaravansFab />
     </div>
   );
 }

@@ -49,8 +49,8 @@ interface FilterState {
 
 const DESTINATIONS = [
   { key: "", label: "همه مقاصد", emoji: "🌍" },
-  { key: "karbala", label: "کربلای معلا", emoji: "🕌" },
   { key: "mashhad", label: "مشهد مقدس", emoji: "🕌" },
+  { key: "karbala", label: "کربلای معلا", emoji: "🕌" },
   { key: "hajj_umrah", label: "حج / عمره", emoji: "🕋" },
   { key: "qom_jamkaran", label: "قم / جمکران", emoji: "🌙" },
 ];
@@ -149,6 +149,16 @@ export default function SearchAndFilter() {
   const { data: caravans, isLoading, isError, refetch } = useQuery<Caravan[]>({
     queryKey: ["/api/caravans", filters],
     queryFn: () => fetchCaravans(filters),
+  });
+
+  // Mashhad first, then Karbala, then anything else — matches the tab order above
+  const DEST_ORDER = ["mashhad", "karbala"];
+  const sortedCaravans = caravans && [...caravans].sort((a, b) => {
+    const rank = (c: Caravan) => {
+      const i = DEST_ORDER.indexOf(c.destination ?? "");
+      return i === -1 ? DEST_ORDER.length : i;
+    };
+    return rank(a) - rank(b);
   });
 
   const handleFilterChange = (name: string, value: string) =>
@@ -412,10 +422,10 @@ export default function SearchAndFilter() {
             <p className="text-red-400 text-sm mb-6">لطفاً اتصال اینترنت خود را بررسی کنید.</p>
             <Button onClick={() => refetch()} variant="outline" className="border-red-200 text-red-500 rounded-xl">تلاش مجدد</Button>
           </motion.div>
-        ) : caravans && caravans.length > 0 ? (
+        ) : sortedCaravans && sortedCaravans.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <AnimatePresence>
-              {caravans.map((caravan, index) => {
+              {sortedCaravans.map((caravan, index) => {
                 const transport = getTransportInfo(caravan.transportation_type);
                 const TransportIcon = transport.icon;
                 const isFull = caravan.remaining_capacity <= 0;
