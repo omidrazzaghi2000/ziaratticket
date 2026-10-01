@@ -139,21 +139,15 @@ function CapacityBadge({ remaining, capacity }: { remaining: number; capacity: n
   );
 }
 
-export default function SearchAndFilter() {
+export default function SearchAndFilter({ initialDestination = "" }: { initialDestination?: string }) {
   const [filters, setFilters] = useState<FilterState>({
-    departure_date: "", duration: "", transportation_type: "", price_range: "", destination: "",
+    departure_date: "", duration: "", transportation_type: "", price_range: "", destination: initialDestination,
   });
   const [, setLocation] = useLocation();
 
-  // The hero's shrine buttons pick a destination for this list
   useEffect(() => {
-    const onSelect = (e: Event) => {
-      const key = (e as CustomEvent<string>).detail;
-      setFilters(prev => ({ ...prev, destination: key }));
-    };
-    window.addEventListener("select-destination", onSelect);
-    return () => window.removeEventListener("select-destination", onSelect);
-  }, []);
+    setFilters(prev => ({ ...prev, destination: initialDestination }));
+  }, [initialDestination]);
   const [filterOpen, setFilterOpen] = useState(false);
 
   const { data: caravans, isLoading, isError, refetch } = useQuery<Caravan[]>({

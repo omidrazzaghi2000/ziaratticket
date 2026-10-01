@@ -10,6 +10,7 @@ import BookingStepTwo from "@/pages/BookingStepTwo";
 import BookingStepThree from "@/pages/BookingStepThree";
 import BookingSuccess from "@/pages/BookingSuccess";
 import CaravanDetail from "@/pages/CaravanDetail";
+import CaravanList from "@/pages/CaravanList";
 import CaravanLeaderRegister from "@/pages/CaravanLeaderRegister";
 import CaravanLeaderDashboard from "@/pages/CaravanLeaderDashboard";
 import CaravanLeaderAddCaravan from "@/pages/CaravanLeaderAddCaravan";
@@ -20,6 +21,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/caravans/:destination" component={CaravanList} />
       <Route path="/caravan/:caravanId" component={CaravanDetail} />
       <Route path="/booking/:caravanId" component={BookingStepOne} />
       <Route path="/booking/:bookingId/step2" component={BookingStepTwo} />

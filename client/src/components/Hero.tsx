@@ -1,4 +1,5 @@
 import { motion, animate } from "framer-motion";
+import { useLocation } from "wouter";
 import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { djangoURL } from "@/App";
@@ -84,23 +85,19 @@ function GeometricOverlay() {
 const SHRINES = [
   {
     key: "mashhad",
-    title: "حرم امام رضا (ع)",
-    subtitle: "کاروان‌های مشهد مقدس",
+    title: "تور مشهد مقدس",
     image: mashhadShrine,
   },
   {
     key: "karbala",
-    title: "حرم امام حسین (ع)",
-    subtitle: "کاروان‌های کربلای معلا",
+    title: "کاروان‌های عتبات عالیات",
     image: karbalaShrine,
   },
 ];
 
 function ShrineButtons() {
-  const goToDestination = (key: string) => {
-    window.dispatchEvent(new CustomEvent("select-destination", { detail: key }));
-    document.getElementById("caravans")?.scrollIntoView({ behavior: "smooth" });
-  };
+  const [, setLocation] = useLocation();
+  const goToDestination = (key: string) => setLocation(`/caravans/${key}`);
 
   return (
     <motion.div
