@@ -283,45 +283,6 @@ export default function Hero() {
         {/* Shrine shortcuts */}
         <ShrineButtons />
 
-        {/* CTA Buttons */}
-        <motion.div
-          variants={fadeUp}
-          className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16"
-        >
-          {/* Primary CTA — Gold */}
-          <motion.a
-            href="#caravans"
-            whileHover={{ scale: 1.04, y: -3 }}
-            whileTap={{ scale: 0.97 }}
-            className="group relative inline-flex items-center gap-2.5 px-9 py-4 rounded-2xl font-bold text-base overflow-hidden"
-            style={{
-              background: "linear-gradient(135deg, hsl(42 60% 52%) 0%, hsl(40 62% 44%) 100%)",
-              color: "hsl(162 72% 8%)",
-              boxShadow: "0 8px 24px hsl(42 60% 52% / 0.4), 0 2px 8px rgba(0,0,0,0.2)",
-            }}
-          >
-            <span className="absolute inset-0 bg-white/0 group-hover:bg-white/8 transition-colors duration-300" />
-            {/* <svg className="w-4.5 h-4.5 shrink-0" fill="none" viewBox="0 0 20 20">
-              <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.5"/>
-              <path d="M7 10l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg> */}
-            مشاهده کاروان‌ها
-          </motion.a>
-
-          {/* Secondary CTA — Ghost */}
-          <motion.a
-            href="#guide"
-            whileHover={{ scale: 1.04, y: -3 }}
-            whileTap={{ scale: 0.97 }}
-            className="inline-flex items-center gap-2.5 px-9 py-4 rounded-2xl font-bold text-base text-white border-2 border-white/25 hover:border-white/40 hover:bg-white/8 transition-all duration-300"
-          >
-            {/* <svg className="w-4.5 h-4.5 shrink-0" fill="none" viewBox="0 0 20 20">
-              <path d="M10 2a8 8 0 100 16A8 8 0 0010 2zM10 6v4l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg> */}
-            راهنمای سفر
-          </motion.a>
-        </motion.div>
-
         {/* Stats row */}
         <motion.div
           variants={fadeIn}

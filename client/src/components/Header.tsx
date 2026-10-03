@@ -1,17 +1,15 @@
 import { useLocation } from "wouter";
 import { UserMenu } from "@/components/auth";
 import { useAuth } from "@/components/auth";
-import { Home, Search, MapPin, HelpCircle, Phone, Menu, X, LayoutDashboard, Bus } from "lucide-react";
+import { Home, MapPin, Menu, X, LayoutDashboard, Bus } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { label: "صفحه اصلی", icon: Home, section: "home" },
-  { label: "کاروان‌ها", icon: Search, section: "caravans" },
-  { label: "راهنمای زائرین", icon: MapPin, section: "guide" },
-  { label: "سوالات متداول", icon: HelpCircle, section: "faq" },
-  { label: "تماس با ما", icon: Phone, section: "contact" },
+  { label: "صفحه اصلی", icon: Home, section: "home", path: "/" },
+  { label: "مشهد", icon: MapPin, section: "mashhad", path: "/caravans/mashhad" },
+  { label: "کربلا", icon: MapPin, section: "karbala", path: "/caravans/karbala" },
 ];
 
 function BrandMark({ scrolled }: { scrolled: boolean }) {
@@ -94,15 +92,8 @@ export default function Header({ solid = false }: { solid?: boolean } = {}) {
 
   const goToSection = (sectionId: string) => {
     setActiveSection(sectionId);
-    if (sectionId === "home") { goToHome(); return; }
-    if (window.location.pathname !== "/") {
-      navigate("/");
-      setTimeout(() => {
-        document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth" });
-      }, 100);
-    } else {
-      document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth" });
-    }
+    const target = navItems.find(item => item.section === sectionId);
+    navigate(target?.path ?? "/");
     setMobileMenuOpen(false);
   };
 

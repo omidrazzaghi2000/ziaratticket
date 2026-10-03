@@ -48,10 +48,10 @@ class CaravanAdmin(admin.ModelAdmin):
             'fields': ('leader', 'manager', 'contact_phone', 'leader_messaging_apps'),
         }),
         ('تاریخ و مدت سفر', {
-            'fields': ('departure_date', 'duration', 'start_date', 'end_date'),
+            'fields': ('departure_date', 'duration'),
         }),
         ('حمل‌ونقل و مسیر', {
-            'fields': ('transportation_type', 'bus_type', 'origin_city', 'transit_cities'),
+            'fields': ('transportation_type', 'bus_type', 'train_type', 'origin_city', 'transit_cities'),
         }),
         ('اقامتگاه', {
             'fields': ('accommodation_type', 'accommodation_name', 'accommodation_city', 'accommodation_distance'),

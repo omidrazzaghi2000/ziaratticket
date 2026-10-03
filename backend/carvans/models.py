@@ -18,6 +18,12 @@ class Caravan(models.Model):
         ('combined', 'ترکیبی'),
     ]
 
+    TRAIN_TYPE_CHOICES = [
+        ('coach', 'اتوبوسی'),
+        ('four_bed', '۴ تخته'),
+        ('six_bed', '۶ تخته'),
+    ]
+
     BUS_TYPE_CHOICES = [
         (25, 'اتوبوس ۲۵ نفره (VIP)'),
         (32, 'اتوبوس ۳۲ نفره'),
@@ -58,8 +64,8 @@ class Caravan(models.Model):
     # Dates & Duration
     departure_date = models.CharField(max_length=30, verbose_name='تاریخ حرکت (شمسی)')
     duration = models.IntegerField(verbose_name='مدت سفر (روز)')
-    start_date = models.DateTimeField(verbose_name='تاریخ شروع')
-    end_date = models.DateTimeField(verbose_name='تاریخ پایان')
+    start_date = models.DateTimeField(null=True, blank=True, verbose_name='تاریخ شروع')
+    end_date = models.DateTimeField(null=True, blank=True, verbose_name='تاریخ پایان')
 
     # Transport
     transportation_type = models.CharField(max_length=20, choices=TRANSPORT_CHOICES, default='bus', verbose_name='نوع حمل‌ونقل')
@@ -67,6 +73,11 @@ class Caravan(models.Model):
         choices=BUS_TYPE_CHOICES, default=44,
         verbose_name='نوع اتوبوس (ظرفیت هر اتوبوس)',
         help_text='برای سفرهای زمینی: تعداد صندلی هر اتوبوس. چیدمان صندلی رزرو بر همین اساس ساخته می‌شود.',
+    )
+    train_type = models.CharField(
+        max_length=20, choices=TRAIN_TYPE_CHOICES, blank=True, default='',
+        verbose_name='نوع واگن قطار',
+        help_text='فقط برای سفرهای قطاری: اتوبوسی، ۴ تخته یا ۶ تخته.',
     )
     origin_city = models.CharField(max_length=100, blank=True, verbose_name='مبدأ حرکت')
     transit_cities = models.JSONField(default=list, blank=True, verbose_name='شهرهای بین‌راهی')
