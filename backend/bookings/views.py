@@ -1,7 +1,7 @@
 from django.db import transaction
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status
 from .models import Booking
 from carvans.models import Caravan
@@ -215,6 +215,36 @@ class BookingSeatsView(APIView):
             "capacity": capacity,
             "isGroundTransport": caravan.is_ground_transport,
             "passengerCount": booking.passenger_count,
+        })
+
+
+class CaravanSeatsView(APIView):
+    """
+    صندلی‌های یک کاروان، بدون نیاز به رزرو.
+
+    فرم رزرو حالا یک صفحه است و نقشه‌ی صندلی پیش از ساخته‌شدن رزرو نمایش
+    داده می‌شود؛ پس اشغال‌بودن صندلی‌ها باید در سطح کاروان قابل خواندن باشد.
+    نام رزروکننده‌ی هر صندلی عمداً برگردانده نمی‌شود — فقط اشغال یا آزاد.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request, id):
+        caravan = Caravan.objects.filter(id=id).first()
+        if not caravan:
+            return Response({"message": "کاروان یافت نشد."}, status=status.HTTP_404_NOT_FOUND)
+
+        capacity = caravan.capacity or 50
+        occupied = occupied_seats_for(caravan)
+
+        return Response({
+            "seats": [
+                {"number": i, "isOccupied": i in occupied, "isSelected": False, "passengerName": None}
+                for i in range(1, capacity + 1)
+            ],
+            "busType": caravan.bus_type,
+            "busCount": caravan.bus_count,
+            "capacity": capacity,
+            "isGroundTransport": caravan.is_ground_transport,
         })
 
 

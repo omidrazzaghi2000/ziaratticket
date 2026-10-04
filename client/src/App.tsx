@@ -6,8 +6,6 @@ import { AuthProvider } from "@/components/auth";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import BookingStepOne from "@/pages/BookingStepOne";
-import BookingStepTwo from "@/pages/BookingStepTwo";
-import BookingStepThree from "@/pages/BookingStepThree";
 import BookingSuccess from "@/pages/BookingSuccess";
 import CaravanDetail from "@/pages/CaravanDetail";
 import CaravanList from "@/pages/CaravanList";
@@ -24,8 +22,6 @@ function Router() {
       <Route path="/caravans/:destination" component={CaravanList} />
       <Route path="/caravan/:caravanId" component={CaravanDetail} />
       <Route path="/booking/:caravanId" component={BookingStepOne} />
-      <Route path="/booking/:bookingId/step2" component={BookingStepTwo} />
-      <Route path="/booking/:bookingId/step3" component={BookingStepThree} />
       <Route path="/booking/:bookingId/success" component={BookingSuccess} />
       <Route path="/leader/register" component={CaravanLeaderRegister} />
       <Route path="/leader/dashboard" component={CaravanLeaderDashboard} />

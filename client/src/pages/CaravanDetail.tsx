@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import Header from "@/components/Header";
+import CaravanSummaryCard from "@/components/CaravanSummaryCard";
+import { transportLabel } from "@/lib/caravan";
 import { djangoURL } from "@/App";
 import { useState } from "react";
 
@@ -461,9 +463,10 @@ export default function CaravanDetail({ params }: CaravanDetailProps) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="bg-muted/40 rounded-xl p-4">
                   <p className="text-xs text-muted-foreground mb-1">نوع حمل‌ونقل</p>
+                  {/* «قطار» به‌تنهایی گویا نیست؛ نوع واگن/اتوبوس همان‌جا می‌آید */}
                   <p className="font-semibold text-foreground text-sm flex items-center gap-1.5">
                     <TransportIcon type={caravan.transportation_type} />
-                    {caravan.transportation_display || caravan.transportation_type}
+                    {transportLabel(caravan)}
                   </p>
                 </div>
                 <div className="bg-muted/40 rounded-xl p-4">
@@ -627,50 +630,8 @@ export default function CaravanDetail({ params }: CaravanDetailProps) {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
-              className="bg-card rounded-2xl border border-border shadow-md overflow-hidden"
             >
-              {/* Price banner */}
-              <div className="relative bg-gradient-to-br from-primary to-primary/80 p-5 text-center overflow-hidden">
-                <IslamicPattern opacity={0.08} color="white" />
-                <p className="text-white/70 text-xs mb-1">قیمت هر نفر</p>
-                <p className="font-heading text-3xl font-black text-white">
-                  {caravan.price?.toLocaleString("fa-IR")}
-                  <span className="text-base font-normal mr-1">تومان</span>
-                </p>
-                {caravan.remaining_capacity > 0 && caravan.remaining_capacity < 5 && (
-                  <p className="text-amber-300 text-xs mt-2 font-medium">
-                    ⚡ فقط {toPersianDigits(caravan.remaining_capacity)} صندلی باقیمانده
-                  </p>
-                )}
-                {caravan.remaining_capacity === 0 && (
-                  <p className="text-red-300 text-xs mt-2 font-medium">ظرفیت تکمیل شده</p>
-                )}
-              </div>
-
-              <div className="p-5 space-y-3">
-                {[
-                  { label: "مقصد", value: destinationLabels[caravan.destination] || caravan.destination },
-                  { label: "تاریخ حرکت", value: caravan.departure_date },
-                  { label: "مدت سفر", value: `${toPersianDigits(caravan.duration)} روز` },
-                  { label: "حمل‌ونقل", value: caravan.transportation_display || caravan.transportation_type },
-                  { label: "اقامتگاه", value: caravan.accommodation_display || caravan.accommodation_type },
-                  { label: "ظرفیت کل", value: `${toPersianDigits(caravan.capacity)} نفر` },
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center justify-between text-sm border-b border-border pb-2.5 last:border-0 last:pb-0">
-                    <span className="text-muted-foreground">{item.label}</span>
-                    <span className="font-semibold text-foreground text-left">{item.value}</span>
-                  </div>
-                ))}
-
-                <Button
-                  onClick={handleBooking}
-                  disabled={caravan.remaining_capacity === 0}
-                  className="w-full bg-primary hover:bg-primary/90 text-white rounded-xl h-11 font-bold text-base mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {caravan.remaining_capacity === 0 ? "ظرفیت تکمیل شده" : "رزرو این کاروان"}
-                  {caravan.remaining_capacity > 0 && <ChevronLeft className="mr-2 h-4 w-4" />}
-                </Button>
-              </div>
+              <CaravanSummaryCard caravan={caravan} onAction={handleBooking} />
             </motion.div>
 
             {/* Contact card */}

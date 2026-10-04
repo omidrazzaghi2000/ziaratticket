@@ -16,6 +16,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { djangoURL } from "@/App";
+import { toLatinDigits } from "@/lib/digits";
 
 const phoneSchema = z.object({
   phone: z.string()
@@ -212,13 +213,16 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                     <FormControl>
                       <Input
                         type="text"
+                        name="code"
+                        autoComplete="one-time-code"
                         inputMode="numeric"
                         pattern="[0-9]*"
                         maxLength={4}
                         placeholder="کد تایید را وارد کنید"
                         value={verificationCode}
                         onChange={(e) => {
-                          const value = e.target.value.replace(/[^0-9]/g, '');
+                          // کد را با صفحه‌کلید فارسی هم می‌شود وارد کرد
+                          const value = toLatinDigits(e.target.value).replace(/[^0-9]/g, '');
                           setVerificationCode(value);
                           field.onChange(value);
                           verifyForm.setValue("code", value);

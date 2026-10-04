@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { djangoURL } from "@/App";
 import Header from "@/components/Header";
+import { transportLabel } from "@/lib/caravan";
 import { useToast } from "@/hooks/use-toast";
 
 interface BookingSuccessProps {
@@ -125,7 +126,9 @@ export default function BookingSuccess({ params }: BookingSuccessProps) {
               <h1 className="font-heading text-2xl md:text-3xl font-bold text-white mb-2">
                 رزرو با موفقیت ثبت شد!
               </h1>
-              <p className="text-white/65 text-sm">مسئول کاروان به زودی با شما تماس خواهد گرفت.</p>
+              <p className="text-white text-base font-semibold leading-7 max-w-sm mx-auto">
+                به‌زودی مسئول کاروان با شما تماس می‌گیرد و بلیط شما صادر می‌شود.
+              </p>
 
               {/* Gold ornament divider */}
               <div className="flex items-center justify-center gap-3 mt-4">
@@ -179,6 +182,12 @@ export default function BookingSuccess({ params }: BookingSuccessProps) {
                 { icon: Users, label: "کد ملی سرپرست", value: booking.main_passenger_id || "—", color: "text-primary", bg: "bg-primary/8 border-primary/15" },
                 { icon: Bus, label: "کاروان", value: booking.caravan_name || "—", color: "text-primary", bg: "bg-primary/8 border-primary/15" },
                 { icon: Calendar, label: "تاریخ حرکت", value: fa(booking.caravan_departure_date) || "—", color: "text-primary", bg: "bg-primary/8 border-primary/15" },
+                { icon: Bus, label: "حمل‌ونقل", value: transportLabel({
+                    transportation_type: booking.caravan_transportation_type,
+                    transportation_display: booking.caravan_transportation_display,
+                    train_type_display: booking.caravan_train_type_display,
+                    bus_type: booking.caravan_bus_type,
+                  }), color: "text-primary", bg: "bg-primary/8 border-primary/15" },
                 { icon: Users, label: "تعداد مسافرین", value: `${fa(booking.passenger_count)} نفر`, color: "text-primary", bg: "bg-primary/8 border-primary/15" },
                 {
                   icon: Bus,

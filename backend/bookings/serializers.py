@@ -73,6 +73,8 @@ class BookingSerializer(serializers.ModelSerializer):
     caravan_name = serializers.SerializerMethodField()
     caravan_departure_date = serializers.SerializerMethodField()
     caravan_transportation_type = serializers.SerializerMethodField()
+    caravan_transportation_display = serializers.SerializerMethodField()
+    caravan_train_type_display = serializers.SerializerMethodField()
     caravan_destination = serializers.SerializerMethodField()
     caravan_destination_display = serializers.SerializerMethodField()
     caravan_is_international = serializers.SerializerMethodField()
@@ -94,6 +96,15 @@ class BookingSerializer(serializers.ModelSerializer):
 
     def get_caravan_transportation_type(self, obj):
         return obj.caravan.transportation_type if obj.caravan else None
+
+    def get_caravan_transportation_display(self, obj):
+        return obj.caravan.get_transportation_type_display() if obj.caravan else None
+
+    def get_caravan_train_type_display(self, obj):
+        # «قطار» به‌تنهایی گویا نیست؛ نوع واگن هم در رسید می‌آید
+        if obj.caravan and obj.caravan.train_type:
+            return obj.caravan.get_train_type_display()
+        return None
 
     def get_caravan_destination(self, obj):
         return obj.caravan.destination if obj.caravan else None
