@@ -79,6 +79,15 @@ class Caravan(models.Model):
         verbose_name='نوع واگن قطار',
         help_text='فقط برای سفرهای قطاری: اتوبوسی، ۴ تخته یا ۶ تخته.',
     )
+    seat_selection_enabled = models.BooleanField(
+        default=False,
+        verbose_name='انتخاب صندلی توسط زائر',
+        help_text=(
+            'تا وقتی خاموش است، زائر نقشه‌ی صندلی را نمی‌بیند و رزرو بدون شماره‌ی صندلی ثبت '
+            'می‌شود؛ صندلی‌ها را خودتان بعداً تخصیص می‌دهید. روشن کردنش باعث می‌شود هر کسی '
+            'که فرم را پر کند صندلی را اشغال کند.'
+        ),
+    )
     origin_city = models.CharField(max_length=100, blank=True, verbose_name='مبدأ حرکت')
     transit_cities = models.JSONField(default=list, blank=True, verbose_name='شهرهای بین‌راهی')
 
@@ -134,8 +143,13 @@ class Caravan(models.Model):
 
     @property
     def is_ground_transport(self):
-        """سفرهای زمینی (اتوبوسی) — انتخاب صندلی برای این سفرها الزامی است."""
+        """سفرهای زمینی (اتوبوسی)."""
         return self.transportation_type in ('bus', 'combined')
+
+    @property
+    def seat_selection_active(self):
+        """زائر فقط وقتی صندلی انتخاب می‌کند که سفر زمینی باشد و کاروان این را روشن کرده باشد."""
+        return self.is_ground_transport and self.seat_selection_enabled
 
     @property
     def bus_count(self):

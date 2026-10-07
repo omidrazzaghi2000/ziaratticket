@@ -29,7 +29,8 @@ def occupied_seats_for(caravan, exclude_booking_id=None):
 def validate_seats(booking, seats):
     """اعتبارسنجی صندلی‌های انتخابی. در صورت خطا پیام فارسی برمی‌گرداند، در غیر این صورت None."""
     caravan = booking.caravan
-    if not caravan.is_ground_transport:
+    # وقتی کاروان انتخاب صندلی را روشن نکرده، رزرو بدون صندلی ثبت می‌شود
+    if not caravan.seat_selection_active:
         return None
 
     seats = [int(s) for s in (seats or [])]
@@ -214,6 +215,7 @@ class BookingSeatsView(APIView):
             "busCount": caravan.bus_count,
             "capacity": capacity,
             "isGroundTransport": caravan.is_ground_transport,
+            "seatSelectionEnabled": caravan.seat_selection_active,
             "passengerCount": booking.passenger_count,
         })
 
@@ -245,6 +247,7 @@ class CaravanSeatsView(APIView):
             "busCount": caravan.bus_count,
             "capacity": capacity,
             "isGroundTransport": caravan.is_ground_transport,
+            "seatSelectionEnabled": caravan.seat_selection_active,
         })
 
 

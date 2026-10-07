@@ -79,6 +79,7 @@ class BookingSerializer(serializers.ModelSerializer):
     caravan_destination_display = serializers.SerializerMethodField()
     caravan_is_international = serializers.SerializerMethodField()
     caravan_is_ground_transport = serializers.SerializerMethodField()
+    caravan_seat_selection_active = serializers.SerializerMethodField()
     caravan_bus_type = serializers.SerializerMethodField()
     caravan_capacity = serializers.SerializerMethodField()
     caravan_leader_phone = serializers.SerializerMethodField()
@@ -117,6 +118,9 @@ class BookingSerializer(serializers.ModelSerializer):
 
     def get_caravan_is_ground_transport(self, obj):
         return obj.caravan.is_ground_transport if obj.caravan else False
+
+    def get_caravan_seat_selection_active(self, obj):
+        return obj.caravan.seat_selection_active if obj.caravan else False
 
     def get_caravan_bus_type(self, obj):
         return obj.caravan.bus_type if obj.caravan else None

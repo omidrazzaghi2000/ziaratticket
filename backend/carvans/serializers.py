@@ -31,6 +31,7 @@ class CaravanSerializer(serializers.ModelSerializer):
     is_international = serializers.BooleanField(read_only=True)
     is_air_travel = serializers.BooleanField(read_only=True)
     is_ground_transport = serializers.BooleanField(read_only=True)
+    seat_selection_active = serializers.BooleanField(read_only=True)
     bus_count = serializers.IntegerField(read_only=True)
     photos = CaravanPhotoSerializer(many=True, read_only=True)
 

@@ -238,6 +238,27 @@ if booking_id:
 # ---------------------------------------------------------- 6. انتخاب صندلی
 pipeline("۶) انتخاب صندلی سفر زمینی (باگ اصلی)")
 if booking_id:
+    # انتخاب صندلی پیش‌فرض خاموش است تا کسی با پر کردن فرم صندلی‌ها را اشغال نکند.
+    # اول همان حالت پیش‌فرض بررسی می‌شود، بعد برای ادامه‌ی تست‌ها باز می‌شود.
+    cv = Caravan.objects.get(id=caravan_id)
+    check("انتخاب صندلی به‌صورت پیش‌فرض خاموش است", cv.seat_selection_enabled is False, cv.seat_selection_enabled)
+    check("با وجود زمینی بودن، انتخاب صندلی فعال نیست", cv.seat_selection_active is False)
+
+    r = c.get(f"/api/bookings/{booking_id}/seats", **zaer_h)
+    if r.status_code == 200:
+        check("پاسخ seatSelectionEnabled=false می‌دهد", r.json().get("seatSelectionEnabled") is False)
+
+    r = c.post(f"/api/bookings/{booking_id}/complete", json.dumps({"selected_seats": []}),
+               content_type="application/json", **zaer_h)
+    check("وقتی خاموش است، رزرو بدون صندلی ثبت می‌شود", r.status_code == 200, f"{r.status_code} {r.content[:120]}")
+
+    # برگرداندن رزرو به حالت ناتمام تا بقیه‌ی بررسی‌ها از نو اجرا شوند
+    Booking.objects.filter(id=booking_id).update(is_completed=False, status="pending", selected_seats=[])
+    Caravan.objects.filter(id=caravan_id).update(remaining_capacity=32, seat_selection_enabled=True)
+
+    cv = Caravan.objects.get(id=caravan_id)
+    check("بعد از روشن کردن، انتخاب صندلی فعال می‌شود", cv.seat_selection_active is True)
+
     r = c.get(f"/api/bookings/{booking_id}/seats", **zaer_h)
     ok = r.status_code == 200
     check("دریافت نقشه صندلی", ok, r.status_code)
@@ -245,6 +266,7 @@ if booking_id:
         d = r.json()
         check("پاسخ نوع اتوبوس دارد", d.get("busType") == 32, d.get("busType"))
         check("پاسخ isGroundTransport دارد", d.get("isGroundTransport") is True)
+        check("پاسخ seatSelectionEnabled=true می‌دهد", d.get("seatSelectionEnabled") is True)
         check("تعداد صندلی = ظرفیت کاروان", len(d.get("seats", [])) == 32, len(d.get("seats", [])))
 
     # ⚠️ باگ گزارش‌شده: تکمیل رزرو بدون انتخاب صندلی

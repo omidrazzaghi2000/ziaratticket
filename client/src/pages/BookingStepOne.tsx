@@ -96,6 +96,7 @@ interface Caravan {
   accommodation_type: string;
   accommodation_display?: string;
   is_ground_transport?: boolean;
+  seat_selection_active?: boolean;
   bus_type?: number;
   bus_type_display?: string;
 }
@@ -105,6 +106,7 @@ interface CaravanSeats {
   busType: number;
   capacity: number;
   isGroundTransport: boolean;
+  seatSelectionEnabled: boolean;
 }
 
 const DEFAULT_BUS_TYPE = 44;
@@ -226,9 +228,13 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
     replace(next);
   }, [passengerCount, replace, form]);
 
-  const isGroundTransport =
-    seatData?.isGroundTransport ?? caravan?.is_ground_transport ??
-    ["bus", "combined"].includes(caravan?.transportation_type || "");
+  /**
+   * نقشه‌ی صندلی فقط وقتی نشان داده می‌شود که کاروان آن را در پنل باز کرده باشد.
+   * پیش‌فرض بسته است تا کسی با پر کردن فرم، صندلی‌ها را الکی اشغال نکند؛
+   * در آن حالت رزرو بدون شماره‌ی صندلی ثبت می‌شود و تخصیص با خود کاروان است.
+   */
+  const seatSelectionEnabled =
+    seatData?.seatSelectionEnabled ?? caravan?.seat_selection_active ?? false;
   const busType = seatData?.busType || caravan?.bus_type || DEFAULT_BUS_TYPE;
   const totalCapacity = seatData?.capacity || caravan?.capacity || busType;
   const occupiedSeats = useMemo(
@@ -311,7 +317,7 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
   });
 
   const startSubmit = (data: BookingFormValues) => {
-    if (isGroundTransport && seatsMissing > 0) {
+    if (seatSelectionEnabled && seatsMissing > 0) {
       setSeatError(`برای هر مسافر یک صندلی انتخاب کنید — ${toPersianDigits(seatsMissing)} صندلی باقی مانده است.`);
       document.getElementById("seat-map")?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
@@ -530,7 +536,7 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
             )}
 
             {/* صندلی — فقط سفر زمینی */}
-            {isGroundTransport && (
+            {seatSelectionEnabled && (
               <motion.div id="seat-map" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
                 <SectionCard
                   title="انتخاب صندلی"

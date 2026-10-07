@@ -28,15 +28,18 @@ class CaravanAdmin(admin.ModelAdmin):
     list_display = (
         'id', 'name', 'destination_badge', 'departure_date', 'duration',
         'transport_badge', 'formatted_price', 'capacity', 'remaining_capacity',
-        'status_badge', 'popular',
+        'status_badge', 'popular', 'seat_selection_enabled',
     )
     list_display_links = ('id', 'name')
-    list_filter = ('destination', 'transportation_type', 'status', 'popular', 'has_insurance')
+    list_filter = ('destination', 'transportation_type', 'status', 'popular', 'has_insurance', 'seat_selection_enabled')
     search_fields = ('name', 'manager', 'description', 'origin_city')
-    list_editable = ('popular',)
+    list_editable = ('popular', 'seat_selection_enabled')
     ordering = ('-created_at',)
     readonly_fields = ('created_at', 'updated_at', 'caravan_preview')
-    actions = ['approve_caravans', 'reject_caravans', 'mark_as_popular', 'mark_as_not_popular']
+    actions = [
+        'approve_caravans', 'reject_caravans', 'mark_as_popular', 'mark_as_not_popular',
+        'enable_seat_selection', 'disable_seat_selection',
+    ]
 
     inlines = [CaravanPhotoInline]
 
@@ -51,7 +54,10 @@ class CaravanAdmin(admin.ModelAdmin):
             'fields': ('departure_date', 'duration'),
         }),
         ('حمل‌ونقل و مسیر', {
-            'fields': ('transportation_type', 'bus_type', 'train_type', 'origin_city', 'transit_cities'),
+            'fields': (
+                'transportation_type', 'bus_type', 'train_type',
+                'seat_selection_enabled', 'origin_city', 'transit_cities',
+            ),
         }),
         ('اقامتگاه', {
             'fields': ('accommodation_type', 'accommodation_name', 'accommodation_city', 'accommodation_distance'),
@@ -128,6 +134,16 @@ class CaravanAdmin(admin.ModelAdmin):
             return format_html('<img src="{}" style="max-width:200px;max-height:150px;border-radius:8px;" />', url)
         return "بدون تصویر"
     caravan_preview.short_description = 'پیش‌نمایش'
+
+    def enable_seat_selection(self, request, queryset):
+        updated = queryset.update(seat_selection_enabled=True)
+        self.message_user(request, f'انتخاب صندلی برای {updated} کاروان باز شد.')
+    enable_seat_selection.short_description = 'باز کردن انتخاب صندلی برای زائران'
+
+    def disable_seat_selection(self, request, queryset):
+        updated = queryset.update(seat_selection_enabled=False)
+        self.message_user(request, f'انتخاب صندلی برای {updated} کاروان بسته شد.')
+    disable_seat_selection.short_description = 'بستن انتخاب صندلی برای زائران'
 
     def approve_caravans(self, request, queryset):
         queryset.update(status='approved')

@@ -56,9 +56,22 @@ export function generateBusRows(
   };
 
   for (let r = 0; r < rowCount; r++) {
-    const right = Array.from({ length: rightCols }, next);
-    const left = Array.from({ length: leftCols }, next);
-    rows.push({ type: "seats", right, left });
+    const isLastRow = r === rowCount - 1;
+    const remaining = seatsInThisBus - counter;
+
+    if (isLastRow && remaining === 1) {
+      // صندلی تکِ ردیف آخر روبه‌روی درب وسط اتوبوس است، نه کنار پنجره؛
+      // پس در ستون وسط (کنار راهرو) نشانده می‌شود.
+      const right: (number | null)[] = Array(rightCols).fill(null);
+      const left: (number | null)[] = Array(leftCols).fill(null);
+      right[rightCols - 1] = next();
+      rows.push({ type: "seats", right, left });
+    } else {
+      const right = Array.from({ length: rightCols }, next);
+      const left = Array.from({ length: leftCols }, next);
+      rows.push({ type: "seats", right, left });
+    }
+
     if (r === dividerAfter - 1) rows.push({ type: "divider" });
   }
   return rows;
@@ -159,7 +172,7 @@ function Bus({
             return (
               <div key={i} className="w-full flex items-center gap-1 my-0.5">
                 <div className="flex-1 h-px bg-slate-400" />
-                <span className="text-[8px] text-slate-500 font-bold whitespace-nowrap">خروج اضطراری</span>
+                <span className="text-[8px] text-slate-500 font-bold whitespace-nowrap">درب وسط اتوبوس</span>
                 <div className="flex-1 h-px bg-slate-400" />
               </div>
             );

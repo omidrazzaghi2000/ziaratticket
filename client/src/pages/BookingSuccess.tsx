@@ -250,7 +250,8 @@ export default function BookingSuccess({ params }: BookingSuccessProps) {
                     </>
                   ) : (
                     <p className="text-gold-700 text-sm leading-relaxed">
-                      لینک پرداخت پس از تأیید نهایی مسئول کاروان، در همین صفحه نمایش داده می‌شود.
+                      لینک پرداخت پس از تأیید نهایی مسئول کاروان، با شماره{" "}
+                      <bdi dir="ltr" className="font-bold">۰۹۳۷۸۰۱۴۹۳۴</bdi> ارسال می‌گردد.
                       این صفحه را با کد رزرو خود نگه دارید.
                     </p>
                   )}

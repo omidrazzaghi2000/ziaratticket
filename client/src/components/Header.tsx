@@ -51,11 +51,11 @@ function BrandMark({ scrolled }: { scrolled: boolean }) {
         </div>
         <div
           className={cn(
-            "text-[11px] transition-colors duration-300 font-sans tracking-widest mt-0.5",
+            "text-[10px] sm:text-[11px] transition-colors duration-300 font-sans tracking-wide mt-0.5 whitespace-nowrap",
             scrolled ? "text-gold-700" : "text-white/55"
           )}
         >
-          رزرو کاروان زیارتی
+          رزرو آنلاین و سریع کاروان‌های زیارتی
         </div>
       </div>
     </div>
