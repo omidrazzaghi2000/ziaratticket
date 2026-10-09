@@ -3,9 +3,9 @@ import { useLocation } from "wouter";
 import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { djangoURL } from "@/App";
-import shrineImage from "../assets/images/hasanmajed__-E0RryWDcsWw-unsplash.jpg";
-import karbalaShrine from "../assets/images/imam-hussain-shrine.jpg";
-import mashhadShrine from "../assets/images/mashhad.jpg";
+import shrineImage from "../assets/images/hero-shrine.webp";
+import karbalaShrine from "../assets/images/karbala-shrine.webp";
+import mashhadShrine from "../assets/images/mashhad.webp";
 
 /* ─── Animation variants ─── */
 const stagger = {
@@ -116,7 +116,10 @@ function ShrineButtons() {
           <img
             src={shrine.image}
             alt={shrine.title}
-            loading="lazy"
+            width={1200}
+            height={shrine.key === "mashhad" ? 795 : 675}
+            loading="eager"
+            decoding="async"
             className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
           />
           <span
@@ -155,6 +158,10 @@ export default function Hero() {
         <img
           src={shrineImage}
           alt="حرم امام حسین کربلا"
+          width={1920}
+          height={1280}
+          fetchPriority="high"
+          decoding="async"
           className="w-full h-full object-cover object-center"
         />
       </div>
