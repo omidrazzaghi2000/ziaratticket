@@ -11,6 +11,7 @@ import { AuthModal } from "@/components/auth";
 import { Loader2, ArrowRight, Bus, User, Users, CheckCircle2 } from "lucide-react";
 import Header from "@/components/Header";
 import BusSeatMap from "@/components/BusSeatMap";
+import ContactHelp from "@/components/ContactHelp";
 import { motion } from "framer-motion";
 import {
   Form,
@@ -169,7 +170,13 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
   /** مقادیر فرم که منتظر تأیید شماره موبایل مانده‌اند */
   const pendingSubmit = useRef<BookingFormValues | null>(null);
 
-  const { data: caravan, isLoading: isLoadingCaravan } = useQuery<Caravan>({
+  const {
+    data: caravan,
+    isLoading: isLoadingCaravan,
+    isError: caravanFailed,
+    error: caravanError,
+    refetch: refetchCaravan,
+  } = useQuery<Caravan>({
     queryKey: ['/api/caravans', caravanId],
     queryFn: async () => {
       const response = await apiRequest("GET", djangoURL + `/api/caravans/${caravanId}`);
@@ -352,12 +359,36 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
   }
 
   if (!caravan) {
+    // یک درخواست ناموفق با «کاروان وجود ندارد» یکی نیست. قبلاً هر دو حالت یک
+    // صفحه‌ی بن‌بست می‌دادند؛ حالا خطای شبکه قابل تلاش دوباره است و در هر دو
+    // حالت راه تماس جلوی چشم زائر می‌ماند.
+    const isMissing = /404|یافت نشد/.test(String((caravanError as Error)?.message || ""));
     return (
       <div className="bg-background min-h-screen">
         <Header solid />
-        <div className="container py-10 pt-32 text-center">
-          <h2 className="font-heading text-2xl font-bold text-foreground mb-4">کاروان یافت نشد</h2>
-          <Button variant="outline" onClick={() => navigate("/")}>بازگشت به صفحه اصلی</Button>
+        <div className="container py-10 pt-32 max-w-md">
+          <div className="text-center mb-6">
+            <h2 className="font-heading text-2xl font-bold text-foreground mb-2">
+              {isMissing ? "این کاروان دیگر در دسترس نیست" : "اطلاعات کاروان بارگذاری نشد"}
+            </h2>
+            <p className="text-sm text-muted-foreground leading-7">
+              {isMissing
+                ? "ممکن است ثبت‌نام این کاروان بسته شده باشد. کاروان‌های دیگر را ببینید یا با ما تماس بگیرید."
+                : "ارتباط با سرور برقرار نشد. لطفاً دوباره تلاش کنید."}
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {caravanFailed && !isMissing && (
+              <Button onClick={() => refetchCaravan()} className="rounded-xl min-h-11">
+                تلاش دوباره
+              </Button>
+            )}
+            <Button variant="outline" className="rounded-xl min-h-11" onClick={() => navigate("/")}>
+              بازگشت به صفحه اصلی
+            </Button>
+            <ContactHelp variant="card" title="کمک می‌خواهید؟" />
+          </div>
         </div>
       </div>
     );
@@ -626,6 +657,10 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
                 <p className="text-xs text-muted-foreground text-center mt-3">
                   برای ثبت رزرو، یک کد تأیید به شماره موبایل شما پیامک می‌شود.
                 </p>
+
+                <div className="mt-4 pt-4 border-t border-border">
+                  <ContactHelp />
+                </div>
               </SectionCard>
             </motion.div>
           </form>

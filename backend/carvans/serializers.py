@@ -32,6 +32,11 @@ class CaravanSerializer(serializers.ModelSerializer):
     is_air_travel = serializers.BooleanField(read_only=True)
     is_ground_transport = serializers.BooleanField(read_only=True)
     seat_selection_active = serializers.BooleanField(read_only=True)
+    is_bookable = serializers.BooleanField(read_only=True)
+    is_full = serializers.BooleanField(read_only=True)
+    availability_label = serializers.CharField(read_only=True)
+    availability_tone = serializers.CharField(read_only=True)
+    registration_state_display = serializers.CharField(source='get_registration_state_display', read_only=True)
     bus_count = serializers.IntegerField(read_only=True)
     photos = CaravanPhotoSerializer(many=True, read_only=True)
 

@@ -28,10 +28,13 @@ class CaravanAdmin(admin.ModelAdmin):
     list_display = (
         'id', 'name', 'destination_badge', 'departure_date', 'duration',
         'transport_badge', 'formatted_price', 'capacity', 'remaining_capacity',
-        'status_badge', 'popular', 'seat_selection_enabled',
+        'status_badge', 'availability_badge', 'popular', 'seat_selection_enabled',
     )
     list_display_links = ('id', 'name')
-    list_filter = ('destination', 'transportation_type', 'status', 'popular', 'has_insurance', 'seat_selection_enabled')
+    list_filter = (
+        'destination', 'transportation_type', 'status', 'registration_state',
+        'popular', 'has_insurance', 'seat_selection_enabled',
+    )
     search_fields = ('name', 'manager', 'description', 'origin_city')
     list_editable = ('popular', 'seat_selection_enabled')
     ordering = ('-created_at',)
@@ -66,7 +69,10 @@ class CaravanAdmin(admin.ModelAdmin):
             'fields': ('meal_breakfast', 'meal_lunch', 'meal_dinner', 'has_insurance'),
         }),
         ('قیمت و ظرفیت', {
-            'fields': ('price', 'capacity', 'remaining_capacity'),
+            'fields': (
+                'price', 'capacity', 'remaining_capacity',
+                'registration_state', 'registration_opens_on',
+            ),
         }),
         ('برنامه سفر و قوانین', {
             'fields': ('itinerary', 'rules'),
@@ -134,6 +140,14 @@ class CaravanAdmin(admin.ModelAdmin):
             return format_html('<img src="{}" style="max-width:200px;max-height:150px;border-radius:8px;" />', url)
         return "بدون تصویر"
     caravan_preview.short_description = 'پیش‌نمایش'
+
+    @admin.display(description='وضعیت ثبت‌نام')
+    def availability_badge(self, obj):
+        colors = {'open': '#10b981', 'soon': '#f59e0b', 'closed': '#6b7280', 'full': '#ef4444'}
+        return format_html(
+            '<span style="background:{};color:#fff;padding:2px 8px;border-radius:12px;font-size:12px;">{}</span>',
+            colors.get(obj.availability_tone, '#6b7280'), obj.availability_label,
+        )
 
     def enable_seat_selection(self, request, queryset):
         updated = queryset.update(seat_selection_enabled=True)

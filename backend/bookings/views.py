@@ -70,6 +70,16 @@ class BookingStep1View(APIView):
         if caravan.status != 'approved':
             return Response({"message": "این کاروان هنوز تأیید نشده است."}, status=status.HTTP_400_BAD_REQUEST)
 
+        # «به‌زودی» و «بسته» فقط برچسب روی کارت نیستند؛ سرور هم باید جلویشان را بگیرد
+        if caravan.registration_state == 'soon':
+            when = f' از {caravan.registration_opens_on}' if caravan.registration_opens_on else ''
+            return Response(
+                {"message": f"ثبت‌نام این کاروان هنوز باز نشده است{when}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if caravan.registration_state == 'closed':
+            return Response({"message": "ثبت‌نام این کاروان بسته شده است."}, status=status.HTTP_400_BAD_REQUEST)
+
         passenger_count = serializer.validated_data['passenger_count']
         if caravan.remaining_capacity < passenger_count:
             return Response(

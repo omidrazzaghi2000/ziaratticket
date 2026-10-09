@@ -37,6 +37,12 @@ class Caravan(models.Model):
         ('mixed', 'ترکیبی'),
     ]
 
+    REGISTRATION_CHOICES = [
+        ('open', 'ثبت‌نام باز است'),
+        ('soon', 'ثبت‌نام به‌زودی'),
+        ('closed', 'ثبت‌نام بسته است'),
+    ]
+
     STATUS_CHOICES = [
         ('pending', 'در انتظار تأیید'),
         ('approved', 'تأیید شده'),
@@ -110,6 +116,15 @@ class Caravan(models.Model):
     price = models.IntegerField(verbose_name='قیمت هر نفر (تومان)')
     capacity = models.IntegerField(verbose_name='ظرفیت')
     remaining_capacity = models.IntegerField(verbose_name='ظرفیت باقیمانده')
+    registration_state = models.CharField(
+        max_length=10, choices=REGISTRATION_CHOICES, default='open',
+        verbose_name='وضعیت ثبت‌نام',
+        help_text='با «به‌زودی» کاروان در سایت دیده می‌شود ولی دکمه‌ی رزرو غیرفعال است.',
+    )
+    registration_opens_on = models.CharField(
+        max_length=30, blank=True, verbose_name='تاریخ بازشدن ثبت‌نام (شمسی)',
+        help_text='اختیاری. مثلاً ۱۴۰۵/۰۸/۱۵ — کنار «به‌زودی» به زائر نشان داده می‌شود.',
+    )
 
     # Rules
     rules = models.TextField(blank=True, verbose_name='قوانین و مقررات کاروان')
@@ -132,6 +147,39 @@ class Caravan(models.Model):
 
     def __str__(self):
         return f"{self.name} — {self.get_destination_display()}"
+
+    @property
+    def is_full(self):
+        return (self.remaining_capacity or 0) <= 0
+
+    @property
+    def is_bookable(self):
+        """زائر فقط وقتی می‌تواند رزرو کند که ثبت‌نام باز باشد و ظرفیت بماند."""
+        return self.registration_state == 'open' and not self.is_full
+
+    @property
+    def availability_label(self):
+        """برچسبی که روی کارت کاروان می‌نشیند."""
+        if self.is_full:
+            return 'تکمیل شده'
+        if self.registration_state == 'soon':
+            if self.registration_opens_on:
+                return f'ثبت‌نام از {self.registration_opens_on}'
+            return 'ثبت‌نام به‌زودی'
+        if self.registration_state == 'closed':
+            return 'ثبت‌نام بسته است'
+        return 'دارای ظرفیت'
+
+    @property
+    def availability_tone(self):
+        """رنگ برچسب: سبز باز، کهربایی به‌زودی، قرمز تکمیل، خاکستری بسته."""
+        if self.is_full:
+            return 'full'
+        if self.registration_state == 'soon':
+            return 'soon'
+        if self.registration_state == 'closed':
+            return 'closed'
+        return 'open'
 
     @property
     def is_international(self):

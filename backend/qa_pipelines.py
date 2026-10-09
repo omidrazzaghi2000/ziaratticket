@@ -509,6 +509,72 @@ if caravan_id:
         check("کد ملی مخلوط درست نرمال شد", _mb.main_passenger_id == "0012345680", _mb.main_passenger_id)
         check("موبایل مخلوط درست نرمال شد", _mb.main_passenger_phone == "09121230010", _mb.main_passenger_phone)
 
+# -------------------------------------------- 14. وضعیت ثبت‌نام (باز / به‌زودی / بسته)
+pipeline("۱۴) وضعیت ثبت‌نام کاروان (باز، به‌زودی، بسته)")
+_open = Caravan.objects.create(
+    name="[QA] ثبت‌نام باز", destination="karbala", status="approved",
+    departure_date="1405/09/01", duration=4, transportation_type="bus", bus_type=25,
+    accommodation_type="hotel", price=1000000, capacity=10, remaining_capacity=10,
+    registration_state="open",
+)
+_soon = Caravan.objects.create(
+    name="[QA] به‌زودی", destination="karbala", status="approved",
+    departure_date="1405/09/05", duration=4, transportation_type="bus", bus_type=25,
+    accommodation_type="hotel", price=1000000, capacity=10, remaining_capacity=10,
+    registration_state="soon", registration_opens_on="۱۴۰۵/۰۸/۱۵",
+)
+_closed = Caravan.objects.create(
+    name="[QA] بسته", destination="karbala", status="approved",
+    departure_date="1405/09/09", duration=4, transportation_type="bus", bus_type=25,
+    accommodation_type="hotel", price=1000000, capacity=10, remaining_capacity=10,
+    registration_state="closed",
+)
+_full = Caravan.objects.create(
+    name="[QA] تکمیل", destination="karbala", status="approved",
+    departure_date="1405/09/12", duration=4, transportation_type="bus", bus_type=25,
+    accommodation_type="hotel", price=1000000, capacity=10, remaining_capacity=0,
+    registration_state="open",
+)
+
+check("پیش‌فرض وضعیت ثبت‌نام «باز» است", Caravan._meta.get_field("registration_state").default == "open")
+check("کاروان باز قابل رزرو است", _open.is_bookable is True)
+check("کاروان به‌زودی قابل رزرو نیست", _soon.is_bookable is False)
+check("کاروان بسته قابل رزرو نیست", _closed.is_bookable is False)
+check("کاروان پرشده قابل رزرو نیست", _full.is_bookable is False)
+check("برچسب باز", _open.availability_label == "دارای ظرفیت", _open.availability_label)
+check("برچسب به‌زودی تاریخ را نشان می‌دهد",
+      _soon.availability_label == "ثبت‌نام از ۱۴۰۵/۰۸/۱۵", _soon.availability_label)
+check("برچسب بسته", _closed.availability_label == "ثبت‌نام بسته است", _closed.availability_label)
+check("برچسب تکمیل بر وضعیت ثبت‌نام اولویت دارد", _full.availability_label == "تکمیل شده", _full.availability_label)
+check("رنگ برچسب‌ها درست است",
+      (_open.availability_tone, _soon.availability_tone, _closed.availability_tone, _full.availability_tone)
+      == ("open", "soon", "closed", "full"))
+
+# سرور هم باید جلوی رزرو را بگیرد، نه فقط دکمه‌ی غیرفعال در رابط کاربری
+_payload = {"passenger_count": 1, "first_name": "تستی", "last_name": "وضعیت",
+            "main_passenger_id": "0099887766", "main_passenger_phone": "09121239999"}
+r = c.post("/api/bookings/step1", json.dumps(dict(_payload, caravan_id=_soon.id)),
+           content_type="application/json", **zaer_h)
+check("سرور رزرو کاروان «به‌زودی» را رد می‌کند", r.status_code == 400, f"{r.status_code} {r.content[:120]}")
+check("پیام رد شامل تاریخ بازشدن است", "۱۴۰۵/۰۸/۱۵" in r.content.decode(), r.content[:160])
+
+r = c.post("/api/bookings/step1", json.dumps(dict(_payload, caravan_id=_closed.id)),
+           content_type="application/json", **zaer_h)
+check("سرور رزرو کاروان «بسته» را رد می‌کند", r.status_code == 400, f"{r.status_code} {r.content[:120]}")
+
+r = c.post("/api/bookings/step1", json.dumps(dict(_payload, caravan_id=_open.id)),
+           content_type="application/json", **zaer_h)
+check("رزرو کاروان باز پذیرفته می‌شود", r.status_code == 201, f"{r.status_code} {r.content[:120]}")
+
+# در خروجی API هم بیاید تا کارت بتواند برچسب را نشان دهد
+r = c.get(f"/api/caravans/{_soon.id}")
+if r.status_code == 200:
+    d = r.json()
+    check("API برچسب و رنگ وضعیت را برمی‌گرداند",
+          d.get("availability_label") == "ثبت‌نام از ۱۴۰۵/۰۸/۱۵" and d.get("availability_tone") == "soon",
+          (d.get("availability_label"), d.get("availability_tone")))
+    check("API is_bookable را برمی‌گرداند", d.get("is_bookable") is False, d.get("is_bookable"))
+
 # ---------------------------------------------------------------- گزارش نهایی
 print("\n" + "=" * 78)
 print("گزارش تست پایپ‌لاین‌ها".rjust(46))

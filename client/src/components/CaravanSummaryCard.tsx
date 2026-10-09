@@ -1,14 +1,28 @@
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Clock } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import ContactHelp from "@/components/ContactHelp";
 import { toPersianDigits } from "@/lib/digits";
 import { caravanFactRows, type CaravanFacts } from "@/lib/caravan";
+
+type Tone = "open" | "soon" | "closed" | "full";
+
+const TONE_STYLES: Record<Tone, string> = {
+  open: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  soon: "bg-amber-100 text-amber-800 border-amber-200",
+  closed: "bg-slate-100 text-slate-600 border-slate-200",
+  full: "bg-red-100 text-red-700 border-red-200",
+};
 
 export interface CaravanSummary extends CaravanFacts {
   id: number;
   name?: string | null;
   price?: number | null;
   remaining_capacity?: number | null;
+  /** از بک‌اند: «دارای ظرفیت» / «ثبت‌نام به‌زودی» / «تکمیل شده» */
+  availability_label?: string | null;
+  availability_tone?: Tone | null;
+  is_bookable?: boolean;
 }
 
 interface Props {
@@ -36,6 +50,10 @@ export default function CaravanSummaryCard({
   onSecondary,
 }: Props) {
   const isFull = (caravan.remaining_capacity ?? 0) <= 0;
+  const tone: Tone = caravan.availability_tone ?? (isFull ? "full" : "open");
+  const statusLabel = caravan.availability_label ?? (isFull ? "تکمیل شده" : "دارای ظرفیت");
+  // رزرو فقط وقتی باز است که بک‌اند هم تأیید کند؛ کاروان «به‌زودی» دیده می‌شود ولی دکمه‌اش قفل است
+  const canBook = caravan.is_bookable ?? !isFull;
   const rows = caravanFactRows(caravan);
 
   return (
@@ -45,6 +63,12 @@ export default function CaravanSummaryCard({
         {showName && caravan.name && (
           <h3 className="font-heading font-bold text-white text-lg mb-2 leading-tight">{caravan.name}</h3>
         )}
+        <span
+          className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1 rounded-full border mb-3 ${TONE_STYLES[tone]}`}
+        >
+          {tone === "soon" && <Clock className="h-3 w-3" aria-hidden="true" />}
+          {statusLabel}
+        </span>
         <p className="text-white/75 text-xs mb-1">قیمت هر نفر</p>
         <p className="font-heading text-3xl font-black text-white">
           {new Intl.NumberFormat("fa-IR").format(caravan.price ?? 0)}
@@ -73,14 +97,19 @@ export default function CaravanSummaryCard({
 
         <Button
           onClick={onAction}
-          disabled={isFull}
+          disabled={!canBook}
           className="w-full bg-primary hover:bg-primary/90 text-white rounded-xl h-12 font-bold text-base mt-auto pt-0 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {isFull ? "ظرفیت تکمیل شده" : actionLabel}
-          {!isFull && <ChevronLeft className="mr-2 h-4 w-4" />}
+          {canBook ? actionLabel : statusLabel}
+          {canBook && <ChevronLeft className="mr-2 h-4 w-4" />}
         </Button>
 
-        {!isFull && (caravan.remaining_capacity ?? 0) < 5 && (
+        {/* پیش از زدن رزرو ممکن است سؤالی داشته باشد */}
+        <div className="mt-2">
+          <ContactHelp />
+        </div>
+
+        {canBook && (caravan.remaining_capacity ?? 0) < 5 && (
           <p className="text-amber-600 text-xs mt-2 text-center font-medium">
             فقط {toPersianDigits(caravan.remaining_capacity!)} جای خالی مانده است
           </p>
