@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { djangoURL } from "@/App";
 import shrineImage from "../assets/images/hasanmajed__-E0RryWDcsWw-unsplash.jpg";
 import karbalaShrine from "../assets/images/imam-hussain-shrine.jpg";
-import mashhadShrine from "../assets/images/EmamReza.jpeg";
+import mashhadShrine from "../assets/images/mashhad.jpg";
 
 /* ─── Animation variants ─── */
 const stagger = {
