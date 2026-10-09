@@ -125,3 +125,44 @@ export function jalaliReturnDate(departure?: string | null, durationDays?: numbe
     return null;
   }
 }
+
+/** امروز به‌صورت عدد روز تقویمی (برای تفریق تاریخ‌ها) */
+function todayJdn(): number {
+  const now = new Date();
+  return g2d(now.getFullYear(), now.getMonth() + 1, now.getDate());
+}
+
+/**
+ * چند روز تا حرکت مانده است.
+ *  مثبت = مانده، ۰ = امروز، منفی = گذشته، null = تاریخ نامفهوم.
+ * هر بار که صفحه باز شود از نو حساب می‌شود، پس نیازی به به‌روزرسانی دستی نیست.
+ */
+export function jalaliDaysUntil(departure?: string | null): number | null {
+  const d = parseJalali(departure);
+  if (!d) return null;
+  try {
+    return j2d(d.jy, d.jm, d.jd) - todayJdn();
+  } catch {
+    return null;
+  }
+}
+
+export interface Countdown {
+  label: string;
+  /** هرچه نزدیک‌تر، پررنگ‌تر */
+  tone: "urgent" | "soon" | "far" | "past";
+  days: number;
+}
+
+/** متن «۷ روز مانده» و شدت رنگش */
+export function departureCountdown(departure?: string | null): Countdown | null {
+  const days = jalaliDaysUntil(departure);
+  if (days === null) return null;
+  if (days < 0) return { label: "تاریخ حرکت گذشته", tone: "past", days };
+  if (days === 0) return { label: "امروز حرکت", tone: "urgent", days };
+  if (days === 1) return { label: "فردا حرکت", tone: "urgent", days };
+  const label = `${toPersianDigits(days)} روز مانده`;
+  if (days <= 7) return { label, tone: "urgent", days };
+  if (days <= 30) return { label, tone: "soon", days };
+  return { label, tone: "far", days };
+}

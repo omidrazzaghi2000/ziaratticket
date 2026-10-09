@@ -1,11 +1,20 @@
-import { ChevronLeft, Clock } from "lucide-react";
+import { ChevronLeft, Clock, CalendarClock } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import ContactHelp from "@/components/ContactHelp";
 import { toPersianDigits } from "@/lib/digits";
 import { caravanFactRows, type CaravanFacts } from "@/lib/caravan";
+import { departureCountdown } from "@/lib/jalali";
 
 type Tone = "open" | "soon" | "closed" | "full";
+
+/** شمارش معکوس حرکت — هرچه نزدیک‌تر، پررنگ‌تر */
+const COUNTDOWN_STYLES: Record<string, string> = {
+  urgent: "bg-red-600 text-white border-red-600",
+  soon: "bg-amber-500 text-white border-amber-500",
+  far: "bg-white/15 text-white border-white/25",
+  past: "bg-slate-500/70 text-white border-slate-500/70",
+};
 
 const TONE_STYLES: Record<Tone, string> = {
   open: "bg-emerald-100 text-emerald-800 border-emerald-200",
@@ -54,6 +63,8 @@ export default function CaravanSummaryCard({
   const statusLabel = caravan.availability_label ?? (isFull ? "تکمیل شده" : "دارای ظرفیت");
   // رزرو فقط وقتی باز است که بک‌اند هم تأیید کند؛ کاروان «به‌زودی» دیده می‌شود ولی دکمه‌اش قفل است
   const canBook = caravan.is_bookable ?? !isFull;
+  // هر بار که صفحه باز شود از روی تاریخ امروز حساب می‌شود
+  const countdown = departureCountdown(caravan.departure_date);
   const rows = caravanFactRows(caravan);
 
   return (
@@ -63,12 +74,23 @@ export default function CaravanSummaryCard({
         {showName && caravan.name && (
           <h3 className="font-heading font-bold text-white text-lg mb-2 leading-tight">{caravan.name}</h3>
         )}
-        <span
-          className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1 rounded-full border mb-3 ${TONE_STYLES[tone]}`}
-        >
-          {tone === "soon" && <Clock className="h-3 w-3" aria-hidden="true" />}
-          {statusLabel}
-        </span>
+        <div className="flex items-center justify-center gap-2 flex-wrap mb-3">
+          <span
+            className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1 rounded-full border ${TONE_STYLES[tone]}`}
+          >
+            {tone === "soon" && <Clock className="h-3 w-3" aria-hidden="true" />}
+            {statusLabel}
+          </span>
+
+          {countdown && (
+            <span
+              className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1 rounded-full border ${COUNTDOWN_STYLES[countdown.tone]}`}
+            >
+              <CalendarClock className="h-3 w-3" aria-hidden="true" />
+              {countdown.label}
+            </span>
+          )}
+        </div>
         <p className="text-white/75 text-xs mb-1">قیمت هر نفر</p>
         <p className="font-heading text-3xl font-black text-white">
           {new Intl.NumberFormat("fa-IR").format(caravan.price ?? 0)}
