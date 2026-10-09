@@ -133,12 +133,9 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# ziaratticket.ir دامنه‌ی اصلی است؛ karbalafori.ir تا پایان انتقال DNS می‌ماند.
 CSRF_TRUSTED_ORIGINS = [
     "https://ziaratticket.ir",
     "https://www.ziaratticket.ir",
-    "https://karbalafori.ir",
-    "https://www.karbalafori.ir",
 ]
 
 CSRF_COOKIE_SECURE = True
@@ -155,8 +152,6 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
     "https://ziaratticket.ir",
     "https://www.ziaratticket.ir",
-    "https://karbalafori.ir",
-    "https://www.karbalafori.ir",
 ]
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 
