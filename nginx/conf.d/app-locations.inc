@@ -44,8 +44,11 @@
         expires -1;
     }
 
+    # نام این فایل‌ها هش دارد، پس کش طولانی امن است.
+    # webp/avif حتماً باید در این فهرست باشند وگرنه به بلوک no-cache
+    # می‌افتند و هر بازدید دوباره دانلود می‌شوند.
     # Cache frontend static assets (only reached for non-/api/, non-/static/, non-/media/ paths)
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+    location ~* \.(js|css|png|jpg|jpeg|gif|webp|avif|ico|svg|woff|woff2|ttf|eot)$ {
         proxy_pass http://frontend:80;
         expires 1y;
         add_header Cache-Control "public, immutable";
