@@ -34,16 +34,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setIsLoading(true);
       // بررسی وضعیت احراز هویت
       
-      const statusResponse = await fetch(djangoURL+"/api/auth/status", {method:"GET",headers:{
-        Authorization: localStorage.getItem("AUTH_TOKEN_KEY")
-      }});
+      // وقتی توکنی ذخیره نشده، اصلاً لازم نیست از سرور بپرسیم؛ قبلاً هدر
+      // Authorization با مقدار null فرستاده می‌شد که به رشته‌ی "null" تبدیل می‌شد.
+      const token = localStorage.getItem("AUTH_TOKEN_KEY");
+      if (!token) {
+        setUser(null);
+        return;
+      }
+      const authHeaders: HeadersInit = { Authorization: token };
+
+      const statusResponse = await fetch(djangoURL + "/api/auth/status", {
+        method: "GET",
+        headers: authHeaders,
+      });
       const statusData = await statusResponse.json();
-      console.log(JSON.stringify(statusData));
       if (statusData.isAuthenticated) {
-        // دریافت اطلاعات کاربر
-        const userResponse = await fetch(djangoURL+"/api/user", {method:"GET",headers:{
-          Authorization: localStorage.getItem("AUTH_TOKEN_KEY")
-        }});
+        const userResponse = await fetch(djangoURL + "/api/user", {
+          method: "GET",
+          headers: authHeaders,
+        });
         const userData = await userResponse.json();
         setUser(userData);
       } else {

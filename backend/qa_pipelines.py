@@ -435,6 +435,24 @@ if booking_id:
 
 # ---------------------------------------------------------- 12. فهرست عمومی
 pipeline("۱۲) فهرست و جستجوی عمومی کاروان‌ها")
+# مهمان (بدون توکن) باید کاروان‌ها را ببیند و هیچ ۴۰۱ نگیرد
+guest = Client()
+for _path, _label in [
+    ("/api/caravans", "فهرست کل"),
+    ("/api/caravans?destination=karbala", "فهرست کربلا"),
+    ("/api/caravans?destination=mashhad", "فهرست مشهد"),
+]:
+    _r = guest.get(_path)
+    check(f"مهمان بدون لاگین {_label} را می‌بیند", _r.status_code == 200, _r.status_code)
+
+# «آیا وارد شده‌ام؟» نباید برای مهمان خطا باشد — جوابش فقط «نه» است
+_r = guest.get("/api/auth/status")
+check("auth/status برای مهمان ۲۰۰ می‌دهد نه ۴۰۱", _r.status_code == 200, _r.status_code)
+check("auth/status برای مهمان isAuthenticated=false می‌دهد",
+      _r.status_code == 200 and _r.json().get("isAuthenticated") is False,
+      _r.content[:120])
+
+
 r = c.get("/api/caravans")
 ok = r.status_code == 200
 check("فهرست عمومی کاروان‌ها", ok, r.status_code)

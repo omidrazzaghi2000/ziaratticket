@@ -100,6 +100,14 @@ class LogoutView(APIView):
         return Response({"message": "خروج با موفقیت انجام شد."})
 
 class AuthStatusView(APIView):
+    """
+    «آیا وارد شده‌ام؟» — خودِ سؤال نیاز به ورود ندارد.
+    بدون AllowAny، پیش‌فرض پروژه (IsAuthenticated) جلوی درخواست را می‌گرفت و
+    ۴۰۱ برمی‌گرداند، یعنی شاخه‌ی isAuthenticated=False هیچ‌وقت اجرا نمی‌شد و
+    هر بازدیدکننده‌ی مهمان یک خطای قرمز در کنسول می‌دید.
+    """
+    permission_classes = [permissions.AllowAny]
+
     def get(self, request):
         if request.user.is_authenticated:
             return Response({"isAuthenticated": True, "userId": request.user.id})

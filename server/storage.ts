@@ -90,7 +90,6 @@ export class MemStorage implements IStorage {
         manager: "حاج آقای رزاقی",
         description: "کاروان ویژه با امکانات کامل و راهنمایان مجرب",
         popular: true,
-        imageUrl: "client/src/assets/images/lantern1.jpg",
         specialTag: "ویژه خانواده‌ها",
       },
       // {
