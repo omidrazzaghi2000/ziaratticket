@@ -4,6 +4,10 @@ export default {
   darkMode: ["class"],
   content: ["./index.html", "./src/**/*.{js,jsx,ts,tsx}"],
   theme: {
+    // بدون این، کلاس container فقط max-width می‌دهد و mx-auto ندارد؛ در نتیجه
+    // هر صفحه‌ای که دستی mx-auto اضافه نکرده بود به لبه می‌چسبید (در حالت
+    // راست‌چین به سمت راست).
+    container: { center: true, padding: "1rem" },
     extend: {
       borderRadius: {
         lg: "var(--radius)",
