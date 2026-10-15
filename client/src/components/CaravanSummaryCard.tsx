@@ -1,4 +1,4 @@
-import { ChevronLeft, Clock, CalendarClock } from "lucide-react";
+import { ChevronLeft, Clock, CalendarClock, Eye } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import ContactHelp from "@/components/ContactHelp";
@@ -126,26 +126,31 @@ export default function CaravanSummaryCard({
           {canBook && <ChevronLeft className="mr-2 h-4 w-4" />}
         </Button>
 
-        {/* پیش از زدن رزرو ممکن است سؤالی داشته باشد */}
-        <div className="mt-2">
-          <ContactHelp />
-        </div>
-
         {canBook && (caravan.remaining_capacity ?? 0) < 5 && (
           <p className="text-amber-600 text-xs mt-2 text-center font-medium">
             فقط {toPersianDigits(caravan.remaining_capacity!)} جای خالی مانده است
           </p>
         )}
 
+        {/* «جزئیات» قبلاً یک متن ساده‌ی بدون کادر بود و اصلاً شبیه دکمه نبود؛
+            ارتفاعش هم از حد لمسی کمتر بود. حالا دکمه‌ی خط‌دار است: پیدا، ولی
+            هنوز از دکمه‌ی اصلیِ تو‌پر کم‌رنگ‌تر. */}
         {secondaryLabel && onSecondary && (
           <button
             type="button"
             onClick={onSecondary}
-            className="w-full text-center text-sm text-primary hover:underline mt-3 py-1"
+            className="group/details w-full mt-2 min-h-12 rounded-xl border-2 border-primary/30 bg-primary/5 text-primary font-semibold text-sm flex items-center justify-center gap-2 hover:bg-primary/10 hover:border-primary/60 active:scale-[0.99] transition-all"
           >
+            <Eye className="h-4 w-4" aria-hidden="true" />
             {secondaryLabel}
+            <ChevronLeft className="h-4 w-4 transition-transform group-hover/details:-translate-x-1" aria-hidden="true" />
           </button>
         )}
+
+        {/* پیش از زدن رزرو ممکن است سؤالی داشته باشد */}
+        <div className="mt-2 pt-2 border-t border-border">
+          <ContactHelp />
+        </div>
       </div>
     </div>
   );
