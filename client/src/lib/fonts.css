@@ -1,11 +1,13 @@
-@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Lalezar&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Markazi+Text:wght@400;500;600;700&display=swap');
-
+/*
+ * فونت‌ها از خود سایت سرو می‌شوند، نه fonts.googleapis.com.
+ * آن دامنه در ایران در دسترس نیست و کاربران با فونت پیش‌فرض سیستم
+ * سایت را می‌دیدند، بعد از چند ثانیه انتظار بی‌نتیجه.
+ * ایمپورت فایل‌ها در App.tsx انجام می‌شود (بسته‌های fontsource).
+ * نسخه‌ی variable انتخاب شده تا همه‌ی ضخامت‌ها در یک فایل باشد.
+ */
 :root {
-  --font-vazir: 'Vazirmatn', sans-serif;
-  --font-markazi: 'Markazi Text', serif;
-  --font-lalezar: 'Lalezar', cursive;
+  --font-vazir: 'Vazirmatn Variable', 'Vazirmatn', sans-serif;
+  --font-markazi: 'Markazi Text Variable', 'Markazi Text', serif;
 }
 
 html {
@@ -27,10 +29,6 @@ h1, h2, h3, h4 {
 
 .font-heading {
   font-family: var(--font-markazi);
-}
-
-.font-special {
-  font-family: var(--font-lalezar);
 }
 
 /* Gold text shimmer utility */

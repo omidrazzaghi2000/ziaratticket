@@ -103,10 +103,9 @@ export default {
         },
       },
       fontFamily: {
-        sans: ["Vazirmatn", "sans-serif"],
-        heading: ["'Markazi Text'", "serif"],
-        display: ["'Markazi Text'", "serif"],
-        special: ["Lalezar", "cursive"],
+        sans: ["Vazirmatn Variable", "Vazirmatn", "sans-serif"],
+        heading: ["Markazi Text Variable", "Markazi Text", "serif"],
+        display: ["Markazi Text Variable", "Markazi Text", "serif"],
       },
       fontSize: {
         "display-xl": ["clamp(3rem, 8vw, 7rem)", { lineHeight: "1.05", letterSpacing: "-0.01em" }],

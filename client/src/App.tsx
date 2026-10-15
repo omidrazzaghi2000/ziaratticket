@@ -13,6 +13,9 @@ import CaravanLeaderRegister from "@/pages/CaravanLeaderRegister";
 import CaravanLeaderDashboard from "@/pages/CaravanLeaderDashboard";
 import CaravanLeaderAddCaravan from "@/pages/CaravanLeaderAddCaravan";
 import ReviewPage from "@/pages/ReviewPage";
+// فونت‌های میزبانی‌شده روی خود سایت — باید پیش از fonts.css بیایند
+import "@fontsource-variable/vazirmatn";
+import "@fontsource-variable/markazi-text";
 import "./lib/fonts.css";
 export const djangoURL = import.meta.env.VITE_API_URL ?? "";
 function Router() {
