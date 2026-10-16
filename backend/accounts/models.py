@@ -36,9 +36,17 @@ class User(AbstractBaseUser, PermissionsMixin):
     bale_chat_id = models.CharField(
         max_length=40, blank=True, default='', verbose_name='شناسه چت بله',
         help_text=(
-            'برای دریافت اطلاع رزروها در پیام‌رسان بله. مدیر کاروان یک‌بار به ربات '
-            'پیام می‌دهد، سپس شناسه با دستور «manage.py bale_chat_ids» خوانده و اینجا ثبت می‌شود.'
+            'برای دریافت اطلاع رزروها در پیام‌رسان بله. مدیر کاروان خودش از داشبورد '
+            '«کد اتصال» می‌گیرد و آن را به ربات می‌فرستد؛ این فیلد همان‌جا پر می‌شود و '
+            'نیازی به پرکردن دستی نیست.'
         ),
+    )
+    bale_connect_code = models.CharField(
+        max_length=12, blank=True, default='', verbose_name='کد اتصال بله',
+        help_text='کد یک‌بارمصرفی که مدیر کاروان از داشبورد می‌گیرد و در بله به ربات می‌فرستد.',
+    )
+    bale_connect_code_expiry = models.DateTimeField(
+        blank=True, null=True, verbose_name='انقضای کد اتصال بله',
     )
     leader_bio = models.TextField(blank=True, null=True, verbose_name='معرفی مدیر کاروان')
 

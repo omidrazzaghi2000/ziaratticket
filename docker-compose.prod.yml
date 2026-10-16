@@ -37,6 +37,10 @@ services:
       # ربات بله: تا وقتی خالی باشد، اطلاع رزرو به مدیر کاروان ارسال نمی‌شود
       - BALE_BOT_TOKEN=${BALE_BOT_TOKEN:-}
       - BALE_FALLBACK_CHAT_ID=${BALE_FALLBACK_CHAT_ID:-}
+      # نام کاربری ربات و رمز مسیر وب‌هوک: برای اینکه مدیر کاروان خودش
+      # حسابش را با «کد اتصال» به ربات وصل کند
+      - BALE_BOT_USERNAME=${BALE_BOT_USERNAME:-}
+      - BALE_WEBHOOK_SECRET=${BALE_WEBHOOK_SECRET:-}
     depends_on:
       db:
         condition: service_healthy

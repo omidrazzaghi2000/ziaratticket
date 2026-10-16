@@ -182,6 +182,11 @@ BALE_BOT_TOKEN = os.environ.get('BALE_BOT_TOKEN', '')
 BALE_API_BASE = os.environ.get('BALE_API_BASE', 'https://tapi.bale.ai')
 # شناسه‌ی چتی که اگر مدیر کاروان شناسه‌ی بله نداشت، پیام به آن می‌رود (مثلاً پشتیبانی).
 BALE_FALLBACK_CHAT_ID = os.environ.get('BALE_FALLBACK_CHAT_ID', '')
+# نام کاربری ربات؛ فقط برای ساختن لینک «رفتن به ربات» در داشبورد مدیر کاروان.
+BALE_BOT_USERNAME = os.environ.get('BALE_BOT_USERNAME', '')
+# رمز مسیر وب‌هوک. آدرس وب‌هوک «/api/bale/webhook/<این مقدار>» است و چون جز بله
+# کسی آن را نمی‌داند، همین رمز نقش احراز هویت درخواست را دارد. خالی = وب‌هوک بسته.
+BALE_WEBHOOK_SECRET = os.environ.get('BALE_WEBHOOK_SECRET', '')
 
 # کش اوقات شرعی - 1 ساعت
 PRAYER_TIMES_CACHE_SECONDS = 3600

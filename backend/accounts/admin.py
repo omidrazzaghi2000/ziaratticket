@@ -11,7 +11,7 @@ class UserAdmin(BaseUserAdmin):
     list_filter = ('role', 'is_verified', 'is_leader_approved', 'is_staff', 'is_active')
     search_fields = ('phone', 'full_name', 'national_id')
     ordering = ('-date_joined',)
-    readonly_fields = ('date_joined',)
+    readonly_fields = ('date_joined', 'bale_connect_code', 'bale_connect_code_expiry')
     actions = ['approve_leaders', 'revoke_leader_approval']
 
     fieldsets = (
@@ -22,7 +22,10 @@ class UserAdmin(BaseUserAdmin):
             'fields': ('full_name', 'national_id', 'birth_certificate_no', 'address'),
         }),
         ('مدیر کاروان', {
-            'fields': ('is_leader_approved', 'messaging_apps', 'bale_chat_id', 'leader_bio'),
+            'fields': (
+                'is_leader_approved', 'messaging_apps', 'bale_chat_id',
+                'bale_connect_code', 'bale_connect_code_expiry', 'leader_bio',
+            ),
         }),
         ('وضعیت تأیید', {
             'fields': ('is_verified', 'verification_code', 'code_expiry'),

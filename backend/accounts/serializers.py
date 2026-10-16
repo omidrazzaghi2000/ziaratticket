@@ -12,9 +12,10 @@ class UserSerializer(NormalizeDigitsMixin, serializers.ModelSerializer):
             'id', 'phone', 'full_name', 'role', 'is_verified',
             'national_id', 'birth_certificate_no', 'address',
             'messaging_apps', 'is_leader_approved', 'leader_bio',
-            'date_joined',
+            'bale_chat_id', 'date_joined',
         ]
-        read_only_fields = ['id', 'is_verified', 'is_leader_approved', 'date_joined']
+        # شناسه‌ی چت بله را خود کاربر از طریق ربات ثبت می‌کند، نه با این سریالایزر.
+        read_only_fields = ['id', 'is_verified', 'is_leader_approved', 'bale_chat_id', 'date_joined']
 
 
 class RegisterSendCodeSerializer(NormalizeDigitsMixin, serializers.Serializer):

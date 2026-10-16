@@ -6,6 +6,7 @@ import {
   Bus, Plus, Users, CalendarCheck, Download, Eye, Edit2, Trash2,
   ChevronLeft, TrendingUp, Clock, CheckCircle2, XCircle, AlertCircle,
   Phone, Armchair, X, Image, Upload, Link2, Copy, CreditCard,
+  MessageCircle, Send, RefreshCw, Unlink, ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +43,17 @@ async function apiFetch(url: string, options?: RequestInit) {
   const res = await authFetch(`${djangoURL}${url}`, { headers: authHeaders(), ...options });
   if (!res.ok) throw new Error("خطا در دریافت اطلاعات");
   return res.json();
+}
+
+/**
+ * مثل apiFetch، ولی پیام خطای فارسی سرور (کلید message) را نگه می‌دارد تا در
+ * توست نشان داده شود؛ apiFetch همه‌ی خطاها را «خطا در دریافت اطلاعات» می‌کند.
+ */
+async function baleFetch(url: string, method: string = "GET") {
+  const res = await authFetch(`${djangoURL}${url}`, { method, headers: authHeaders() });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.message || "خطا در ارتباط با سرور");
+  return data;
 }
 
 interface Booking {
@@ -191,6 +203,203 @@ function ReviewLinkButton({ bookingId }: { bookingId: number }) {
         <Link2 className="h-4 w-4" />
       )}
     </button>
+  );
+}
+
+interface BaleConnection {
+  connected: boolean;
+  chat_id: string;
+  bot_configured: boolean;
+  bot_username: string;
+  bot_url: string;
+  code_ttl_minutes: number;
+  code: string;
+  code_expires_at: string | null;
+}
+
+/**
+ * اطلاع رزرو در بله — مدیر کاروان خودش حسابش را به ربات وصل می‌کند.
+ *
+ * یک «کد اتصال» می‌گیرد و همان را در بله برای ربات می‌فرستد؛ ربات شناسه‌ی چت
+ * را ثبت می‌کند و از آن به بعد خلاصه‌ی هر رزرو تازه همان‌جا می‌رسد. تا وقتی کد
+ * فعال است و اتصال برقرار نشده، این بخش هر چند ثانیه وضعیت را می‌پرسد تا
+ * به‌محض فرستادن کد در بله، همین‌جا «وصل شد» را ببیند.
+ */
+function BaleNotificationCard({ enabled }: { enabled: boolean }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+
+  const { data, isLoading } = useQuery<BaleConnection>({
+    queryKey: ["leader-bale"],
+    queryFn: () => baleFetch("/api/user/bale"),
+    enabled,
+    refetchInterval: (query) => {
+      const d = query.state.data as BaleConnection | undefined;
+      return d && d.code && !d.connected ? 5000 : false;
+    },
+  });
+
+  const refresh = () => qc.invalidateQueries({ queryKey: ["leader-bale"] });
+  const onError = (e: Error) =>
+    toast({ title: "خطا", description: e.message, variant: "destructive" });
+
+  const issueCode = useMutation({
+    mutationFn: () => baleFetch("/api/user/bale", "POST"),
+    onSuccess: (res: BaleConnection & { message?: string }) => {
+      qc.setQueryData(["leader-bale"], res);
+      toast({ title: "کد اتصال ساخته شد", description: "کد را در بله برای ربات بفرستید." });
+    },
+    onError,
+  });
+
+  const disconnect = useMutation({
+    mutationFn: () => baleFetch("/api/user/bale", "DELETE"),
+    onSuccess: (res: BaleConnection) => {
+      qc.setQueryData(["leader-bale"], res);
+      toast({ title: "اتصال بله قطع شد" });
+    },
+    onError,
+  });
+
+  const sendTest = useMutation({
+    mutationFn: () => baleFetch("/api/user/bale/test", "POST"),
+    onSuccess: (res: { message?: string }) =>
+      toast({ title: "پیام آزمایشی فرستاده شد", description: res?.message }),
+    onError,
+  });
+
+  if (!enabled || isLoading || !data) return null;
+
+  const minutesLeft = data.code_expires_at
+    ? Math.max(0, Math.ceil((new Date(data.code_expires_at).getTime() - Date.now()) / 60000))
+    : 0;
+
+  return (
+    <div className="bg-card border border-border rounded-2xl p-5 mb-6">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+            <MessageCircle className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="font-heading font-bold text-foreground">اطلاع رزرو در بله</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              خلاصه‌ی هر رزرو تازه، همان لحظه در پیام‌رسان بله به شما می‌رسد.
+            </p>
+          </div>
+        </div>
+        <Badge
+          variant="outline"
+          className={
+            data.connected
+              ? "bg-green-100 text-green-800 border-green-200"
+              : "bg-amber-100 text-amber-800 border-amber-200"
+          }
+        >
+          {data.connected ? "وصل است" : "وصل نیست"}
+        </Badge>
+      </div>
+
+      {!data.bot_configured ? (
+        <p className="text-sm text-muted-foreground bg-muted/50 rounded-xl p-3 mt-4">
+          ربات بله هنوز روی سرور راه‌اندازی نشده است. برای فعال‌شدن این بخش با پشتیبانی
+          سامانه تماس بگیرید.
+        </p>
+      ) : data.connected ? (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => sendTest.mutate()}
+            disabled={sendTest.isPending}
+            className="rounded-xl gap-2"
+          >
+            <Send className="h-4 w-4" />
+            ارسال پیام آزمایشی
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => disconnect.mutate()}
+            disabled={disconnect.isPending}
+            className="rounded-xl gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+          >
+            <Unlink className="h-4 w-4" />
+            قطع اتصال
+          </Button>
+        </div>
+      ) : (
+        <div className="mt-4">
+          <ol className="text-sm text-muted-foreground space-y-1.5 leading-relaxed">
+            <li>۱) پایین همین بخش روی «دریافت کد اتصال» بزنید.</li>
+            <li>
+              ۲) در بله ربات سامانه را باز کنید{data.bot_username ? " " : ""}
+              {data.bot_url && (
+                <a
+                  href={data.bot_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary font-semibold inline-flex items-center gap-1 hover:underline"
+                >
+                  @{data.bot_username}
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              )}{" "}
+              و دستور <span className="font-mono">/start</span> را بفرستید.
+            </li>
+            <li>۳) کد را در همان گفتگو بفرستید؛ ربات اتصال را تأیید می‌کند.</li>
+          </ol>
+
+          {data.code ? (
+            <div className="mt-4 bg-muted/50 border border-border rounded-xl p-4">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">کد اتصال شما</p>
+                  <p className="font-mono text-2xl font-black tracking-[0.3em] text-foreground">
+                    {data.code}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      navigator.clipboard.writeText(data.code).then(() =>
+                        toast({ title: "کد کپی شد" })
+                      );
+                    }}
+                    className="rounded-xl gap-2"
+                  >
+                    <Copy className="h-4 w-4" />
+                    کپی
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => issueCode.mutate()}
+                    disabled={issueCode.isPending}
+                    className="rounded-xl gap-2"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    کد تازه
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                {minutesLeft > 0
+                  ? `تا ${toPersian(minutesLeft)} دقیقه‌ی دیگر اعتبار دارد. به‌محض فرستادن کد در بله، همین‌جا «وصل است» می‌شود.`
+                  : "اعتبار این کد تمام شده است؛ یک کد تازه بگیرید."}
+              </p>
+            </div>
+          ) : (
+            <Button
+              onClick={() => issueCode.mutate()}
+              disabled={issueCode.isPending}
+              className="rounded-xl gap-2 mt-4"
+            >
+              <Link2 className="h-4 w-4" />
+              دریافت کد اتصال
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -406,6 +615,9 @@ export default function CaravanLeaderDashboard() {
             </motion.div>
           ))}
         </div>
+
+        {/* اطلاع رزرو در بله */}
+        <BaleNotificationCard enabled={!!isApproved} />
 
         {/* Tabs */}
         <div className="flex gap-1 bg-muted/50 rounded-2xl p-1.5 mb-5 w-fit">

@@ -1,13 +1,20 @@
+import logging
 import time
 import json
 from urllib.request import urlopen
 from urllib.parse import urlencode
 from urllib.error import URLError
+from django.http import Http404
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
+from . import bale_link
 from .models import Contact, Newsletter
 from .serializers import ContactSerializer, NewsletterSerializer
+
+logger = logging.getLogger(__name__)
 
 # کش ساده در حافظه برای اوقات شرعی
 _prayer_times_cache = {"data": None, "timestamp": 0}
@@ -76,3 +83,32 @@ class NewsletterView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({"message": "ایمیل ثبت شد."}, status=201)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class BaleWebhookView(APIView):
+    """
+    درگاه آپدیت‌های ربات بله.
+
+    بله هر پیامی که به ربات برسد را با POST به این آدرس می‌فرستد. تنها کاری که
+    اینجا انجام می‌شود، وصل‌کردن حساب مدیر کاروان با «کد اتصال» است
+    (``core/bale_link.py``).
+
+    امنیت: رمز وب‌هوک در خودِ مسیر است و جز بله کسی آن را ندارد؛ هر مسیر دیگری
+    ۴۰۴ می‌گیرد. تا وقتی ``BALE_WEBHOOK_SECRET`` خالی باشد، وب‌هوک بسته است.
+    درخواست بدون احراز هویت می‌آید، پس احراز هویت و CSRF هر دو کنار گذاشته
+    شده‌اند.
+    """
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def post(self, request, secret):
+        if not bale_link.secret_matches(secret):
+            raise Http404
+
+        # پاسخ همیشه ۲۰۰ است؛ اگر خطا بدهیم بله همان آپدیت را دوباره می‌فرستد.
+        try:
+            bale_link.handle_update(request.data)
+        except Exception:
+            logger.exception('بله: پردازش آپدیت وب‌هوک ناموفق بود.')
+        return Response({'ok': True})

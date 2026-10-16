@@ -3,6 +3,7 @@ from .views import (
     FetchAllUsers, SendCodeView, VerifyCodeView,
     AuthStatusView, LogoutView, MeView, VerifyUserView,
     LeaderRegisterView, UpdateProfileView,
+    BaleConnectionView, BaleTestMessageView,
 )
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -15,6 +16,8 @@ urlpatterns = [
     path('auth/refresh', TokenRefreshView.as_view(), name='token_refresh'),
     path('user', MeView.as_view(), name='me'),
     path('user/update', UpdateProfileView.as_view(), name='update_profile'),
+    path('user/bale', BaleConnectionView.as_view(), name='bale_connection'),
+    path('user/bale/test', BaleTestMessageView.as_view(), name='bale_test_message'),
     path('users', FetchAllUsers.as_view(), name='users'),
     path('leader/register', LeaderRegisterView.as_view(), name='leader_register'),
 ]
