@@ -39,6 +39,9 @@ const schema = z.object({
   bus_type: z.coerce.number().refine(v => [25, 32, 44].includes(v), {
     message: "نوع اتوبوس را انتخاب کنید",
   }),
+  // فقط برای سفرهای قطاری. مدل خالی را می‌پذیرد، پس کاروان‌های غیرقطاری
+  // خالی می‌مانند و کاروان‌های قدیمی هم قابل ویرایش باقی می‌مانند.
+  train_type: z.enum(["", "coach", "four_bed", "six_bed"]).default(""),
   origin_city: z.string().min(2, "مبدأ حرکت الزامی است"),
   transit_cities_str: z.string().optional(),
   accommodation_type: z.enum(["hotel", "hosseinieh", "apartment", "mixed"]),
@@ -59,6 +62,16 @@ const schema = z.object({
     title: z.string().min(2),
     description: z.string().optional(),
   })).default([]),
+}).superRefine((data, ctx) => {
+  // زائر باید بداند واگن اتوبوسی است یا ۴ و ۶ تخته؛ کاروان قطاری بدون این
+  // گزینه اطلاع ناقص به او می‌دهد.
+  if (data.transportation_type === "train" && !data.train_type) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["train_type"],
+      message: "نوع واگن قطار را انتخاب کنید",
+    });
+  }
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -102,6 +115,7 @@ export default function CaravanLeaderAddCaravan({ params }: Props = {}) {
       end_date: "",
       transportation_type: "bus",
       bus_type: 44,
+      train_type: "",
       origin_city: "",
       transit_cities_str: "",
       accommodation_type: "hotel",
@@ -134,6 +148,7 @@ export default function CaravanLeaderAddCaravan({ params }: Props = {}) {
       end_date: isoToJalali(existing.end_date) ?? "",
       transportation_type: existing.transportation_type ?? "bus",
       bus_type: existing.bus_type ?? 44,
+      train_type: existing.train_type ?? "",
       origin_city: existing.origin_city ?? "",
       transit_cities_str: (existing.transit_cities ?? []).join("، "),
       accommodation_type: existing.accommodation_type ?? "hotel",
@@ -168,6 +183,9 @@ export default function CaravanLeaderAddCaravan({ params }: Props = {}) {
       const payload: Record<string, unknown> = {
         ...data,
         transit_cities,
+        // نوع واگن فقط برای قطار معنی دارد؛ اگر کاربر نوع حمل‌ونقل را عوض
+        // کرده باشد، انتخاب قبلی نباید روی کاروان بماند.
+        train_type: data.transportation_type === "train" ? data.train_type : "",
         // تاریخ‌های شمسی انتخاب‌شده برای ذخیره در سرور به میلادی تبدیل می‌شوند
         start_date: jalaliToISO(data.start_date) || null,
         end_date: jalaliToISO(data.end_date) || null,
@@ -216,6 +234,7 @@ export default function CaravanLeaderAddCaravan({ params }: Props = {}) {
   const busType = form.watch("bus_type");
   const capacity = form.watch("capacity");
   const isGroundTransport = transportationType === "bus" || transportationType === "combined";
+  const isTrain = transportationType === "train";
   const bookedSeats = existing ? (existing.capacity ?? 0) - (existing.remaining_capacity ?? 0) : 0;
   const busCount = busType ? Math.ceil((capacity || 0) / busType) : 0;
 
@@ -439,6 +458,29 @@ export default function CaravanLeaderAddCaravan({ params }: Props = {}) {
                       <p className="text-xs text-muted-foreground mt-1">
                         نقشه انتخاب صندلی زائران بر اساس همین اتوبوس ساخته می‌شود.
                         {busCount > 1 && ` با ظرفیت ${toPersianDigits(capacity)} نفر، ${toPersianDigits(busCount)} اتوبوس نمایش داده می‌شود.`}
+                      </p>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                )}
+                {isTrain && (
+                  <FormField control={form.control} name="train_type" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>نوع واگن قطار *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || undefined}>
+                        <FormControl>
+                          <SelectTrigger className="rounded-xl">
+                            <SelectValue placeholder="انتخاب کنید" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="coach">اتوبوسی</SelectItem>
+                          <SelectItem value="four_bed">۴ تخته</SelectItem>
+                          <SelectItem value="six_bed">۶ تخته</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        در صفحه‌ی کاروان به زائر نشان داده می‌شود.
                       </p>
                       <FormMessage />
                     </FormItem>
