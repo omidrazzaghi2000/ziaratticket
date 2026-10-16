@@ -24,8 +24,11 @@ const bookingFormSchema = z.object({
   mainPassengerPhone: z.string().min(10, { message: "شماره موبایل معتبر نیست" }),
   mainPassengerBirthdate: z.string().min(5, { message: "تاریخ تولد الزامی است" }),
   address: z.string().min(10, { message: "آدرس الزامی است" }),
-  termsAccepted: z.literal(true, {
-    errorMap: () => ({ message: "پذیرش قوانین و مقررات الزامی است" }),
+  // چک‌باکس خالی شروع می‌شود، پس نوعش boolean است و اجباری‌بودن با refine
+  // اعمال می‌شود. z.literal(true) نوع را «فقط true» می‌کرد و مقدار اولیه‌ی
+  // false با آن نمی‌خواند.
+  termsAccepted: z.boolean().refine(v => v, {
+    message: "پذیرش قوانین و مقررات الزامی است",
   }),
 });
 

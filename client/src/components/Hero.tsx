@@ -130,7 +130,6 @@ function ShrineButtons() {
             <span className="font-heading font-bold text-white text-2xl sm:text-3xl leading-tight drop-shadow-lg">
               {shrine.title}
             </span>
-            <span className="text-gold-200/90 text-sm">{shrine.subtitle}</span>
           </span>
         </motion.button>
       ))}
