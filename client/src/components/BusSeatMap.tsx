@@ -87,11 +87,12 @@ interface SeatButtonProps {
 
 function SeatButton({ seatNum, occupied, selected, disabled, onToggle }: SeatButtonProps) {
   if (seatNum === null) {
-    return <div className="w-9 h-10" aria-hidden />;
+    return <div className="w-11 h-11 sm:w-12 sm:h-12" aria-hidden />;
   }
 
+  // ۴۴ پیکسل حداقلِ لمسی؛ روی صفحه‌های بزرگ‌تر کمی بزرگ‌تر تا نقشه گم نشود
   const base =
-    "w-9 h-10 rounded-lg flex flex-col items-center justify-center text-[10px] font-bold border-2 transition-all select-none";
+    "w-11 h-11 sm:w-12 sm:h-12 rounded-lg flex flex-col items-center justify-center text-[11px] sm:text-xs font-bold border-2 transition-all select-none";
   const style = occupied
     ? `${base} bg-gray-200 border-gray-300 text-gray-400 cursor-not-allowed`
     : selected
@@ -110,7 +111,7 @@ function SeatButton({ seatNum, occupied, selected, disabled, onToggle }: SeatBut
       className={style}
       title={occupied ? "اشغال شده" : `صندلی ${toPersian(seatNum)}`}
     >
-      <svg viewBox="0 0 24 24" className="w-4 h-4 mb-0.5" fill="currentColor">
+      <svg viewBox="0 0 24 24" className="w-4 h-4 sm:w-[18px] sm:h-[18px] mb-0.5" fill="currentColor">
         <path d="M5 13V7a1 1 0 0 1 2 0v6h10V7a1 1 0 0 1 2 0v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2Zm1 3h12v1a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-1Z" />
       </svg>
       <span>{toPersian(seatNum)}</span>
@@ -155,7 +156,7 @@ function Bus({
         {toPersian(seatCount)} صندلی
       </p>
 
-      <div className="bg-gradient-to-b from-slate-100 to-slate-50 border-2 border-slate-300 rounded-[28px] p-3 shadow-md inline-flex flex-col items-center gap-1.5">
+      <div className="bg-gradient-to-b from-slate-100 to-slate-50 border-2 border-slate-300 rounded-[28px] p-3 sm:p-4 shadow-md inline-flex flex-col items-center gap-1.5 sm:gap-2">
         {/* Driver */}
         <div className="w-full flex justify-center mb-1">
           <div className="bg-slate-300 rounded-lg px-3 py-1 flex items-center gap-1.5 text-[10px] font-bold text-slate-600">
@@ -190,11 +191,11 @@ function Bus({
           );
 
           return (
-            <div key={i} className="flex items-center gap-1">
+            <div key={i} className="flex items-center gap-1.5 sm:gap-2">
               {/* در چیدمان RTL، فرزندان ابتدایی سمت راست قرار می‌گیرند */}
               {row.right.map((s, j) => seatBtn(s, `r${j}`))}
               {/* راهرو */}
-              <div className="w-3" />
+              <div className="w-4 sm:w-6" />
               {row.left.map((s, j) => seatBtn(s, `l${j}`))}
             </div>
           );
@@ -236,7 +237,7 @@ export default function BusSeatMap({
   return (
     <div dir="rtl" className="space-y-4">
       {/* Legend */}
-      <div className="flex items-center gap-4 flex-wrap text-xs">
+      <div className="flex items-center gap-x-4 gap-y-2 flex-wrap text-xs">
         <div className="flex items-center gap-1.5">
           <div className="w-5 h-5 rounded border-2 border-border bg-white" />
           <span className="text-muted-foreground">خالی</span>
@@ -249,11 +250,11 @@ export default function BusSeatMap({
           <div className="w-5 h-5 rounded border-2 border-gray-300 bg-gray-200" />
           <span className="text-muted-foreground">اشغال شده</span>
         </div>
-        <span className="text-muted-foreground mr-auto">چیدمان: {layoutFor(type).label}</span>
+        <span className="text-muted-foreground w-full sm:w-auto sm:mr-auto">چیدمان: {layoutFor(type).label}</span>
       </div>
 
       {/* Buses */}
-      <div className="flex flex-wrap gap-8 justify-center overflow-x-auto">
+      <div className="flex flex-wrap gap-6 sm:gap-8 justify-center overflow-x-auto pb-2">
         {Array.from({ length: busCount }, (_, i) => (
           <Bus
             key={i}

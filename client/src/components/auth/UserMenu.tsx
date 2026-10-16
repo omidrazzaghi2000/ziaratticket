@@ -45,7 +45,7 @@ export default function UserMenu() {
         <DropdownMenuTrigger asChild>
           <Button 
             variant="ghost" 
-            className="flex items-center gap-2 px-3 py-2 rounded-full border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 bg-white"
+            className="flex items-center gap-2 px-3 min-h-11 rounded-full border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 bg-white"
           >
             <Avatar className="h-8 w-8">
               <AvatarFallback className="bg-gradient-to-br from-primary-600 to-primary text-white">
@@ -74,7 +74,7 @@ export default function UserMenu() {
           
           <div className="p-2">
             <DropdownMenuItem 
-              className="cursor-pointer px-3 py-2.5 rounded-md hover:bg-primary/5 hover:text-primary focus:bg-primary/5 focus:text-primary transition-all"
+              className="cursor-pointer px-3 min-h-11.5 rounded-md hover:bg-primary/5 hover:text-primary focus:bg-primary/5 focus:text-primary transition-all"
               onClick={() => navigate("/profile")}
             >
               <UserCircle className="mr-2 h-5 w-5" />
@@ -82,7 +82,7 @@ export default function UserMenu() {
             </DropdownMenuItem>
             
             <DropdownMenuItem 
-              className="cursor-pointer px-3 py-2.5 rounded-md hover:bg-primary/5 hover:text-primary focus:bg-primary/5 focus:text-primary transition-all"
+              className="cursor-pointer px-3 min-h-11.5 rounded-md hover:bg-primary/5 hover:text-primary focus:bg-primary/5 focus:text-primary transition-all"
               onClick={() => navigate("/bookings")}
             >
               <List className="mr-2 h-5 w-5" />
@@ -92,7 +92,7 @@ export default function UserMenu() {
             <DropdownMenuSeparator className="my-2" />
             
             <DropdownMenuItem
-              className="cursor-pointer px-3 py-2.5 rounded-md hover:bg-red-50 text-red-500 hover:text-red-600 focus:bg-red-50 focus:text-red-600 transition-all"
+              className="cursor-pointer px-3 min-h-11.5 rounded-md hover:bg-red-50 text-red-500 hover:text-red-600 focus:bg-red-50 focus:text-red-600 transition-all"
               onClick={() => logout()}
             >
               <LogOut className="mr-2 h-5 w-5" />

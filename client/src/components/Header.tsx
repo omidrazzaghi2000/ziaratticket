@@ -109,10 +109,10 @@ export default function Header({ solid = false }: { solid?: boolean } = {}) {
           : "bg-transparent py-4"
       )}
     >
-      <div className="container mx-auto px-4 lg:px-8">
-        <div className="flex justify-between items-center">
+      <div className="container mx-auto px-3 sm:px-4 lg:px-8">
+        <div className="flex justify-between items-center gap-2 min-w-0">
           {/* Brand */}
-          <motion.div whileHover={{ scale: 1.02 }} onClick={goToHome}>
+          <motion.div whileHover={{ scale: 1.02 }} onClick={goToHome} className="min-w-0 shrink">
             <BrandMark scrolled={scrolled} />
           </motion.div>
 
@@ -191,7 +191,7 @@ export default function Header({ solid = false }: { solid?: boolean } = {}) {
           </div>
 
           {/* Mobile */}
-          <div className="md:hidden flex items-center gap-2">
+          <div className="md:hidden flex items-center gap-1.5 shrink-0">
             <UserMenu />
             <motion.button
               whileTap={{ scale: 0.9 }}
@@ -200,7 +200,7 @@ export default function Header({ solid = false }: { solid?: boolean } = {}) {
               aria-expanded={mobileMenuOpen}
               className={cn(
                 // دکمه همیشه پس‌زمینه دارد تا روی صفحات روشن هم دیده شود
-                "p-2 rounded-xl border transition-colors shadow-sm",
+                "h-11 w-11 flex items-center justify-center rounded-xl border transition-colors shadow-sm",
                 scrolled || mobileMenuOpen
                   ? "bg-primary/10 border-primary/20 text-primary hover:bg-primary/15"
                   : "bg-black/35 border-white/30 text-white backdrop-blur-sm hover:bg-black/45"

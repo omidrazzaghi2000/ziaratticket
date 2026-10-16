@@ -399,8 +399,8 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
   return (
     <div className="bg-background min-h-screen">
       <Header solid />
-      <div className="container py-12 pt-28 max-w-3xl">
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="mb-8">
+      <div className="container py-8 sm:py-12 pt-24 sm:pt-28 max-w-6xl">
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="mb-6 sm:mb-8">
           <Button variant="ghost" size="sm" className="mb-4 text-muted-foreground hover:text-foreground" onClick={() => navigate(`/caravan/${caravanId}`)}>
             <ArrowRight className="ml-2 h-4 w-4" />
             بازگشت به صفحه کاروان
@@ -412,7 +412,12 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
         </motion.div>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(startSubmit)} className="space-y-5">
+          <form
+            onSubmit={form.handleSubmit(startSubmit)}
+            className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_22rem] gap-5 items-start"
+          >
+            {/* ستون اصلی: اطلاعات مسافران و صندلی */}
+            <div className="space-y-5 min-w-0">
             {/* سرپرست */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.05 }}>
               <SectionCard
@@ -596,8 +601,15 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
               </motion.div>
             )}
 
-            {/* درخواست ویژه + تأیید + ثبت */}
-            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }}>
+            </div>
+
+            {/* روی دسکتاپ کنار فرم می‌چسبد تا دکمه‌ی ثبت همیشه در دسترس باشد */}
+            <motion.aside
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.1 }}
+              className="lg:sticky lg:top-24 min-w-0"
+            >
               <SectionCard title="ثبت نهایی" icon={<CheckCircle2 className="h-5 w-5 text-primary" strokeWidth={1.5} />}>
                 <FormField control={form.control} name="specialRequests" render={({ field }) => (
                   <FormItem className="mb-5">
@@ -625,21 +637,22 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
                   </p>
                 </div>
 
+                {/* کل ردیف قابل زدن است؛ قبلاً فقط یک مربع ۱۶ پیکسلی بود */}
                 <FormField control={form.control} name="infoConfirmed" render={({ field }) => (
-                  <FormItem className="flex items-start gap-3 mb-5">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                        className="border-primary data-[state=checked]:bg-primary mt-0.5"
-                      />
-                    </FormControl>
-                    <div>
-                      <FormLabel className="font-normal text-sm cursor-pointer">
+                  <FormItem className="mb-5">
+                    <label className="flex items-center gap-3 min-h-12 px-3 py-2 rounded-xl border border-border bg-muted/40 cursor-pointer hover:bg-muted/70 transition-colors">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          className="h-5 w-5 shrink-0 border-primary data-[state=checked]:bg-primary"
+                        />
+                      </FormControl>
+                      <span className="text-sm leading-6 select-none">
                         صحت اطلاعات وارد شده را تایید می‌کنم
-                      </FormLabel>
-                      <FormMessage />
-                    </div>
+                      </span>
+                    </label>
+                    <FormMessage />
                   </FormItem>
                 )} />
 
@@ -662,7 +675,7 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
                   <ContactHelp />
                 </div>
               </SectionCard>
-            </motion.div>
+            </motion.aside>
           </form>
         </Form>
 
