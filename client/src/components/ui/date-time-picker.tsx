@@ -89,3 +89,16 @@ export function jalaliToISO(value?: string): string {
   const obj = new DateObject({ calendar: persian, year: y, month: m, day: d, hour: hh, minute: mm });
   return obj.convert(gregorian, gregorian_en).format("YYYY-MM-DDTHH:mm");
 }
+
+/**
+ * عکسِ jalaliToISO — تاریخ میلادی ذخیره‌شده در سرور را به رشته‌ی شمسی برمی‌گرداند
+ * تا هنگام ویرایش، تقویم روی همان روزی بنشیند که قبلاً انتخاب شده بود.
+ */
+export function isoToJalali(value?: string | null): string {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return new DateObject({ date: d, calendar: gregorian })
+    .convert(persian, persian_fa)
+    .format("YYYY/MM/DD");
+}

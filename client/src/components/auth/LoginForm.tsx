@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/form";
 import { djangoURL } from "@/App";
 import { toLatinDigits } from "@/lib/digits";
+import { setTokens } from "@/lib/auth";
 
 const phoneSchema = z.object({
   phone: z.string()
@@ -111,8 +112,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
 
       const verifyRes = await response.json();
       if(response.status < 300){
-        localStorage.setItem("AUTH_TOKEN_KEY","Bearer "+verifyRes.access);
-        localStorage.setItem("AUTH_REFRESH_KEY",verifyRes.refresh);
+        setTokens(verifyRes.access, verifyRes.refresh);
       }
       return verifyRes;
 

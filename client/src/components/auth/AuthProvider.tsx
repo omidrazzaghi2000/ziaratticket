@@ -1,6 +1,7 @@
 import { createContext, useContext, ReactNode, useState, useEffect } from "react";
 import { apiRequest } from "@/lib/queryClient";
 import { djangoURL } from "@/App";
+import { authFetch, clearTokens, hasValidSession, AUTH_CHANGED_EVENT } from "@/lib/auth";
 
 interface User {
   id: number;
@@ -34,27 +35,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setIsLoading(true);
       // بررسی وضعیت احراز هویت
       
-      // وقتی توکنی ذخیره نشده، اصلاً لازم نیست از سرور بپرسیم؛ قبلاً هدر
-      // Authorization با مقدار null فرستاده می‌شد که به رشته‌ی "null" تبدیل می‌شد.
-      const token = localStorage.getItem("AUTH_TOKEN_KEY");
-      if (!token) {
+      // نشست فقط وقتی زنده است که توکن تازه‌سازی هنوز منقضی نشده باشد.
+      // authFetch خودش توکن دسترسی را در صورت نیاز تازه می‌کند.
+      if (!hasValidSession()) {
+        clearTokens();
         setUser(null);
         return;
       }
-      const authHeaders: HeadersInit = { Authorization: token };
 
-      const statusResponse = await fetch(djangoURL + "/api/auth/status", {
-        method: "GET",
-        headers: authHeaders,
-      });
+      const statusResponse = await authFetch(djangoURL + "/api/auth/status");
       const statusData = await statusResponse.json();
       if (statusData.isAuthenticated) {
-        const userResponse = await fetch(djangoURL + "/api/user", {
-          method: "GET",
-          headers: authHeaders,
-        });
-        const userData = await userResponse.json();
-        setUser(userData);
+        const userResponse = await authFetch(djangoURL + "/api/user");
+        setUser(await userResponse.json());
       } else {
         setUser(null);
       }
@@ -73,8 +66,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } catch (error) {
       console.error("Error logging out:", error);
     } finally {
-      localStorage.removeItem("AUTH_TOKEN_KEY");
-      localStorage.removeItem("AUTH_REFRESH_KEY");
+      clearTokens();
       setUser(null);
     }
   };

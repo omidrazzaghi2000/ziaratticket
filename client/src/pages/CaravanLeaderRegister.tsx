@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/auth";
 import { AuthModal } from "@/components/auth";
 import { djangoURL } from "@/App";
+import { authFetch } from "@/lib/auth";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,12 +69,11 @@ export default function CaravanLeaderRegister() {
 
   const mutation = useMutation({
     mutationFn: async (data: FormValues) => {
-      const res = await fetch(`${djangoURL}/api/leader/register`, {
+      const res = await authFetch(`${djangoURL}/api/leader/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: localStorage.getItem("AUTH_TOKEN_KEY") || "",
-        },
+                  },
         body: JSON.stringify(data),
       });
       if (!res.ok) {

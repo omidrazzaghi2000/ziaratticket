@@ -27,6 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { djangoURL } from "@/App";
+import { authFetch } from "@/lib/auth";
 // ارقام فارسی و انگلیسی هر دو پذیرفته می‌شوند (نرمال‌سازی در ابزار مشترک)
 import { toLatinDigits, toPersianDigits } from "@/lib/digits";
 import { transportLabel } from "@/lib/caravan";
@@ -113,12 +114,11 @@ interface CaravanSeats {
 const DEFAULT_BUS_TYPE = 44;
 
 const authHeaders = () => ({
-  Authorization: localStorage.getItem("AUTH_TOKEN_KEY") || "",
-  "Content-Type": "application/json",
+    "Content-Type": "application/json",
 });
 
 async function postJson(path: string, body: unknown, fallbackMessage: string) {
-  const response = await fetch(djangoURL + path, {
+  const response = await authFetch(djangoURL + path, {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify(body),
@@ -188,7 +188,7 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
   const { data: seatData } = useQuery<CaravanSeats>({
     queryKey: ['/api/caravans/seats', caravanId],
     queryFn: async () => {
-      const response = await fetch(djangoURL + `/api/caravans/${caravanId}/seats`);
+      const response = await authFetch(djangoURL + `/api/caravans/${caravanId}/seats`);
       if (!response.ok) throw new Error("خطا در دریافت نقشه صندلی");
       return response.json();
     },

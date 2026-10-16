@@ -110,12 +110,44 @@ class LeaderCaravanDetailView(APIView):
         return Response(CaravanSerializer(caravan, context={'request': request}).data)
 
     def put(self, request, pk):
+        """
+        ویرایش کاروان توسط مدیر خودش.
+
+        هر ویرایشی کاروان را دوباره به حالت «در انتظار تأیید» می‌برد، یعنی تا
+        تأیید ادمین از فهرست عمومی خارج می‌شود — مشخصاتی که زائر بر اساسش
+        رزرو می‌کند نباید بدون بازبینی عوض شود.
+        """
         caravan = self._get_caravan(request, pk)
         if not caravan:
             return Response({"message": "کاروان یافت نشد."}, status=404)
-        serializer = CaravanCreateSerializer(caravan, data=request.data, partial=True)
+
+        data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+
+        # در حالت multipart این فیلدها به‌صورت رشته می‌آیند (مثل مسیر ساخت)
+        for field in ('transit_cities', 'itinerary', 'leader_messaging_apps'):
+            if field in data and isinstance(data[field], str):
+                import json
+                try:
+                    data[field] = json.loads(data[field])
+                except Exception:
+                    data[field] = []
+
+        booked = (caravan.capacity or 0) - (caravan.remaining_capacity or 0)
+
+        serializer = CaravanCreateSerializer(caravan, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
-        serializer.save(status='pending')
+
+        new_capacity = serializer.validated_data.get('capacity', caravan.capacity)
+        if new_capacity is not None and new_capacity < booked:
+            return Response(
+                {"message": f"ظرفیت نمی‌تواند کمتر از {booked} نفری باشد که تا الان رزرو کرده‌اند."},
+                status=400,
+            )
+
+        # ظرفیت باقیمانده باید با ظرفیت جدید جابه‌جا شود، وگرنه تغییر ظرفیت
+        # عدد رزروشده‌ها را خراب می‌کند.
+        serializer.save(status='pending', remaining_capacity=max(0, (new_capacity or 0) - booked))
+        caravan.refresh_from_db()
         return Response(CaravanSerializer(caravan, context={'request': request}).data)
 
 

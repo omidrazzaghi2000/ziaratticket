@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 
@@ -6,6 +7,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import CaravanSummaryCard, { type CaravanSummary } from "@/components/CaravanSummaryCard";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AuthModal, useAuth } from "@/components/auth";
 
 const DESTINATION_TITLES: Record<string, string> = {
   mashhad: "کاروان‌های مشهد مقدس",
@@ -21,6 +23,18 @@ const DESTINATION_TITLES: Record<string, string> = {
 export default function CaravanList() {
   const { destination } = useParams<{ destination: string }>();
   const [, setLocation] = useLocation();
+  const { isAuthenticated } = useAuth();
+  /** کاروانی که کاربر زده ولی هنوز وارد نشده؛ بعد از ورود به همان می‌رویم */
+  const [pendingCaravanId, setPendingCaravanId] = useState<number | null>(null);
+
+  // اگر هنوز وارد نشده، اول پنجره‌ی ورود؛ بعد مستقیم به صفحه‌ی رزرو.
+  const startBooking = (id: number) => {
+    if (!isAuthenticated) {
+      setPendingCaravanId(id);
+      return;
+    }
+    setLocation(`/booking/${id}`);
+  };
 
   const { data: caravans, isLoading, isError } = useQuery<CaravanSummary[]>({
     queryKey: ["/api/caravans", destination],
@@ -53,7 +67,7 @@ export default function CaravanList() {
                 <CaravanSummaryCard
                   caravan={caravan}
                   showName
-                  onAction={() => setLocation(`/booking/${caravan.id}`)}
+                  onAction={() => startBooking(caravan.id)}
                   secondaryLabel="مشاهده جزئیات کامل کاروان"
                   onSecondary={() => setLocation(`/caravan/${caravan.id}`)}
                 />
@@ -68,6 +82,18 @@ export default function CaravanList() {
       </main>
 
       <Footer />
+
+      <AuthModal
+        isOpen={pendingCaravanId !== null}
+        onClose={() => setPendingCaravanId(null)}
+        title="برای رزرو وارد شوید"
+        description="شماره موبایلتان را وارد کنید تا کد تأیید برایتان پیامک شود."
+        onLoginSuccess={() => {
+          const id = pendingCaravanId;
+          setPendingCaravanId(null);
+          if (id !== null) setLocation(`/booking/${id}`);
+        }}
+      />
     </div>
   );
 }

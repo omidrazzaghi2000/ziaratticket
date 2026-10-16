@@ -1,14 +1,13 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+import { authFetch } from "./auth";
+
 // پیش‌فرض باید «همان مبدأ» باشد. اگر VITE_API_URL هنگام بیلد تعریف نشود،
 // مقدار قبلی (http://localhost:8000) یعنی همه‌ی درخواست‌های کاربر به کامپیوتر
 // خودش می‌رفت و سایت بی‌صدا از کار می‌افتاد.
 const DJANGO_URL = import.meta.env.VITE_API_URL ?? "";
 
-function getAuthHeader(): Record<string, string> {
-  const token = localStorage.getItem("AUTH_TOKEN_KEY");
-  return token ? { Authorization: token } : {};
-}
+// هدر و تازه‌سازی توکن یک‌جا در lib/auth مدیریت می‌شود
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -23,12 +22,9 @@ export async function apiRequest(
   data?: unknown,
 ): Promise<Response> {
   const fullUrl = url.startsWith("http") ? url : DJANGO_URL + url;
-  const headers: Record<string, string> = {
-    ...getAuthHeader(),
-    ...(data ? { "Content-Type": "application/json" } : {}),
-  };
+  const headers: Record<string, string> = data ? { "Content-Type": "application/json" } : {};
 
-  const res = await fetch(fullUrl, {
+  const res = await authFetch(fullUrl, {
     method,
     headers,
     body: data ? JSON.stringify(data) : undefined,
@@ -47,9 +43,7 @@ export const getQueryFn: <T>(options: {
     const rawUrl = queryKey[0] as string;
     const fullUrl = rawUrl.startsWith("http") ? rawUrl : DJANGO_URL + rawUrl;
 
-    const res = await fetch(fullUrl, {
-      headers: getAuthHeader(),
-    });
+    const res = await authFetch(fullUrl);
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       return null;

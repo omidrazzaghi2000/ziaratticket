@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import Header from "@/components/Header";
+import { AuthModal, useAuth } from "@/components/auth";
 import CaravanSummaryCard from "@/components/CaravanSummaryCard";
 import { transportLabel } from "@/lib/caravan";
 import { djangoURL } from "@/App";
@@ -315,7 +316,17 @@ export default function CaravanDetail({ params }: CaravanDetailProps) {
 
   const gradientClass = destinationColors[caravan.destination] || "from-emerald-900 to-emerald-700";
 
-  const handleBooking = () => navigate(`/booking/${caravanId}`);
+  const { isAuthenticated } = useAuth();
+  const [askLogin, setAskLogin] = useState(false);
+
+  // مثل فهرست کاروان‌ها: اگر وارد نشده، اول پنجره‌ی ورود
+  const handleBooking = () => {
+    if (!isAuthenticated) {
+      setAskLogin(true);
+      return;
+    }
+    navigate(`/booking/${caravanId}`);
+  };
 
   const FloatBookButton = () => (
     <motion.button
@@ -708,6 +719,18 @@ export default function CaravanDetail({ params }: CaravanDetailProps) {
           </Button>
         </motion.div>
       </div>
+
+      <AuthModal
+        isOpen={askLogin}
+        onClose={() => setAskLogin(false)}
+        title="برای رزرو وارد شوید"
+        description="شماره موبایلتان را وارد کنید تا کد تأیید برایتان پیامک شود."
+        onLoginSuccess={() => {
+          setAskLogin(false);
+          navigate(`/booking/${caravanId}`);
+        }}
+      />
+
     </div>
   );
 }

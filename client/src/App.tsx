@@ -29,6 +29,8 @@ function Router() {
       <Route path="/leader/register" component={CaravanLeaderRegister} />
       <Route path="/leader/dashboard" component={CaravanLeaderDashboard} />
       <Route path="/leader/add-caravan" component={CaravanLeaderAddCaravan} />
+      {/* همان فرم، در حالت ویرایش */}
+      <Route path="/leader/caravan/:caravanId/edit" component={CaravanLeaderAddCaravan} />
       <Route path="/review/:token" component={ReviewPage} />
       <Route component={NotFound} />
     </Switch>

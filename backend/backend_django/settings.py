@@ -82,8 +82,11 @@ else:
     }
 
 SIMPLE_JWT = {
+    # نشست یک‌هفته‌ایِ کشویی: هر تازه‌سازی یک توکن هفت‌روزه‌ی نو می‌دهد، پس
+    # کاربری که هر هفته سر بزند همیشه وارد می‌ماند و اگر یک هفته نیاید باید
+    # دوباره وارد شود. توکن قبلی بعد از چرخش باطل می‌شود.
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=12),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'UPDATE_LAST_LOGIN': False,

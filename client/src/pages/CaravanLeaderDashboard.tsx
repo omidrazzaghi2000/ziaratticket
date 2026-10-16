@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/auth";
 import Header from "@/components/Header";
 import { djangoURL } from "@/App";
+import { authFetch } from "@/lib/auth";
 
 function toPersian(n: number | string) {
   return String(n).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[+d]);
@@ -33,13 +34,12 @@ const BOOKING_STATUS_MAP: Record<string, { label: string; color: string }> = {
 
 function authHeaders() {
   return {
-    Authorization: localStorage.getItem("AUTH_TOKEN_KEY") || "",
-    "Content-Type": "application/json",
+        "Content-Type": "application/json",
   };
 }
 
 async function apiFetch(url: string, options?: RequestInit) {
-  const res = await fetch(`${djangoURL}${url}`, { headers: authHeaders(), ...options });
+  const res = await authFetch(`${djangoURL}${url}`, { headers: authHeaders(), ...options });
   if (!res.ok) throw new Error("خطا در دریافت اطلاعات");
   return res.json();
 }
@@ -89,7 +89,7 @@ function PaymentLinkButton({ booking, onSaved }: { booking: Booking; onSaved: ()
 
   const save = useMutation({
     mutationFn: async (value: string) => {
-      const res = await fetch(`${djangoURL}/api/leader/bookings/${booking.id}`, {
+      const res = await authFetch(`${djangoURL}/api/leader/bookings/${booking.id}`, {
         method: "PATCH",
         headers: { ...authHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({ payment_link: value }),
@@ -168,7 +168,7 @@ function ReviewLinkButton({ bookingId }: { bookingId: number }) {
     mutationFn: () =>
       fetch(`${djangoURL}/api/leader/bookings/${bookingId}/review-link`, {
         method: "POST",
-        headers: { Authorization: localStorage.getItem("AUTH_TOKEN_KEY") || "" },
+        headers: {},
       }).then(r => r.json()),
     onSuccess: (data) => {
       const link = `${window.location.origin}${data.link}`;
@@ -248,7 +248,7 @@ export default function CaravanLeaderDashboard() {
       : `${djangoURL}/api/leader/bookings/export`;
     setExporting(true);
     try {
-      const res = await fetch(url, { headers: authHeaders() });
+      const res = await authFetch(url, { headers: authHeaders() });
       if (!res.ok) throw new Error("خطا در دریافت فایل");
       const blob = await res.blob();
       const objectUrl = URL.createObjectURL(
@@ -284,9 +284,9 @@ export default function CaravanLeaderDashboard() {
       }
       formData.append("category", uploadCategory);
       formData.append("caption", uploadCaption);
-      const res = await fetch(`${djangoURL}/api/leader/caravans/${photoUploadCaravanId}/photos`, {
+      const res = await authFetch(`${djangoURL}/api/leader/caravans/${photoUploadCaravanId}/photos`, {
         method: "POST",
-        headers: { Authorization: localStorage.getItem("AUTH_TOKEN_KEY") || "" },
+        headers: {},
         body: formData,
       });
       if (!res.ok) throw new Error();
@@ -510,6 +510,14 @@ export default function CaravanLeaderDashboard() {
                           >
                             <Eye className="h-3.5 w-3.5" />
                             مشاهده
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="rounded-xl text-xs gap-1 bg-primary hover:bg-primary/90 text-white"
+                            onClick={() => navigate(`/leader/caravan/${caravan.id}/edit`)}
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                            ویرایش
                           </Button>
                         </div>
                       </motion.div>
