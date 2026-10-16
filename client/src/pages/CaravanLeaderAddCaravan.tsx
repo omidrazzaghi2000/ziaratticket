@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { useForm, useFieldArray } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { djangoURL } from "@/App";
 import { authFetch } from "@/lib/auth";
@@ -71,6 +71,7 @@ interface Props {
 export default function CaravanLeaderAddCaravan({ params }: Props = {}) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const qc = useQueryClient();
   const [success, setSuccess] = useState(false);
 
   const caravanId = params?.caravanId ? Number(params.caravanId) : null;
@@ -194,7 +195,17 @@ export default function CaravanLeaderAddCaravan({ params }: Props = {}) {
       }
       return res.json();
     },
-    onSuccess: () => setSuccess(true),
+    onSuccess: () => {
+      // کوئری‌ها staleTime: Infinity دارند، پس لیست داشبورد تا بارگذاری کامل
+      // صفحه کاروان تازه را نشان نمی‌داد. ویرایش هم کاروان را به «در انتظار
+      // تأیید» برمی‌گرداند، یعنی از لیست و آمار عمومی بیرون می‌رود؛ آن‌ها هم
+      // باید دوباره خوانده شوند.
+      qc.invalidateQueries({ queryKey: ["leader-caravans"] });
+      qc.invalidateQueries({ queryKey: ["/api/caravans"] });
+      qc.invalidateQueries({ queryKey: ["caravan-stats"] });
+      if (isEdit) qc.invalidateQueries({ queryKey: ["leader-caravan", caravanId] });
+      setSuccess(true);
+    },
     onError: (err: Error) => {
       toast({ title: isEdit ? "خطا در ویرایش کاروان" : "خطا در ثبت کاروان", description: err.message, variant: "destructive" });
     },

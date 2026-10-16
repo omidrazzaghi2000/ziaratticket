@@ -500,6 +500,8 @@ export default function CaravanLeaderDashboard() {
       });
       if (!res.ok) throw new Error();
       toast({ title: "تصاویر با موفقیت آپلود شدند" });
+      // تصاویر داخل همان پاسخ کاروان می‌آیند، پس لیست کش‌شده باید تازه شود
+      qc.invalidateQueries({ queryKey: ["leader-caravans"] });
       setPhotoUploadCaravanId(null);
       setUploadFiles(null);
       setUploadCaption("");
