@@ -175,6 +175,14 @@ KAVENEGAR_API_KEY = os.environ.get(
     '376E74796B6A6D7862596C794A61534C374F4E6F494D6667323247416A67706B4A4130665176313575326B3D',
 )
 
+# ─── ربات پیام‌رسان بله ────────────────────────────────────────────────────────
+# با ثبت هر رزرو، خلاصه‌ی آن از طریق ربات بله به مدیر کاروان اطلاع داده می‌شود.
+# تا وقتی توکن خالی باشد، این بخش بی‌صدا غیرفعال است و چیزی ارسال نمی‌شود.
+BALE_BOT_TOKEN = os.environ.get('BALE_BOT_TOKEN', '')
+BALE_API_BASE = os.environ.get('BALE_API_BASE', 'https://tapi.bale.ai')
+# شناسه‌ی چتی که اگر مدیر کاروان شناسه‌ی بله نداشت، پیام به آن می‌رود (مثلاً پشتیبانی).
+BALE_FALLBACK_CHAT_ID = os.environ.get('BALE_FALLBACK_CHAT_ID', '')
+
 # کش اوقات شرعی - 1 ساعت
 PRAYER_TIMES_CACHE_SECONDS = 3600
 

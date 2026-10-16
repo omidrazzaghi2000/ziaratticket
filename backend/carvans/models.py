@@ -66,6 +66,13 @@ class Caravan(models.Model):
     manager = models.CharField(max_length=100, blank=True, verbose_name='نام مدیر کاروان')
     contact_phone = models.CharField(max_length=20, blank=True, verbose_name='شماره تماس کاروان')
     leader_messaging_apps = models.JSONField(default=list, blank=True, verbose_name='پیام‌رسان‌های مدیر')
+    bale_chat_id = models.CharField(
+        max_length=40, blank=True, default='', verbose_name='شناسه چت بله مدیر',
+        help_text=(
+            'اختیاری. اگر پر باشد، اطلاع رزروهای این کاروان به همین چت بله می‌رود؛ '
+            'وگرنه از شناسه‌ی ثبت‌شده در حساب مدیر کاروان استفاده می‌شود.'
+        ),
+    )
 
     # Dates & Duration
     departure_date = models.CharField(max_length=30, verbose_name='تاریخ حرکت (شمسی)')
@@ -147,6 +154,19 @@ class Caravan(models.Model):
 
     def __str__(self):
         return f"{self.name} — {self.get_destination_display()}"
+
+    @property
+    def notification_chat_id(self):
+        """چت بله‌ای که اطلاع رزروهای این کاروان باید به آن برود.
+
+        اولویت: شناسه‌ی خود کاروان ← شناسه‌ی حساب مدیر کاروان ← شناسه‌ی پشتیبانی.
+        کاروانی که هیچ‌کدام را ندارد، پیامی هم نمی‌گیرد.
+        """
+        if self.bale_chat_id:
+            return self.bale_chat_id
+        if self.leader_id and getattr(self.leader, 'bale_chat_id', ''):
+            return self.leader.bale_chat_id
+        return getattr(settings, 'BALE_FALLBACK_CHAT_ID', '') or ''
 
     @property
     def is_full(self):

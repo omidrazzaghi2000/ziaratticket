@@ -33,6 +33,13 @@ class User(AbstractBaseUser, PermissionsMixin):
     address = models.TextField(blank=True, null=True, verbose_name='آدرس')
     messaging_apps = models.JSONField(default=list, blank=True, verbose_name='پیام‌رسان‌ها')
     is_leader_approved = models.BooleanField(default=False, verbose_name='تأیید شده به عنوان مدیر کاروان')
+    bale_chat_id = models.CharField(
+        max_length=40, blank=True, default='', verbose_name='شناسه چت بله',
+        help_text=(
+            'برای دریافت اطلاع رزروها در پیام‌رسان بله. مدیر کاروان یک‌بار به ربات '
+            'پیام می‌دهد، سپس شناسه با دستور «manage.py bale_chat_ids» خوانده و اینجا ثبت می‌شود.'
+        ),
+    )
     leader_bio = models.TextField(blank=True, null=True, verbose_name='معرفی مدیر کاروان')
 
     # OTP

@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from .models import Booking
+from .notifications import notify_leader_of_booking
 
 
 @admin.register(Booking)
@@ -57,7 +58,7 @@ class BookingAdmin(admin.ModelAdmin):
         }),
     )
 
-    actions = ['mark_as_confirmed', 'mark_as_cancelled', 'mark_as_paid']
+    actions = ['mark_as_confirmed', 'mark_as_cancelled', 'mark_as_paid', 'resend_bale_notification']
 
     def formatted_total_price(self, obj):
         return f"{obj.total_price:,} تومان"
@@ -119,3 +120,14 @@ class BookingAdmin(admin.ModelAdmin):
         queryset.update(is_paid=True, payment_date=timezone.now(), status='confirmed')
         self.message_user(request, "رزروهای انتخابی پرداخت‌شده علامت‌گذاری شدند.")
     mark_as_paid.short_description = "💰 علامت‌گذاری به عنوان پرداخت‌شده"
+
+    def resend_bale_notification(self, request, queryset):
+        """اگر پیام بله در زمان ثبت رزرو نرسید، از اینجا دوباره فرستاده می‌شود."""
+        sent = sum(1 for booking in queryset.select_related('caravan', 'caravan__leader')
+                   if notify_leader_of_booking(booking))
+        skipped = queryset.count() - sent
+        message = f"اطلاع {sent} رزرو برای مدیر کاروان در بله ارسال شد."
+        if skipped:
+            message += f" {skipped} رزرو ارسال نشد (توکن ربات یا شناسه‌ی چت مدیر تنظیم نشده است)."
+        self.message_user(request, message)
+    resend_bale_notification.short_description = "📣 ارسال مجدد اطلاع رزرو در بله"

@@ -22,7 +22,7 @@ class UserAdmin(BaseUserAdmin):
             'fields': ('full_name', 'national_id', 'birth_certificate_no', 'address'),
         }),
         ('مدیر کاروان', {
-            'fields': ('is_leader_approved', 'messaging_apps', 'leader_bio'),
+            'fields': ('is_leader_approved', 'messaging_apps', 'bale_chat_id', 'leader_bio'),
         }),
         ('وضعیت تأیید', {
             'fields': ('is_verified', 'verification_code', 'code_expiry'),

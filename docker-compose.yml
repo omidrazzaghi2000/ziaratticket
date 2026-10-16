@@ -38,6 +38,9 @@ services:
       - DB_HOST=db
       - DB_PORT=5432
       - SECRET_KEY=change-me-in-production-use-a-long-random-string
+      # ربات بله: تا وقتی خالی باشد، اطلاع رزرو به مدیر کاروان ارسال نمی‌شود
+      - BALE_BOT_TOKEN=${BALE_BOT_TOKEN:-}
+      - BALE_FALLBACK_CHAT_ID=${BALE_FALLBACK_CHAT_ID:-}
     depends_on:
       db:
         condition: service_healthy

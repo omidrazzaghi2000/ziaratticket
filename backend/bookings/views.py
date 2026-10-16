@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status
 from .models import Booking
+from .notifications import notify_leader_of_booking
 from carvans.models import Caravan
 from .serializers import (
     BookingStep1Serializer, BookingStep2Serializer,
@@ -304,6 +305,10 @@ class CompleteBookingView(APIView):
 
             caravan.remaining_capacity -= booking.passenger_count
             caravan.save(update_fields=['remaining_capacity'])
+
+            # اطلاع به مدیر کاروان در بله، فقط بعد از commit شدن رزرو؛ اگر
+            # تراکنش برگردد نباید خبر رزروی داده شود که ثبت نشده است.
+            transaction.on_commit(lambda: notify_leader_of_booking(booking))
 
         return Response({
             "message": "رزرو تکمیل شد.",

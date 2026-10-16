@@ -51,7 +51,7 @@ class CaravanAdmin(admin.ModelAdmin):
             'fields': ('name', 'destination', 'description', 'status', 'popular', 'special_tag'),
         }),
         ('مدیر کاروان', {
-            'fields': ('leader', 'manager', 'contact_phone', 'leader_messaging_apps'),
+            'fields': ('leader', 'manager', 'contact_phone', 'leader_messaging_apps', 'bale_chat_id'),
         }),
         ('تاریخ و مدت سفر', {
             'fields': ('departure_date', 'duration'),
