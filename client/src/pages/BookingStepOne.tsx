@@ -30,7 +30,7 @@ import { djangoURL } from "@/App";
 import { authFetch } from "@/lib/auth";
 // ارقام فارسی و انگلیسی هر دو پذیرفته می‌شوند (نرمال‌سازی در ابزار مشترک)
 import { toLatinDigits, toPersianDigits } from "@/lib/digits";
-import { transportLabel } from "@/lib/caravan";
+import { transportLabel, hasWrittenPrice, pricePerPersonLabel } from "@/lib/caravan";
 export { toLatinDigits, toPersianDigits };
 
 export const nationalIdSchema = z
@@ -93,6 +93,7 @@ interface Caravan {
   train_type?: string;
   train_type_display?: string;
   price: number;
+  price_text?: string | null;
   capacity: number;
   remaining_capacity: number;
   accommodation_type: string;
@@ -635,6 +636,13 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
                   <p className="text-xs text-muted-foreground">
                     {toPersianDigits(passengerCount || 1)} نفر × {new Intl.NumberFormat("fa-IR").format(caravan.price || 0)} تومان
                   </p>
+                  {hasWrittenPrice(caravan) && (
+                    // مدیر کاروان قیمت را با متن خودش نوشته؛ مبلغ بالا فقط بخش
+                    // تومانی است، پس اصلِ گفته‌ی او هم باید دیده شود.
+                    <p className="text-xs text-foreground font-medium mt-2 pt-2 border-t border-primary/15">
+                      قیمت اعلامی کاروان برای هر نفر: {pricePerPersonLabel(caravan)}
+                    </p>
+                  )}
                 </div>
 
                 {/* کل ردیف قابل زدن است؛ قبلاً فقط یک مربع ۱۶ پیکسلی بود */}

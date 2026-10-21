@@ -2,6 +2,7 @@ import { useState } from "react";
 import { toPersianDigits } from "@/lib/digits";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { hasWrittenPrice, pricePerPersonLabel } from "@/lib/caravan";
 import { useBookingModal } from "@/hooks/use-booking-modal";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -178,7 +179,9 @@ export default function BookingModal() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">هزینه هر نفر:</span>
-                <span className="font-bold text-accent-700">{formatPrice(caravan.price)} تومان</span>
+                <span className="font-bold text-accent-700">
+                  {hasWrittenPrice(caravan) ? pricePerPersonLabel(caravan) : `${formatPrice(caravan.price)} تومان`}
+                </span>
               </div>
             </div>
             

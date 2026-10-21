@@ -70,7 +70,7 @@ class CaravanAdmin(admin.ModelAdmin):
         }),
         ('قیمت و ظرفیت', {
             'fields': (
-                'price', 'capacity', 'remaining_capacity',
+                'price', 'price_text', 'capacity', 'remaining_capacity',
                 'registration_state', 'registration_opens_on',
             ),
         }),

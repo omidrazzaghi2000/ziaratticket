@@ -559,7 +559,8 @@ check("کاروان باز قابل رزرو است", _open.is_bookable is True)
 check("کاروان به‌زودی قابل رزرو نیست", _soon.is_bookable is False)
 check("کاروان بسته قابل رزرو نیست", _closed.is_bookable is False)
 check("کاروان پرشده قابل رزرو نیست", _full.is_bookable is False)
-check("برچسب باز", _open.availability_label == "دارای ظرفیت", _open.availability_label)
+check("برچسب باز عدد ظرفیت را نشان می‌دهد",
+      _open.availability_label == "10 نفر ظرفیت", _open.availability_label)
 check("برچسب به‌زودی تاریخ را نشان می‌دهد",
       _soon.availability_label == "ثبت‌نام از ۱۴۰۵/۰۸/۱۵", _soon.availability_label)
 check("برچسب بسته", _closed.availability_label == "ثبت‌نام بسته است", _closed.availability_label)

@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
-import { CheckCircle2, MessageCircle, Home, Copy, Users, CreditCard, Phone, Printer, ExternalLink, Bus, Calendar } from "lucide-react";
+import { CheckCircle2, MessageCircle, Home, Copy, Users, CreditCard, Phone, Printer, ExternalLink, Bus, Calendar, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { djangoURL } from "@/App";
@@ -27,6 +27,61 @@ export default function BookingSuccess({ params }: BookingSuccessProps) {
   });
 
   const bookingCode = booking?.booking_code || `#${booking?.id}`;
+
+  /**
+   * ارسال رسید به مدیر کاروان.
+   *
+   * نه بله و نه ایتا لینک مستقیمی برای باز کردن گفتگو با یک شماره‌ی موبایل
+   * ندارند (لینک‌هایشان فقط با نام کاربری یا برای کانال کار می‌کند). پس متن
+   * رسید کپی می‌شود و اگر مرورگر «اشتراک‌گذاری» سیستم را داشته باشد همان
+   * پنجره باز می‌شود تا زائر پیام‌رسان و مخاطب را خودش انتخاب کند؛ وگرنه
+   * خود پیام‌رسان باز می‌شود و زائر متن آماده را می‌چسباند.
+   */
+  const MESSENGERS = {
+    bale: { label: "بله", url: "https://ble.ir" },
+    eitaa: { label: "ایتا", url: "https://eitaa.com" },
+  } as const;
+
+  const sendToLeader = async (app: keyof typeof MESSENGERS) => {
+    if (!booking) return;
+    const { label, url } = MESSENGERS[app];
+    const text = [
+      "رسید رزرو — زیارت تیکت",
+      `کد رزرو: ${booking.booking_code || booking.id}`,
+      `کاروان: ${booking.caravan_name || "—"}`,
+      `تاریخ حرکت: ${booking.caravan_departure_date || "—"}`,
+      `سرپرست: ${booking.main_passenger_name || "—"}`,
+      `تعداد مسافر: ${booking.passenger_count} نفر`,
+      `مبلغ کل: ${new Intl.NumberFormat("fa-IR").format(booking.total_price)} تومان`,
+      "",
+      "لطفاً جهت پرداخت راهنمایی بفرمایید.",
+    ].join("\n");
+
+    let copied = false;
+    try {
+      await navigator.clipboard.writeText(text);
+      copied = true;
+    } catch {
+      // کلیپ‌بورد روی http یا مرورگرهای قدیمی در دسترس نیست؛ ارسال نباید بایستد
+    }
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "رسید رزرو", text });
+        return;
+      } catch {
+        // کاربر پنجره‌ی اشتراک‌گذاری را بست یا مرورگر اجازه نداد
+      }
+    }
+
+    window.open(url, "_blank", "noopener,noreferrer");
+    toast({
+      title: copied ? `متن رسید کپی شد و ${label} باز شد` : `${label} باز شد`,
+      description: copied
+        ? "گفتگو با مدیر کاروان را باز کنید و متن را بچسبانید."
+        : "اطلاعات رزرو را از همین صفحه بردارید و برای مدیر کاروان بفرستید.",
+    });
+  };
   /** ارقام لاتین به فارسی — کد رزرو و کد ملی عمداً لاتین می‌مانند تا کپی/جستجو آسان باشد */
   const fa = (v?: string | number) => String(v ?? "").replace(/\d/g, d => "۰۱۲۳۴۵۶۷۸۹"[+d]);
 
@@ -217,43 +272,78 @@ export default function BookingSuccess({ params }: BookingSuccessProps) {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6 }}
-              className="bg-gold-50 border border-gold-200 rounded-2xl p-4"
+              className={
+                booking.is_paid
+                  ? "bg-gold-50 border border-gold-200 rounded-2xl p-4"
+                  : "bg-red-600 border-2 border-red-800 rounded-2xl p-4"
+              }
             >
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-gold-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
-                  <MessageCircle className="h-4 w-4 text-gold-600" />
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                    booking.is_paid ? "bg-gold-100" : "bg-white/20"
+                  }`}
+                >
+                  <MessageCircle className={`h-4 w-4 ${booking.is_paid ? "text-gold-600" : "text-white"}`} />
                 </div>
                 <div className="flex-1">
-                  <p className="font-semibold text-gold-800 mb-1 text-sm">
+                  <p
+                    className={`font-bold mb-1 ${
+                      booking.is_paid ? "text-gold-800 text-sm" : "text-yellow-300 text-base"
+                    }`}
+                  >
                     {booking.is_paid ? "پرداخت انجام شده" : "در انتظار پرداخت"}
                   </p>
                   {booking.is_paid ? (
                     <p className="text-gold-700 text-sm">مبلغ رزرو پرداخت شده است.</p>
                   ) : booking.payment_link ? (
                     <>
-                      <p className="text-gold-700 text-sm leading-relaxed mb-3">
+                      <p className="text-white text-sm leading-relaxed mb-3 font-medium">
                         برای تکمیل رزرو، از طریق لینک زیر پرداخت را انجام دهید.
                       </p>
                       <a
                         href={booking.payment_link}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="no-print inline-flex items-center gap-2 bg-gold-600 hover:bg-gold-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors"
+                        className="no-print inline-flex items-center gap-2 bg-white hover:bg-yellow-50 text-red-700 text-sm font-bold px-4 py-2.5 rounded-xl transition-colors"
                       >
                         <CreditCard className="h-4 w-4" />
                         پرداخت آنلاین
                         <ExternalLink className="h-3.5 w-3.5" />
                       </a>
-                      <p className="only-print text-gold-700 text-xs mt-2 break-all" dir="ltr">
+                      <p className="only-print text-white text-xs mt-2 break-all" dir="ltr">
                         {booking.payment_link}
                       </p>
                     </>
                   ) : (
-                    <p className="text-gold-700 text-sm leading-relaxed">
+                    <p className="text-white text-sm leading-relaxed font-medium">
                       لینک پرداخت پس از تأیید نهایی مسئول کاروان، با شماره{" "}
-                      <bdi dir="ltr" className="font-bold">۰۹۳۷۸۰۱۴۹۳۴</bdi> ارسال می‌گردد.
-                      این صفحه را با کد رزرو خود نگه دارید.
+                      <bdi dir="ltr" className="font-bold text-yellow-300">
+                        {fa(booking.caravan_leader_phone) || "—"}
+                      </bdi>{" "}
+                      ارسال می‌گردد. این صفحه را با کد رزرو خود نگه دارید.
                     </p>
+                  )}
+
+                  {!booking.is_paid && (
+                    <div className="no-print mt-3 pt-3 border-t border-white/30">
+                      <p className="text-yellow-300 text-sm font-bold mb-2">
+                        جهت پرداخت، رسید رزرو را برای مدیر کاروان بفرستید
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {(Object.keys(MESSENGERS) as (keyof typeof MESSENGERS)[]).map(app => (
+                          <button
+                            key={app}
+                            type="button"
+                            onClick={() => sendToLeader(app)}
+                            className="inline-flex items-center gap-2 bg-white hover:bg-yellow-50 text-red-700 text-sm font-bold px-4 py-2.5 rounded-xl transition-colors"
+                          >
+                            <Send className="h-4 w-4" />
+                            ارسال به {MESSENGERS[app].label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>

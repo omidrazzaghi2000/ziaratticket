@@ -3,7 +3,7 @@ import { ChevronLeft, Clock, CalendarClock, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ContactHelp from "@/components/ContactHelp";
 import { toPersianDigits } from "@/lib/digits";
-import { caravanFactRows, type CaravanFacts } from "@/lib/caravan";
+import { caravanFactRows, hasWrittenPrice, pricePerPersonLabel, type CaravanFacts } from "@/lib/caravan";
 import { departureCountdown } from "@/lib/jalali";
 
 type Tone = "open" | "soon" | "closed" | "full";
@@ -28,7 +28,7 @@ export interface CaravanSummary extends CaravanFacts {
   name?: string | null;
   price?: number | null;
   remaining_capacity?: number | null;
-  /** از بک‌اند: «دارای ظرفیت» / «ثبت‌نام به‌زودی» / «تکمیل شده» */
+  /** از بک‌اند: «۲۲ نفر ظرفیت» / «ثبت‌نام به‌زودی» / «تکمیل شده» */
   availability_label?: string | null;
   availability_tone?: Tone | null;
   is_bookable?: boolean;
@@ -60,7 +60,10 @@ export default function CaravanSummaryCard({
 }: Props) {
   const isFull = (caravan.remaining_capacity ?? 0) <= 0;
   const tone: Tone = caravan.availability_tone ?? (isFull ? "full" : "open");
-  const statusLabel = caravan.availability_label ?? (isFull ? "تکمیل شده" : "دارای ظرفیت");
+  // برچسب از سرور با ارقام لاتین می‌آید و عدد ظرفیت را هم در خود دارد
+  const statusLabel = toPersianDigits(
+    caravan.availability_label ?? (isFull ? "تکمیل شده" : "دارای ظرفیت"),
+  );
   // رزرو فقط وقتی باز است که بک‌اند هم تأیید کند؛ کاروان «به‌زودی» دیده می‌شود ولی دکمه‌اش قفل است
   const canBook = caravan.is_bookable ?? !isFull;
   // هر بار که صفحه باز شود از روی تاریخ امروز حساب می‌شود
@@ -92,10 +95,17 @@ export default function CaravanSummaryCard({
           )}
         </div>
         <p className="text-white/75 text-xs mb-1">قیمت هر نفر</p>
-        <p className="font-heading text-3xl font-black text-white">
-          {new Intl.NumberFormat("fa-IR").format(caravan.price ?? 0)}
-          <span className="text-base font-normal mr-1">تومان</span>
-        </p>
+        {hasWrittenPrice(caravan) ? (
+          // متن خودِ مدیر کاروان؛ کوچک‌تر چون ممکن است بلند باشد
+          <p className="font-heading text-xl font-black text-white leading-snug">
+            {pricePerPersonLabel(caravan)}
+          </p>
+        ) : (
+          <p className="font-heading text-3xl font-black text-white">
+            {new Intl.NumberFormat("fa-IR").format(caravan.price ?? 0)}
+            <span className="text-base font-normal mr-1">تومان</span>
+          </p>
+        )}
       </div>
 
       <div className="p-5 flex flex-col flex-grow">

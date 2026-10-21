@@ -25,6 +25,7 @@ export interface CaravanFacts {
   has_insurance?: boolean;
   remaining_capacity?: number | null;
   price?: number | null;
+  price_text?: string | null;
 }
 
 /**
@@ -68,6 +69,24 @@ export interface CaravanFactRow {
 }
 
 /**
+ * قیمت هر نفر، همان‌طور که مدیر کاروان گفته است.
+ *
+ * وقتی مدیر متنی نوشته باشد (مثلاً «۵٬۰۰۰٬۰۰۰ تومان + ۱۰۰ دینار») همان عیناً
+ * نشان داده می‌شود؛ وگرنه عدد قالب‌بندی می‌شود. عدد قیمت در هر حال سر جایش
+ * می‌ماند، چون مبلغ کل رزرو و فیلتر قیمت رویش حساب می‌شوند.
+ */
+export function pricePerPersonLabel(c: CaravanFacts): string {
+  const written = (c.price_text || "").trim();
+  if (written) return written;
+  return `${new Intl.NumberFormat("fa-IR").format(c.price ?? 0)} تومان`;
+}
+
+/** آیا مدیر کاروان قیمت را با متن خودش نوشته است؟ */
+export function hasWrittenPrice(c: CaravanFacts): boolean {
+  return Boolean((c.price_text || "").trim());
+}
+
+/**
  * ردیف‌های خلاصه‌ی کاروان — همان مواردی که زائر برای تصمیم‌گیری لازم دارد.
  * مقصد عمداً نیامده: زائر از صفحه‌ی همان مقصد وارد شده و تکرارش بی‌فایده است.
  */
@@ -83,11 +102,8 @@ export function caravanFactRows(c: CaravanFacts): CaravanFactRow[] {
     { label: "حمل‌ونقل", value: transportLabel(c) },
     { label: "اقامتگاه", value: accommodationLabel(c) },
     { label: "با خدمات", value: servicesLabel(c) },
-    {
-      label: "ظرفیت باقیمانده",
-      value: (c.remaining_capacity ?? 0) > 0 ? `${toPersianDigits(c.remaining_capacity!)} نفر` : "تکمیل شده",
-      highlight: (c.remaining_capacity ?? 0) > 0 && (c.remaining_capacity ?? 0) < 5,
-    },
   );
+  // ظرفیت باقیمانده عمداً اینجا نیست: همان عدد روی برچسب بالای کارت
+  // (availability_label) نشسته و تکرارش ردیف را بی‌خود شلوغ می‌کرد.
   return rows;
 }

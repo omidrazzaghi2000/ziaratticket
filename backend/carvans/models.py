@@ -121,6 +121,14 @@ class Caravan(models.Model):
 
     # Pricing & Capacity
     price = models.IntegerField(verbose_name='قیمت هر نفر (تومان)')
+    price_text = models.CharField(
+        max_length=120, blank=True, default='', verbose_name='قیمت به‌صورت متن',
+        help_text=(
+            'اختیاری. اگر پر شود، همین متن به‌جای عدد به زائر نشان داده می‌شود — '
+            'مثلاً «۵٬۰۰۰٬۰۰۰ تومان + ۱۰۰ دینار». عدد بالا باید پر بماند، چون '
+            'مبلغ کل رزرو و فیلتر قیمت از روی آن حساب می‌شود.'
+        ),
+    )
     capacity = models.IntegerField(verbose_name='ظرفیت')
     remaining_capacity = models.IntegerField(verbose_name='ظرفیت باقیمانده')
     registration_state = models.CharField(
@@ -188,7 +196,9 @@ class Caravan(models.Model):
             return 'ثبت‌نام به‌زودی'
         if self.registration_state == 'closed':
             return 'ثبت‌نام بسته است'
-        return 'دارای ظرفیت'
+        # عدد ظرفیت روی همین برچسب می‌نشیند تا زائر برای دیدنش دنبال ردیف
+        # جداگانه نگردد.
+        return f'{self.remaining_capacity} نفر ظرفیت'
 
     @property
     def availability_tone(self):

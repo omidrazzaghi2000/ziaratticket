@@ -154,14 +154,14 @@ export interface Countdown {
   days: number;
 }
 
-/** متن «۷ روز مانده» و شدت رنگش */
+/** متن «۷ روز به حرکت» و شدت رنگش */
 export function departureCountdown(departure?: string | null): Countdown | null {
   const days = jalaliDaysUntil(departure);
   if (days === null) return null;
   if (days < 0) return { label: "تاریخ حرکت گذشته", tone: "past", days };
   if (days === 0) return { label: "امروز حرکت", tone: "urgent", days };
   if (days === 1) return { label: "فردا حرکت", tone: "urgent", days };
-  const label = `${toPersianDigits(days)} روز مانده`;
+  const label = `${toPersianDigits(days)} روز به حرکت`;
   if (days <= 7) return { label, tone: "urgent", days };
   if (days <= 30) return { label, tone: "soon", days };
   return { label, tone: "far", days };

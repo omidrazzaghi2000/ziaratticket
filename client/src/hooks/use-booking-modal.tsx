@@ -7,6 +7,8 @@ interface Caravan {
   duration: number;
   transportationType: string;
   price: number;
+  /** قیمت همان‌طور که مدیر کاروان نوشته؛ اگر باشد جای عدد نشان داده می‌شود */
+  price_text?: string | null;
   capacity: number;
   remainingCapacity: number;
   accommodationType: string;

@@ -53,6 +53,7 @@ const schema = z.object({
   meal_dinner: z.boolean().default(false),
   has_insurance: z.boolean().default(false),
   price: z.coerce.number().min(1, "قیمت الزامی است"),
+  price_text: z.string().optional().default(""),
   capacity: z.coerce.number().min(1).max(500),
   contact_phone: z.string().min(10, "شماره تماس الزامی است"),
   leader_messaging_apps: z.array(z.string()).default([]),
@@ -127,6 +128,7 @@ export default function CaravanLeaderAddCaravan({ params }: Props = {}) {
       meal_dinner: false,
       has_insurance: false,
       price: 0,
+      price_text: "",
       capacity: 40,
       contact_phone: "",
       leader_messaging_apps: [],
@@ -160,6 +162,7 @@ export default function CaravanLeaderAddCaravan({ params }: Props = {}) {
       meal_dinner: !!existing.meal_dinner,
       has_insurance: !!existing.has_insurance,
       price: existing.price ?? 0,
+      price_text: existing.price_text ?? "",
       capacity: existing.capacity ?? 40,
       contact_phone: existing.contact_phone ?? "",
       leader_messaging_apps: existing.leader_messaging_apps ?? [],
@@ -575,6 +578,24 @@ export default function CaravanLeaderAddCaravan({ params }: Props = {}) {
                   <FormItem>
                     <FormLabel>قیمت هر نفر (تومان) *</FormLabel>
                     <FormControl><Input type="number" className="rounded-xl" dir="ltr" placeholder="۳۵۰۰۰۰۰" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="price_text" render={({ field }) => (
+                  <FormItem className="sm:col-span-2">
+                    <FormLabel>قیمت به‌صورت متن (اختیاری)</FormLabel>
+                    <FormControl>
+                      <Input
+                        className="rounded-xl"
+                        placeholder="۵٬۰۰۰٬۰۰۰ تومان + ۱۰۰ دینار"
+                        {...field}
+                      />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      اگر پر کنید، زائر همین متن را به‌جای عدد بالا می‌بیند — برای وقتی که
+                      قیمت فقط تومان نیست. عدد بالا را خالی نگذارید؛ مبلغ کل رزرو و فیلتر
+                      قیمت از روی آن حساب می‌شود.
+                    </p>
                     <FormMessage />
                   </FormItem>
                 )} />
