@@ -260,6 +260,11 @@ export default function CaravanDetail({ params }: CaravanDetailProps) {
   const caravanId = parseInt(params.caravanId);
   const [, navigate] = useLocation();
   const [imgError, setImgError] = useState(false);
+  // هوک‌ها باید پیش از returnهای زودهنگام «در حال بارگذاری» و «یافت نشد»
+  // بنشینند. پایین‌تر که بودند، رندر اول (بارگذاری) دو هوک اجرا می‌کرد و رندر
+  // بعدی چهار تا، و React کل صفحه را با خطای #310 خالی می‌کرد.
+  const { isAuthenticated } = useAuth();
+  const [askLogin, setAskLogin] = useState(false);
 
   const { data: caravan, isLoading } = useQuery({
     queryKey: ['/api/caravans', caravanId],
@@ -315,9 +320,6 @@ export default function CaravanDetail({ params }: CaravanDetailProps) {
   };
 
   const gradientClass = destinationColors[caravan.destination] || "from-emerald-900 to-emerald-700";
-
-  const { isAuthenticated } = useAuth();
-  const [askLogin, setAskLogin] = useState(false);
 
   // مثل فهرست کاروان‌ها: اگر وارد نشده، اول پنجره‌ی ورود
   const handleBooking = () => {
