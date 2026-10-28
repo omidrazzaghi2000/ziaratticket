@@ -3,7 +3,7 @@
  * صفحه‌ی کاروان، فرم رزرو و رسید). یک جا تعریف شده تا عنوان‌ها همه‌جا یکی باشد.
  */
 import { toPersianDigits } from "./digits";
-import { jalaliReturnDate } from "./jalali";
+import { jalaliDaysUntil, jalaliReturnDate } from "./jalali";
 
 export interface CaravanFacts {
   departure_date?: string | null;
@@ -66,6 +66,34 @@ export interface CaravanFactRow {
   label: string;
   value: string;
   highlight?: boolean;
+}
+
+/**
+ * کاروان‌ها به ترتیب نزدیک‌ترین تاریخ حرکت.
+ *
+ * سرور بر اساس تاریخ ثبت مرتب می‌کند، یعنی کاروانی که دیرتر ثبت شده اول
+ * می‌آید حتی اگر حرکتش ماه‌ها بعد باشد. زائر دنبال نزدیک‌ترین سفر است، پس
+ * ترتیب باید بر اساس تاریخ حرکت باشد.
+ *
+ * تاریخ حرکت متن شمسی است (و گاهی با ارقام فارسی)، پس مقایسه‌ی رشته‌ای جواب
+ * نمی‌دهد؛ از همان حساب تقویمی استفاده می‌شود که شمارش معکوس کارت را می‌سازد.
+ * کاروان‌هایی که تاریخشان گذشته ته فهرست می‌روند — تازه‌گذشته‌ها بالاتر — و
+ * تاریخ‌های نامفهوم آخر از همه.
+ */
+export function sortByNearestDeparture<T extends { departure_date?: string | null }>(
+  caravans: T[],
+): T[] {
+  const rank = (c: T) => {
+    const days = jalaliDaysUntil(c.departure_date);
+    if (days === null) return { group: 2, key: 0 };
+    if (days < 0) return { group: 1, key: -days };
+    return { group: 0, key: days };
+  };
+  return [...caravans].sort((a, b) => {
+    const ra = rank(a);
+    const rb = rank(b);
+    return ra.group - rb.group || ra.key - rb.key;
+  });
 }
 
 /**

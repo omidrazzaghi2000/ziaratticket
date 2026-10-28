@@ -7,6 +7,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import CaravanSummaryCard, { type CaravanSummary } from "@/components/CaravanSummaryCard";
 import { Skeleton } from "@/components/ui/skeleton";
+import { sortByNearestDeparture } from "@/lib/caravan";
 import { AuthModal, useAuth } from "@/components/auth";
 
 const DESTINATION_TITLES: Record<string, string> = {
@@ -62,7 +63,7 @@ export default function CaravanList() {
           <p className="text-red-600 text-sm py-10 text-center">خطا در دریافت اطلاعات.</p>
         ) : caravans && caravans.length > 0 ? (
           <ul className="grid grid-cols-1 md:grid-cols-2 gap-5 list-none p-0">
-            {caravans.map(caravan => (
+            {sortByNearestDeparture(caravans).map(caravan => (
               <li key={caravan.id}>
                 <CaravanSummaryCard
                   caravan={caravan}
