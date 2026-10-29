@@ -146,7 +146,6 @@ export default function Hero() {
 
   const stats = [
     { number: statsData?.active_caravans ?? 0, suffix: "", label: "کاروان فعال" },
-    { number: 15, suffix: "+", label: "سال تجربه" },
     { number: 24, suffix: "/۷", label: "پشتیبانی" },
   ];
   return (
@@ -292,7 +291,10 @@ export default function Hero() {
         {/* Stats row */}
         <motion.div
           variants={fadeIn}
-          className="grid grid-cols-3 gap-px bg-white/8 rounded-2xl overflow-hidden backdrop-blur-sm border border-white/10 w-full max-w-xl"
+          className="grid gap-px bg-white/8 rounded-2xl overflow-hidden backdrop-blur-sm border border-white/10 w-full max-w-xl"
+          // ستون‌ها از روی تعداد آمارها ساخته می‌شوند؛ عدد ثابت یعنی با
+          // کم‌وزیادشدن یک مورد، جای خالی در ردیف می‌ماند.
+          style={{ gridTemplateColumns: `repeat(${stats.length}, minmax(0, 1fr))` }}
         >
           {stats.map((stat, i) => (
             <div
