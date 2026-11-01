@@ -2,6 +2,7 @@ from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+import re
 import uuid
 
 from core.bale import validate_bale_chat_id
@@ -208,6 +209,23 @@ class Caravan(models.Model):
     @property
     def is_full(self):
         return (self.remaining_capacity or 0) <= 0
+
+    @property
+    def boarding_options(self):
+        """
+        شهرهایی که زائر می‌تواند از آن‌ها سوار شود: مبدأ و شهرهای بین‌راهی.
+
+        مبدأ گاهی چند شهر را با هم نوشته («قم و تهران»)، پس از هم جدا می‌شوند.
+        «و» فقط وقتی جداکننده است که دو طرفش فاصله باشد، تا «ورامین» نشکند.
+        """
+        parts = re.split(r'\s*(?:،|,|/|\sو\s)\s*', self.origin_city or '')
+        cities = [p.strip() for p in parts if p and p.strip()]
+        cities += [c.strip() for c in (self.transit_cities or []) if isinstance(c, str) and c.strip()]
+        unique = []
+        for city in cities:
+            if city not in unique:
+                unique.append(city)
+        return unique
 
     # ── زمان‌بندی ثبت‌نام ─────────────────────────────────────────────────
     # همه‌چیز از روی ساعت سرور (تهران) حساب می‌شود و هیچ‌جا ذخیره نمی‌شود؛

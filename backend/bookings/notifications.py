@@ -12,6 +12,7 @@ from django.db import connection
 from django.utils import timezone
 
 from core import bale
+from core.jalali import format_jalali_datetime
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,9 @@ def build_booking_summary(booking) -> str:
         f'کد ملی: {booking.main_passenger_id or "—"}',
         f'تعداد مسافر: {booking.passenger_count} نفر',
     ]
+    if booking.boarding_city:
+        lines.append(f'محل سوار شدن: {booking.boarding_city}')
+
 
     companions = booking.companions or []
     if companions:
@@ -61,6 +65,7 @@ def build_booking_summary(booking) -> str:
         f'مبلغ کل: {_money(booking.total_price)} تومان',
         f'وضعیت پرداخت: {"پرداخت شده" if booking.is_paid else "پرداخت نشده"}',
         f'ظرفیت باقیمانده کاروان: {caravan.remaining_capacity} نفر',
+        f'زمان ثبت: {format_jalali_datetime(booking.created_at)}',
     ]
     return '\n'.join(lines)
 

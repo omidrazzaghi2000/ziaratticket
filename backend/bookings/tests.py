@@ -111,3 +111,136 @@ class BaleOutcomeIsRecordedTests(BaleBookingNotificationTests):
                 ok, error = bale.send_message_detailed('111', 'سلام')
         self.assertFalse(ok)
         self.assertNotIn('test-token', ' '.join(logs.output) + error)
+
+
+class LeaderCancelTests(TestCase):
+    """لغو رزرو از داشبورد مدیر: صندلی دقیقاً یک‌بار و فقط اگر گرفته شده بود برگردد."""
+
+    def setUp(self):
+        from rest_framework.test import APIClient
+        self.leader = User.objects.create_user(phone='09120000101', role='caravan_leader', is_leader_approved=True)
+        self.other = User.objects.create_user(phone='09120000102', role='caravan_leader', is_leader_approved=True)
+        pilgrim = User.objects.create_user(phone='09120000103')
+        self.caravan = Caravan.objects.create(
+            name='کاروان لغو', destination='karbala', status='approved', leader=self.leader,
+            departure_date='1499/08/27', duration=5, price=1_000_000, capacity=40, remaining_capacity=37,
+            origin_city='قم و تهران', transit_cities=['کرمانشاه'],
+        )
+        # رزرو تکمیل‌شده‌ی ۳ نفره — همان ۳ صندلی که از ۴۰ کم شده
+        self.done = Booking.objects.create(
+            user=pilgrim, caravan=self.caravan, main_passenger_name='سرپرست', passenger_count=3,
+            total_price=3_000_000, transportation_type='bus', status='completed', is_completed=True,
+            selected_seats=[5, 6, 7],
+        )
+        self.api = APIClient()
+
+    def cancel(self, booking, as_user=None):
+        self.api.force_authenticate(as_user or self.leader)
+        return self.api.delete(f'/api/leader/bookings/{booking.id}')
+
+    def capacity(self):
+        self.caravan.refresh_from_db()
+        return self.caravan.remaining_capacity
+
+    def test_cancel_gives_the_seats_back(self):
+        r = self.cancel(self.done)
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(self.capacity(), 40)
+        self.done.refresh_from_db()
+        self.assertEqual(self.done.status, 'cancelled')
+
+    def test_cancelling_twice_does_not_add_seats_twice(self):
+        self.cancel(self.done)
+        r = self.cancel(self.done)
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('قبلاً', r.json()['message'])
+        self.assertEqual(self.capacity(), 40)
+
+    def test_unfinished_booking_never_held_seats(self):
+        half = Booking.objects.create(
+            user=self.done.user, caravan=self.caravan, main_passenger_name='نیمه‌کاره',
+            passenger_count=2, total_price=0, transportation_type='bus', status='pending',
+        )
+        self.cancel(half)
+        self.assertEqual(self.capacity(), 37)
+
+    def test_seat_map_frees_the_seats(self):
+        from bookings.views import occupied_seats_for
+        self.cancel(self.done)
+        self.assertEqual(occupied_seats_for(self.caravan), {})
+
+    def test_capacity_never_exceeds_the_total(self):
+        Caravan.objects.filter(pk=self.caravan.pk).update(remaining_capacity=39)
+        self.cancel(self.done)
+        self.assertEqual(self.capacity(), 40)
+
+    def test_another_leader_cannot_cancel(self):
+        self.assertEqual(self.cancel(self.done, as_user=self.other).status_code, 404)
+        self.assertEqual(self.capacity(), 37)
+
+    def test_request_without_login_is_refused(self):
+        """همان چیزی که دکمه می‌فرستاد: بدون توکن."""
+        from rest_framework.test import APIClient
+        self.assertEqual(APIClient().delete(f'/api/leader/bookings/{self.done.id}').status_code, 401)
+
+    def test_cancelled_booking_cannot_be_revived_by_patch(self):
+        self.cancel(self.done)
+        r = self.api.patch(f'/api/leader/bookings/{self.done.id}', {'status': 'confirmed'}, format='json')
+        self.assertEqual(r.status_code, 400)
+
+    def test_admin_cancel_action_gives_seats_back(self):
+        from django.contrib.admin.sites import AdminSite
+        from bookings.admin import BookingAdmin
+        admin = BookingAdmin(Booking, AdminSite())
+        with mock.patch.object(admin, 'message_user'):
+            admin.mark_as_cancelled(None, Booking.objects.filter(pk=self.done.pk))
+        self.assertEqual(self.capacity(), 40)
+
+
+class BoardingCityTests(TestCase):
+    def setUp(self):
+        from rest_framework.test import APIClient
+        self.user = User.objects.create_user(phone='09120000201')
+        self.api = APIClient()
+        self.api.force_authenticate(self.user)
+
+    def make(self, **kw):
+        data = dict(name='ک', destination='karbala', status='approved', departure_date='1499/08/27',
+                    duration=5, price=1_000_000, capacity=40, remaining_capacity=40)
+        data.update(kw)
+        return Caravan.objects.create(**data)
+
+    def step1(self, caravan, **extra):
+        payload = {'caravan_id': caravan.id, 'first_name': 'علی', 'last_name': 'رضایی',
+                   'main_passenger_id': '0012345678', 'main_passenger_phone': '09120000201',
+                   'passenger_count': 1, **extra}
+        return self.api.post('/api/bookings/step1', payload, format='json')
+
+    def test_options_come_from_origin_and_transit_cities(self):
+        c = self.make(origin_city='قم و تهران', transit_cities=['کرمانشاه', 'قم'])
+        self.assertEqual(c.boarding_options, ['قم', 'تهران', 'کرمانشاه'])
+        # «و» داخل اسم شهر جداکننده نیست
+        self.assertEqual(self.make(origin_city='ورامین').boarding_options, ['ورامین'])
+
+    def test_choice_is_stored(self):
+        c = self.make(origin_city='قم و تهران')
+        r = self.step1(c, boarding_city='تهران')
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertEqual(Booking.objects.get(pk=r.json()['bookingId']).boarding_city, 'تهران')
+
+    def test_city_outside_the_route_is_refused(self):
+        r = self.step1(self.make(origin_city='قم و تهران'), boarding_city='مشهد')
+        self.assertEqual(r.status_code, 400)
+
+    def test_single_origin_is_filled_in(self):
+        r = self.step1(self.make(origin_city='تهران'))
+        self.assertEqual(Booking.objects.get(pk=r.json()['bookingId']).boarding_city, 'تهران')
+
+    def test_booking_date_is_jalali_in_tehran_time(self):
+        from datetime import datetime, timezone as dtz
+        from bookings.serializers import BookingSerializer
+        b = Booking.objects.get(pk=self.step1(self.make(origin_city='تهران')).json()['bookingId'])
+        Booking.objects.filter(pk=b.pk).update(created_at=datetime(2026, 11, 1, 21, 0, tzinfo=dtz.utc))
+        b.refresh_from_db()
+        # ۲۱:۰۰ UTC = ۰۰:۳۰ بامداد روز بعد در تهران
+        self.assertEqual(BookingSerializer(b).data['created_at_jalali'], '1405/08/11 00:30')

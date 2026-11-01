@@ -11,6 +11,8 @@ import io
 from django.http import HttpResponse
 from django.utils import timezone
 
+from core.jalali import format_jalali_datetime
+
 
 class CaravanListView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -239,9 +241,17 @@ class LeaderBookingDetailView(APIView):
         booking = self._get_booking(request, pk)
         if not booking:
             return Response({"message": "رزرو یافت نشد."}, status=404)
+        new_status = request.data.get('status')
+        if new_status is not None and new_status != booking.status:
+            # لغو از مسیر خودش می‌رود تا ظرفیت برگردد؛ برگرداندن رزرو لغوشده
+            # هم مجاز نیست، چون صندلی‌اش شاید دیگر به کس دیگری رسیده باشد.
+            if booking.status == 'cancelled':
+                return Response({"message": "رزرو لغوشده را نمی‌شود دوباره فعال کرد."}, status=400)
+            if new_status == 'cancelled':
+                booking.cancel()
         allowed = {'status', 'special_requests', 'selected_seats', 'is_paid', 'payment_reference', 'payment_link'}
         for key, val in request.data.items():
-            if key in allowed:
+            if key in allowed and not (key == 'status' and val == 'cancelled'):
                 setattr(booking, key, val)
         booking.save()
         return Response(BookingSerializer(booking).data)
@@ -250,13 +260,13 @@ class LeaderBookingDetailView(APIView):
         booking = self._get_booking(request, pk)
         if not booking:
             return Response({"message": "رزرو یافت نشد."}, status=404)
-        booking.status = 'cancelled'
-        booking.save()
-        # Restore capacity
-        caravan = booking.caravan
-        caravan.remaining_capacity += booking.passenger_count
-        caravan.save()
-        return Response({"message": "رزرو لغو شد."})
+        returned = booking.cancel()
+        if returned is None:
+            return Response({"message": "این رزرو قبلاً لغو شده است."})
+        message = "رزرو لغو شد."
+        if returned:
+            message += f" {returned} صندلی به ظرفیت کاروان برگشت."
+        return Response({"message": message, "returned_seats": returned})
 
 
 class LeaderBookingsExportView(APIView):
@@ -281,12 +291,14 @@ class LeaderBookingsExportView(APIView):
         writer.writerow([
             'کد رزرو', 'نام کاروان', 'ردیف مسافر', 'نوع مسافر', 'نام', 'نام خانوادگی',
             'کد ملی', 'شماره موبایل', 'تعداد مسافر رزرو', 'مبلغ کل (تومان)',
-            'وضعیت', 'صندلی‌ها', 'تاریخ ثبت',
+            'وضعیت', 'صندلی‌ها', 'محل سوار شدن', 'تاریخ ثبت',
         ])
         for b in bookings:
             code = b.booking_code or f"#{b.id}"
             seats = '، '.join(str(s) for s in (b.selected_seats or [])) or '-'
-            created = b.created_at.strftime('%Y-%m-%d %H:%M')
+            # created_at به وقت UTC ذخیره شده؛ strftime مستقیم ساعت را ۳:۳۰
+            # عقب و روز را گاهی یک روز عقب نشان می‌داد
+            created = format_jalali_datetime(b.created_at)
             rows = [(
                 'سرپرست',
                 b.main_passenger_first_name or b.main_passenger_name,
@@ -317,6 +329,7 @@ class LeaderBookingsExportView(APIView):
                     b.total_price,
                     b.get_status_display(),
                     seats if idx == 1 else '',
+                    b.boarding_city or '-',
                     created,
                 ])
         return response

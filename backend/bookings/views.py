@@ -101,6 +101,18 @@ class BookingStep1View(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # محل سوار شدن باید یکی از شهرهای همین کاروان باشد؛ اگر کاروان فقط یک
+        # مبدأ دارد، همان است و از زائر پرسیده نمی‌شود.
+        options = caravan.boarding_options
+        boarding_city = (serializer.validated_data.get('boarding_city') or '').strip()
+        if len(options) == 1 and not boarding_city:
+            boarding_city = options[0]
+        if boarding_city and options and boarding_city not in options:
+            return Response(
+                {"message": "محل سوار شدن باید یکی از این شهرها باشد: " + '، '.join(options)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         total_price = caravan.price * passenger_count
         first_name = serializer.validated_data['first_name'].strip()
         last_name = serializer.validated_data['last_name'].strip()
@@ -114,6 +126,7 @@ class BookingStep1View(APIView):
             main_passenger_id=serializer.validated_data['main_passenger_id'],
             main_passenger_phone=serializer.validated_data['main_passenger_phone'],
             passenger_count=passenger_count,
+            boarding_city=boarding_city,
             total_price=total_price,
             transportation_type=caravan.transportation_type,
             current_step=1,

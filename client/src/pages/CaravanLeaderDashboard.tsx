@@ -6,7 +6,7 @@ import {
   Bus, Plus, Users, CalendarCheck, Download, Eye, Edit2, Trash2,
   ChevronLeft, TrendingUp, Clock, CheckCircle2, XCircle, AlertCircle,
   Phone, Armchair, X, Image, Upload, Link2, Copy, CreditCard,
-  MessageCircle, Send, RefreshCw, Unlink, ExternalLink,
+  MessageCircle, Send, RefreshCw, Unlink, ExternalLink, MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,20 @@ import { authFetch } from "@/lib/auth";
 
 function toPersian(n: number | string) {
   return String(n).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[+d]);
+}
+
+/**
+ * چند روز پیش رزرو شده — «امروز»، «دیروز»، «۱۰ روز پیش».
+ * روز تقویمی حساب می‌شود، نه ۲۴ ساعت: رزرو دیشب ساعت ۲۳ امروز صبح «دیروز» است.
+ */
+function bookedAgo(iso: string): string {
+  const then = new Date(iso);
+  const now = new Date();
+  const day = (d: Date) => Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+  const days = Math.round((day(now) - day(then)) / 86_400_000);
+  if (days <= 0) return "امروز";
+  if (days === 1) return "دیروز";
+  return `${toPersian(days)} روز پیش`;
 }
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
@@ -68,6 +82,9 @@ interface Booking {
   status: string;
   selected_seats: number[];
   created_at: string;
+  /** «۱۴۰۵/۰۸/۱۱ ۱۴:۳۲» به وقت تهران، از سرور */
+  created_at_jalali?: string;
+  boarding_city?: string;
   is_paid: boolean;
   booking_code?: string;
   payment_link?: string;
@@ -177,11 +194,19 @@ function PaymentLinkButton({ booking, onSaved }: { booking: Booking; onSaved: ()
 function ReviewLinkButton({ bookingId }: { bookingId: number }) {
   const { toast } = useToast();
   const generate = useMutation({
-    mutationFn: () =>
-      fetch(`${djangoURL}/api/leader/bookings/${bookingId}/review-link`, {
+    // بدون ورود، سرور ۴۰۱ می‌داد و data.link خالی بود؛ لینک
+    // «…/undefined» کپی می‌شد و پیام «لینک کپی شد» هم می‌آمد.
+    mutationFn: async () => {
+      const res = await authFetch(`${djangoURL}/api/leader/bookings/${bookingId}/review-link`, {
         method: "POST",
-        headers: {},
-      }).then(r => r.json()),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.link) throw new Error(data.message || "ساخت لینک نظرسنجی انجام نشد");
+      return data as { link: string };
+    },
+    onError: (err: Error) => {
+      toast({ title: "لینک ساخته نشد", description: err.message, variant: "destructive" });
+    },
     onSuccess: (data) => {
       const link = `${window.location.origin}${data.link}`;
       navigator.clipboard.writeText(link).then(() => {
@@ -436,12 +461,26 @@ export default function CaravanLeaderDashboard() {
   });
 
   const cancelBooking = useMutation({
-    mutationFn: (id: number) =>
-      fetch(`${djangoURL}/api/leader/bookings/${id}`, { method: "DELETE", headers: authHeaders() }),
-    onSuccess: () => {
+    // authFetch، نه fetch: authHeaders() دیگر توکن ندارد و درخواست بدون ورود
+    // با ۴۰۱ رد می‌شد. fetch هم روی ۴۰۱ خطا نمی‌دهد، پس صفحه «رزرو لغو شد»
+    // نشان می‌داد و هیچ اتفاقی نمی‌افتاد.
+    mutationFn: async (id: number) => {
+      const res = await authFetch(`${djangoURL}/api/leader/bookings/${id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "لغو رزرو انجام نشد");
+      return data as { message?: string };
+    },
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["leader-bookings"] });
-      toast({ title: "رزرو لغو شد" });
+      // صندلی‌ها به ظرفیت برگشته‌اند؛ عددها همه‌جا باید تازه شوند
+      qc.invalidateQueries({ queryKey: ["leader-caravans"] });
+      qc.invalidateQueries({ queryKey: ["/api/caravans"] });
+      qc.invalidateQueries({ queryKey: ["caravan-stats"] });
+      toast({ title: data.message || "رزرو لغو شد" });
       setConfirmCancel(null);
+    },
+    onError: (err: Error) => {
+      toast({ title: "لغو رزرو انجام نشد", description: err.message, variant: "destructive" });
     },
   });
 
@@ -836,9 +875,21 @@ export default function CaravanLeaderDashboard() {
                                 <Armchair className="h-3 w-3" />
                                 صندلی: {(booking.selected_seats || []).join(", ") || "—"}
                               </span>
+                              {booking.boarding_city && (
+                                <span className="flex items-center gap-1">
+                                  <MapPin className="h-3 w-3" />
+                                  سوار شدن: {booking.boarding_city}
+                                </span>
+                              )}
                               <span className="font-medium text-foreground">
                                 {booking.total_price.toLocaleString("fa-IR")} تومان
                               </span>
+                            </div>
+                            {/* بدون این، مدیر نمی‌دانست رزرو امروز آمده یا ده روز پیش */}
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1.5">
+                              <Clock className="h-3 w-3" />
+                              ثبت: {toPersian(booking.created_at_jalali || "")}
+                              <span className="font-semibold text-foreground mr-1">({bookedAgo(booking.created_at)})</span>
                             </div>
                           </div>
                           <div className="flex items-center gap-1">

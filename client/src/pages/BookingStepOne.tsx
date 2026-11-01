@@ -66,6 +66,8 @@ const companionSchema = z.object({
 const bookingSchema = z.object({
   caravanId: z.coerce.number(),
   passengerCount: z.coerce.number().min(1).max(10),
+  // اجباری‌بودنش به کاروان بستگی دارد (چند شهر یا یکی)، پس در startSubmit سنجیده می‌شود
+  boardingCity: z.string().optional().default(""),
   firstName: z.string().trim().min(2, { message: "نام الزامی است" }),
   lastName: z.string().trim().min(2, { message: "نام خانوادگی الزامی است" }),
   nationalId: nationalIdSchema,
@@ -94,6 +96,8 @@ interface Caravan {
   train_type_display?: string;
   price: number;
   price_text?: string | null;
+  /** مبدأ و شهرهای بین‌راهی که زائر می‌تواند از آن‌ها سوار شود */
+  boarding_options?: string[];
   capacity: number;
   remaining_capacity: number;
   accommodation_type: string;
@@ -204,6 +208,7 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
     defaultValues: {
       caravanId,
       passengerCount: 1,
+      boardingCity: "",
       firstName: "",
       lastName: "",
       nationalId: "",
@@ -279,6 +284,7 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
         {
           caravan_id: data.caravanId,
           passenger_count: data.passengerCount,
+          boarding_city: data.boardingCity || "",
           first_name: data.firstName,
           last_name: data.lastName,
           main_passenger_id: data.nationalId,
@@ -324,7 +330,14 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
     },
   });
 
+  const boardingOptions = caravan?.boarding_options ?? [];
+
   const startSubmit = (data: BookingFormValues) => {
+    if (boardingOptions.length > 1 && !data.boardingCity) {
+      form.setError("boardingCity", { message: "محل سوار شدن را انتخاب کنید" });
+      document.getElementById("boarding-city")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
     if (seatSelectionEnabled && seatsMissing > 0) {
       setSeatError(`برای هر مسافر یک صندلی انتخاب کنید — ${toPersianDigits(seatsMissing)} صندلی باقی مانده است.`);
       document.getElementById("seat-map")?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -501,6 +514,32 @@ export default function BookingStepOne({ params }: BookingStepOneProps) {
                     <FormMessage />
                   </FormItem>
                 )} />
+                {/* مدیر کاروان باید بداند هر زائر را کجا سوار کند */}
+                {boardingOptions.length > 1 && (
+                  <FormField control={form.control} name="boardingCity" render={({ field }) => (
+                    <FormItem className="mt-4" id="boarding-city">
+                      <FormLabel>محل سوار شدن *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || undefined}>
+                        <FormControl>
+                          <SelectTrigger className="rounded-xl">
+                            <SelectValue placeholder="از کدام شهر سوار می‌شوید؟" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {boardingOptions.map(city => (
+                            <SelectItem key={city} value={city}>{city}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                )}
+                {boardingOptions.length === 1 && (
+                  <p className="mt-4 text-sm text-muted-foreground">
+                    محل سوار شدن: <span className="font-semibold text-foreground">{boardingOptions[0]}</span>
+                  </p>
+                )}
               </SectionCard>
             </motion.div>
 

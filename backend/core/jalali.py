@@ -112,3 +112,36 @@ def jalali_moment(text, at=None, end_of_day=False):
     else:
         moment = datetime.combine(day, time.min)
     return timezone.make_aware(moment, timezone.get_default_timezone())
+
+
+def _g2d(gy, gm, gd):
+    d = _div((gy + _div(gm - 8, 6) + 100100) * 1461, 4) + _div(153 * _mod(gm + 9, 12) + 2, 5) + gd - 34840408
+    return d - _div(_div(gy + 100100 + _div(gm - 8, 6), 100) * 3, 4) + 752
+
+
+def gregorian_to_jalali(day):
+    """date میلادی → (سال، ماه، روز) شمسی."""
+    jdn = _g2d(day.year, day.month, day.day)
+    jy = day.year - 621
+    _, _, march = _jal_cal(jy)
+    first = _g2d(day.year, 3, march)
+    k = jdn - first
+    if k >= 0:
+        if k <= 185:
+            return jy, 1 + _div(k, 31), _mod(k, 31) + 1
+        k -= 186
+    else:
+        jy -= 1
+        k += 179
+        if _jal_cal(jy)[0]:
+            k += 1
+    return jy, 7 + _div(k, 30), _mod(k, 30) + 1
+
+
+def format_jalali_datetime(moment):
+    """datetime → «۱۴۰۵/۰۸/۱۱ ۱۴:۳۲» به وقت تهران (با ارقام لاتین؛ نمایش خودش فارسی می‌کند)."""
+    if moment is None:
+        return ''
+    local = timezone.localtime(moment)
+    jy, jm, jd = gregorian_to_jalali(local.date())
+    return f'{jy:04d}/{jm:02d}/{jd:02d} {local:%H:%M}'

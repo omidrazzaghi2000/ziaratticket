@@ -12,7 +12,7 @@ class BookingAdmin(admin.ModelAdmin):
         'status_badge', 'is_paid', 'bale_badge', 'created_at'
     )
     list_display_links = ('id', 'booking_code', 'main_passenger_name')
-    list_filter = ('status', 'is_paid', 'is_completed', 'transportation_type')
+    list_filter = ('status', 'is_paid', 'is_completed', 'transportation_type', 'boarding_city')
     search_fields = (
         'booking_code', 'main_passenger_name', 'main_passenger_id', 'main_passenger_phone',
         'main_passenger_passport_no', 'caravan__name', 'user__phone'
@@ -44,7 +44,7 @@ class BookingAdmin(admin.ModelAdmin):
             'classes': ('collapse',),
         }),
         ('همراهان', {
-            'fields': ('passenger_count', 'companions_display'),
+            'fields': ('passenger_count', 'boarding_city', 'companions_display'),
         }),
         ('صندلی‌ها', {
             'fields': ('selected_seats_display',),
@@ -128,8 +128,15 @@ class BookingAdmin(admin.ModelAdmin):
     mark_as_confirmed.short_description = "✅ تأیید رزروها"
 
     def mark_as_cancelled(self, request, queryset):
-        queryset.update(status='cancelled')
-        self.message_user(request, "رزروهای انتخابی لغو شدند.")
+        # یکی‌یکی و از مسیر Booking.cancel تا صندلی‌ها به ظرفیت برگردند؛
+        # update گروهی فقط وضعیت را عوض می‌کرد و ظرفیت کم می‌ماند.
+        cancelled = seats = 0
+        for booking in queryset:
+            returned = booking.cancel()
+            if returned is not None:
+                cancelled += 1
+                seats += returned
+        self.message_user(request, f"{cancelled} رزرو لغو شد و {seats} صندلی به ظرفیت برگشت.")
     mark_as_cancelled.short_description = "❌ لغو رزروها"
 
     def mark_as_paid(self, request, queryset):

@@ -40,6 +40,7 @@ class CaravanSerializer(serializers.ModelSerializer):
     registration_state_display = serializers.CharField(source='get_registration_state_display', read_only=True)
     bus_count = serializers.IntegerField(read_only=True)
     photos = CaravanPhotoSerializer(many=True, read_only=True)
+    boarding_options = serializers.ListField(child=serializers.CharField(), read_only=True)
 
     class Meta:
         model = Caravan

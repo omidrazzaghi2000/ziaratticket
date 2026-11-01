@@ -33,6 +33,10 @@ class Booking(models.Model):
     main_passenger_foreign_lastname = models.CharField(max_length=100, blank=True, verbose_name='نام خانوادگی انگلیسی سرپرست')
 
     passenger_count = models.PositiveIntegerField(default=1, verbose_name='تعداد مسافرین')
+    boarding_city = models.CharField(
+        max_length=100, blank=True, verbose_name='محل سوار شدن',
+        help_text='یکی از مبدأها یا شهرهای بین‌راهی کاروان که زائر از آن سوار می‌شود.',
+    )
     companions = models.JSONField(default=list, blank=True, verbose_name='همراهان')
 
     special_requests = models.TextField(blank=True, null=True, verbose_name='درخواست‌های خاص')
@@ -85,6 +89,40 @@ class Booking(models.Model):
         day_part = f"D{caravan.duration or 0}"
         seq = Booking.objects.filter(caravan=caravan).exclude(pk=self.pk).count() + 1
         return f"C{caravan.id}-{date_part}-{day_part}-{seq:04d}"
+
+    def cancel(self):
+        """
+        رزرو را لغو می‌کند و صندلی‌هایش را به ظرفیت کاروان برمی‌گرداند.
+
+        تنها راه لغو است (داشبورد مدیر، پنل ادمین، API) تا ظرفیت همه‌جا یک‌جور
+        حساب شود. دو قاعده که قبلاً رعایت نمی‌شد:
+        * لغو دوباره هیچ کاری نمی‌کند — قبلاً هر کلیک دوباره ظرفیت را بیشتر می‌کرد.
+        * فقط رزرو تکمیل‌شده صندلی گرفته بود (CompleteBookingView کم می‌کند)؛
+          رزرو نیمه‌کاره چیزی برای پس‌دادن ندارد.
+        صندلی‌های انتخابی خودبه‌خود آزاد می‌شوند، چون نقشه‌ی صندلی رزروهای
+        لغوشده را نمی‌شمارد.
+
+        خروجی: تعداد صندلی‌ای که به ظرفیت برگشت (۰ اگر چیزی برنگشت)، یا None
+        اگر رزرو از قبل لغو شده بود.
+        """
+        from django.db import transaction
+
+        with transaction.atomic():
+            booking = Booking.objects.select_for_update().get(pk=self.pk)
+            if booking.status == 'cancelled':
+                return None
+            booking.status = 'cancelled'
+            booking.save(update_fields=['status', 'updated_at'])
+            returned = 0
+            if booking.is_completed:
+                caravan = Caravan.objects.select_for_update().get(pk=booking.caravan_id)
+                before = caravan.remaining_capacity or 0
+                # از ظرفیت کل بیشتر نشود، حتی اگر عدد قبلاً به‌هم ریخته باشد
+                caravan.remaining_capacity = min(caravan.capacity or 0, before + booking.passenger_count)
+                caravan.save(update_fields=['remaining_capacity'])
+                returned = caravan.remaining_capacity - before
+        self.refresh_from_db()
+        return returned
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)

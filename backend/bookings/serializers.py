@@ -1,4 +1,6 @@
 from rest_framework import serializers
+
+from core.jalali import format_jalali_datetime
 from .models import Booking
 
 
@@ -35,6 +37,7 @@ class BookingStep1Serializer(serializers.Serializer):
     main_passenger_id = serializers.CharField(max_length=20)
     main_passenger_phone = serializers.CharField(max_length=20)
     passenger_count = serializers.IntegerField(min_value=1, max_value=10)
+    boarding_city = serializers.CharField(max_length=100, required=False, allow_blank=True)
 
     def validate_main_passenger_id(self, value):
         return validate_national_id(value)
@@ -71,6 +74,8 @@ class BookingStep3Serializer(serializers.Serializer):
 
 class BookingSerializer(serializers.ModelSerializer):
     caravan_name = serializers.SerializerMethodField()
+    # تاریخ ثبت به شمسی و وقت تهران؛ created_at خام UTC است
+    created_at_jalali = serializers.SerializerMethodField()
     caravan_departure_date = serializers.SerializerMethodField()
     caravan_transportation_type = serializers.SerializerMethodField()
     caravan_transportation_display = serializers.SerializerMethodField()
@@ -88,6 +93,9 @@ class BookingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Booking
         fields = '__all__'
+
+    def get_created_at_jalali(self, obj):
+        return format_jalali_datetime(obj.created_at)
 
     def get_caravan_name(self, obj):
         return obj.caravan.name if obj.caravan else None
