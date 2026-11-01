@@ -37,7 +37,12 @@ class CaravanListView(APIView):
         if city:
             qs = qs.filter(origin_city__icontains=city)
 
-        return Response(CaravanSerializer(qs, many=True, context={'request': request}).data)
+        # کاروانی که حرکت کرده یا مهلت ثبت‌نامش تمام شده از فهرست برداشته
+        # می‌شود. تاریخ‌ها متن شمسی‌اند و دیتابیس نمی‌تواند رویشان فیلتر کند،
+        # پس این مرحله در پایتون است (فهرست صفحه‌بندی ندارد و کوچک است).
+        now = timezone.now()
+        caravans = [c for c in qs if c.is_listed(now)]
+        return Response(CaravanSerializer(caravans, many=True, context={'request': request}).data)
 
     def post(self, request):
         serializer = CaravanSerializer(data=request.data)
@@ -321,7 +326,9 @@ class CaravanStatsView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        count = Caravan.objects.filter(status='approved').count()
+        # همان شمارشی که زائر در فهرست می‌بیند؛ کاروان حرکت‌کرده «فعال» نیست
+        now = timezone.now()
+        count = sum(1 for c in Caravan.objects.filter(status='approved') if c.is_listed(now))
         return Response({'active_caravans': count})
 
 

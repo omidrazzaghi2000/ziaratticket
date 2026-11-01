@@ -27,6 +27,23 @@ def occupied_seats_for(caravan, exclude_booking_id=None):
     return occupied
 
 
+def registration_error(caravan):
+    """پیام فارسی اگر ثبت‌نام این کاروان همین الان باز نیست، وگرنه None."""
+    if caravan.has_departed():
+        return "تاریخ حرکت این کاروان گذشته است."
+    state = caravan.registration_status()
+    if state == 'soon':
+        when = ''
+        if caravan.registration_opens_on:
+            when = f' از {caravan.registration_opens_on}'
+            if caravan.registration_opens_time:
+                when += f' ساعت {caravan.registration_opens_time:%H:%M}'
+        return f"ثبت‌نام این کاروان هنوز باز نشده است{when}."
+    if state == 'closed':
+        return "ثبت‌نام این کاروان بسته شده است."
+    return None
+
+
 def validate_seats(booking, seats):
     """اعتبارسنجی صندلی‌های انتخابی. در صورت خطا پیام فارسی برمی‌گرداند، در غیر این صورت None."""
     caravan = booking.caravan
@@ -71,15 +88,11 @@ class BookingStep1View(APIView):
         if caravan.status != 'approved':
             return Response({"message": "این کاروان هنوز تأیید نشده است."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # «به‌زودی» و «بسته» فقط برچسب روی کارت نیستند؛ سرور هم باید جلویشان را بگیرد
-        if caravan.registration_state == 'soon':
-            when = f' از {caravan.registration_opens_on}' if caravan.registration_opens_on else ''
-            return Response(
-                {"message": f"ثبت‌نام این کاروان هنوز باز نشده است{when}."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if caravan.registration_state == 'closed':
-            return Response({"message": "ثبت‌نام این کاروان بسته شده است."}, status=status.HTTP_400_BAD_REQUEST)
+        # «به‌زودی» و «بسته» فقط برچسب روی کارت نیستند؛ سرور هم باید جلویشان را
+        # بگیرد — و از روی تاریخ‌ها، نه فقط وضعیتی که دستی انتخاب شده.
+        error = registration_error(caravan)
+        if error:
+            return Response({"message": error}, status=status.HTTP_400_BAD_REQUEST)
 
         passenger_count = serializer.validated_data['passenger_count']
         if caravan.remaining_capacity < passenger_count:
@@ -290,6 +303,10 @@ class CompleteBookingView(APIView):
             return Response({"message": error}, status=status.HTTP_400_BAD_REQUEST)
 
         caravan = booking.caravan
+        # مهلت ممکن است بین شروع و پایان فرم تمام شده باشد
+        error = registration_error(caravan)
+        if error:
+            return Response({"message": error}, status=status.HTTP_400_BAD_REQUEST)
         if caravan.remaining_capacity < booking.passenger_count:
             return Response(
                 {"message": "ظرفیت کاروان تکمیل شده است."},

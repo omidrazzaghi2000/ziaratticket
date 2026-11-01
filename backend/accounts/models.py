@@ -1,6 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 
+from core.bale import validate_bale_chat_id
+
 
 class UserManager(BaseUserManager):
     def create_user(self, phone, password=None, **extra_fields):
@@ -35,6 +37,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_leader_approved = models.BooleanField(default=False, verbose_name='تأیید شده به عنوان مدیر کاروان')
     bale_chat_id = models.CharField(
         max_length=40, blank=True, default='', verbose_name='شناسه چت بله',
+        validators=[validate_bale_chat_id],
         help_text=(
             'برای دریافت اطلاع رزروها در پیام‌رسان بله. مدیر کاروان خودش از داشبورد '
             '«کد اتصال» می‌گیرد و آن را به ربات می‌فرستد؛ این فیلد همان‌جا پر می‌شود و '

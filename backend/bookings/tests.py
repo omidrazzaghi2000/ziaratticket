@@ -71,3 +71,43 @@ class BaleBookingNotificationTests(TestCase):
         with mock.patch('core.bale.send_message_async') as send:
             self.assertFalse(notify_leader_of_booking(self.booking))
         send.assert_not_called()
+
+
+@override_settings(BALE_BOT_TOKEN='test-token', BALE_FALLBACK_CHAT_ID='')
+class BaleOutcomeIsRecordedTests(BaleBookingNotificationTests):
+    """هر نتیجه‌ای روی خود رزرو ثبت شود، تا «چرا پیام نیامد» در پنل جواب داشته باشد."""
+
+    def fresh(self):
+        self.booking.refresh_from_db()
+        return self.booking
+
+    def test_delivered_send_is_stamped(self):
+        with mock.patch('core.bale.send_message_async') as send:
+            notify_leader_of_booking(self.booking)
+        send.call_args.kwargs['on_done'](True, '')
+        self.assertIsNotNone(self.fresh().bale_notified_at)
+        self.assertEqual(self.booking.bale_notify_error, '')
+
+    def test_rejected_send_keeps_bales_reason(self):
+        with mock.patch('core.bale.send_message_async') as send:
+            notify_leader_of_booking(self.booking)
+        send.call_args.kwargs['on_done'](False, 'بله رد کرد: chat not found')
+        self.assertIsNone(self.fresh().bale_notified_at)
+        self.assertIn('chat not found', self.booking.bale_notify_error)
+
+    def test_missing_chat_id_is_recorded(self):
+        self.leader.bale_chat_id = ''
+        self.leader.save(update_fields=['bale_chat_id'])
+        self.booking.refresh_from_db()
+        notify_leader_of_booking(self.booking)
+        self.assertIn('شناسه‌ی چت', self.fresh().bale_notify_error)
+
+    def test_token_never_reaches_the_log(self):
+        import requests
+        from core import bale
+        boom = requests.ConnectionError('HTTPSConnectionPool: /bottest-token/sendMessage')
+        with mock.patch('core.bale.requests.post', side_effect=boom):
+            with self.assertLogs('core.bale', level='WARNING') as logs:
+                ok, error = bale.send_message_detailed('111', 'سلام')
+        self.assertFalse(ok)
+        self.assertNotIn('test-token', ' '.join(logs.output) + error)

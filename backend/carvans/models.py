@@ -1,6 +1,11 @@
 from django.db import models
 from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.utils import timezone
 import uuid
+
+from core.bale import validate_bale_chat_id
+from core.jalali import jalali_moment, parse_jalali_date
 
 
 class Caravan(models.Model):
@@ -68,6 +73,7 @@ class Caravan(models.Model):
     leader_messaging_apps = models.JSONField(default=list, blank=True, verbose_name='پیام‌رسان‌های مدیر')
     bale_chat_id = models.CharField(
         max_length=40, blank=True, default='', verbose_name='شناسه چت بله مدیر',
+        validators=[validate_bale_chat_id],
         help_text=(
             'اختیاری. اگر پر باشد، اطلاع رزروهای این کاروان به همین چت بله می‌رود؛ '
             'وگرنه از شناسه‌ی ثبت‌شده در حساب مدیر کاروان استفاده می‌شود.'
@@ -134,11 +140,34 @@ class Caravan(models.Model):
     registration_state = models.CharField(
         max_length=10, choices=REGISTRATION_CHOICES, default='open',
         verbose_name='وضعیت ثبت‌نام',
-        help_text='با «به‌زودی» کاروان در سایت دیده می‌شود ولی دکمه‌ی رزرو غیرفعال است.',
+        help_text=(
+            'با «به‌زودی» کاروان در سایت دیده می‌شود ولی دکمه‌ی رزرو غیرفعال است. '
+            'اگر تاریخ بازشدن بگذارید، لازم نیست این را دستی عوض کنید: سر همان '
+            'تاریخ و ساعت ثبت‌نام خودش باز می‌شود. «بسته» همیشه بسته نگه می‌دارد.'
+        ),
     )
     registration_opens_on = models.CharField(
         max_length=30, blank=True, verbose_name='تاریخ بازشدن ثبت‌نام (شمسی)',
-        help_text='اختیاری. مثلاً ۱۴۰۵/۰۸/۱۵ — کنار «به‌زودی» به زائر نشان داده می‌شود.',
+        help_text=(
+            'اختیاری. مثلاً ۱۴۰۵/۰۸/۱۵. تا این زمان کاروان «به‌زودی» نشان داده '
+            'می‌شود و سر وقت خودکار باز می‌شود.'
+        ),
+    )
+    registration_opens_time = models.TimeField(
+        null=True, blank=True, verbose_name='ساعت بازشدن ثبت‌نام',
+        help_text='اختیاری، مثلاً ۱۰:۰۰. بدون ساعت، ثبت‌نام از ابتدای همان روز باز می‌شود.',
+    )
+    registration_closes_on = models.CharField(
+        max_length=30, blank=True, verbose_name='تاریخ پایان ثبت‌نام (شمسی)',
+        help_text=(
+            'اختیاری. مثلاً ۱۴۰۵/۰۸/۲۰. بعد از این زمان ثبت‌نام خودکار بسته و '
+            'کاروان از فهرست سایت برداشته می‌شود. کاروانی که تاریخ حرکتش گذشته '
+            'هم بدون این فیلد خودکار برداشته می‌شود.'
+        ),
+    )
+    registration_closes_time = models.TimeField(
+        null=True, blank=True, verbose_name='ساعت پایان ثبت‌نام',
+        help_text='اختیاری. بدون ساعت، ثبت‌نام تا پایان همان روز باز می‌ماند.',
     )
 
     # Rules
@@ -180,21 +209,88 @@ class Caravan(models.Model):
     def is_full(self):
         return (self.remaining_capacity or 0) <= 0
 
+    # ── زمان‌بندی ثبت‌نام ─────────────────────────────────────────────────
+    # همه‌چیز از روی ساعت سرور (تهران) حساب می‌شود و هیچ‌جا ذخیره نمی‌شود؛
+    # پس «باز شدن سر ساعت» به هیچ کرون یا کار زمان‌بندی‌شده‌ای نیاز ندارد.
+
+    @property
+    def registration_opens_at(self):
+        return jalali_moment(self.registration_opens_on, at=self.registration_opens_time)
+
+    @property
+    def registration_closes_at(self):
+        return jalali_moment(
+            self.registration_closes_on, at=self.registration_closes_time, end_of_day=True,
+        )
+
+    @property
+    def departure_day(self):
+        return parse_jalali_date(self.departure_date)
+
+    def has_departed(self, now=None):
+        """روز حرکت تمام شده است؛ تا پایان خود روز حرکت هنوز «گذشته» نیست."""
+        day = self.departure_day
+        if day is None:
+            return False
+        return timezone.localdate(now or timezone.now()) > day
+
+    def registration_status(self, now=None):
+        """
+        وضعیت واقعی ثبت‌نام در این لحظه: open، soon یا closed.
+
+        registration_state فقط نیت مدیر است؛ این تابع آن را با تاریخ‌ها
+        ترکیب می‌کند. ترتیب مهم است: «بسته» و گذشتن زمان همیشه برنده‌اند.
+        """
+        now = now or timezone.now()
+        if self.has_departed(now):
+            return 'closed'
+        if self.registration_state == 'closed':
+            return 'closed'
+        closes_at = self.registration_closes_at
+        if closes_at and now >= closes_at:
+            return 'closed'
+        opens_at = self.registration_opens_at
+        if opens_at:
+            return 'open' if now >= opens_at else 'soon'
+        # «به‌زودی» بدون تاریخ یعنی تا مدیر خودش باز نکند
+        return 'soon' if self.registration_state == 'soon' else 'open'
+
+    def is_listed(self, now=None):
+        """
+        آیا در فهرست سایت دیده شود؟
+
+        کاروانی که حرکت کرده یا مهلت ثبت‌نامش تمام شده برداشته می‌شود. «بسته»ی
+        دستی دیده می‌ماند (با برچسب «ثبت‌نام بسته است»)، چون آن تصمیم خود مدیر
+        است و شاید بخواهد زائر کاروان را ببیند.
+        """
+        now = now or timezone.now()
+        if self.has_departed(now):
+            return False
+        closes_at = self.registration_closes_at
+        return not (closes_at and now >= closes_at)
+
     @property
     def is_bookable(self):
-        """زائر فقط وقتی می‌تواند رزرو کند که ثبت‌نام باز باشد و ظرفیت بماند."""
-        return self.registration_state == 'open' and not self.is_full
+        """زائر فقط وقتی می‌تواند رزرو کند که ثبت‌نام همین الان باز باشد و ظرفیت بماند."""
+        return self.registration_status() == 'open' and not self.is_full
 
     @property
     def availability_label(self):
         """برچسبی که روی کارت کاروان می‌نشیند."""
+        now = timezone.now()
+        if self.has_departed(now):
+            return 'تاریخ حرکت گذشته'
         if self.is_full:
             return 'تکمیل شده'
-        if self.registration_state == 'soon':
+        status = self.registration_status(now)
+        if status == 'soon':
             if self.registration_opens_on:
-                return f'ثبت‌نام از {self.registration_opens_on}'
+                when = f'ثبت‌نام از {self.registration_opens_on}'
+                if self.registration_opens_time:
+                    when += f' ساعت {self.registration_opens_time:%H:%M}'
+                return when
             return 'ثبت‌نام به‌زودی'
-        if self.registration_state == 'closed':
+        if status == 'closed':
             return 'ثبت‌نام بسته است'
         # عدد ظرفیت روی همین برچسب می‌نشیند تا زائر برای دیدنش دنبال ردیف
         # جداگانه نگردد.
@@ -203,13 +299,44 @@ class Caravan(models.Model):
     @property
     def availability_tone(self):
         """رنگ برچسب: سبز باز، کهربایی به‌زودی، قرمز تکمیل، خاکستری بسته."""
+        now = timezone.now()
+        if self.has_departed(now):
+            return 'closed'
         if self.is_full:
             return 'full'
-        if self.registration_state == 'soon':
+        status = self.registration_status(now)
+        if status == 'soon':
             return 'soon'
-        if self.registration_state == 'closed':
+        if status == 'closed':
             return 'closed'
         return 'open'
+
+    def clean(self):
+        """
+        تاریخی که سرور نتواند بخواند یعنی زمان‌بندی‌ای که بی‌صدا کار نمی‌کند —
+        دقیقاً همان اتفاقی که برای «ثبت‌نام از ۹ آبان» افتاد. پس همین‌جا جلویش
+        گرفته می‌شود.
+        """
+        errors = {}
+        sample = 'به شکل ۱۴۰۵/۰۸/۰۹ بنویسید'
+        if self.departure_date and parse_jalali_date(self.departure_date) is None:
+            errors['departure_date'] = (
+                f'تاریخ حرکت را {sample}؛ وگرنه کاروان بعد از حرکت خودکار برداشته نمی‌شود.'
+            )
+        for field in ('registration_opens_on', 'registration_closes_on'):
+            value = getattr(self, field)
+            if value and parse_jalali_date(value) is None:
+                errors[field] = f'این تاریخ قابل خواندن نیست. {sample}.'
+        if self.registration_opens_time and not self.registration_opens_on:
+            errors['registration_opens_time'] = 'ساعت بدون تاریخ بازشدن معنا ندارد.'
+        if self.registration_closes_time and not self.registration_closes_on:
+            errors['registration_closes_time'] = 'ساعت بدون تاریخ پایان معنا ندارد.'
+        if not errors:
+            opens_at, closes_at = self.registration_opens_at, self.registration_closes_at
+            if opens_at and closes_at and closes_at <= opens_at:
+                errors['registration_closes_on'] = 'پایان ثبت‌نام باید بعد از شروع آن باشد.'
+        if errors:
+            raise ValidationError(errors)
 
     @property
     def is_international(self):

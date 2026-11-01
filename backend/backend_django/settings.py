@@ -188,6 +188,19 @@ BALE_BOT_USERNAME = os.environ.get('BALE_BOT_USERNAME', '')
 # کسی آن را نمی‌داند، همین رمز نقش احراز هویت درخواست را دارد. خالی = وب‌هوک بسته.
 BALE_WEBHOOK_SECRET = os.environ.get('BALE_WEBHOOK_SECRET', '')
 
+# ─── لاگ ─────────────────────────────────────────────────────────────────────
+# بدون این، پایتون فقط هشدارها را چاپ می‌کرد و پیام‌هایی مثل «کاروان شناسه‌ی
+# چت ندارد» (سطح INFO) هیچ‌جا دیده نمی‌شد.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {'console': {'class': 'logging.StreamHandler'}},
+    'loggers': {
+        'core': {'handlers': ['console'], 'level': 'INFO', 'propagate': False},
+        'bookings': {'handlers': ['console'], 'level': 'INFO', 'propagate': False},
+    },
+}
+
 # کش اوقات شرعی - 1 ساعت
 PRAYER_TIMES_CACHE_SECONDS = 3600
 

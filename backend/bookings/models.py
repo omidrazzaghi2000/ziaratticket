@@ -52,6 +52,11 @@ class Booking(models.Model):
     is_completed = models.BooleanField(default=False)
     transportation_type = models.CharField(max_length=50, verbose_name='نوع حمل‌ونقل')
 
+    # نتیجه‌ی اطلاع به مدیر کاروان در بله — تا اگر پیامی نرسید، دلیلش همین‌جا
+    # در پنل دیده شود و نیازی به گشتن در لاگ سرور نباشد.
+    bale_notified_at = models.DateTimeField(null=True, blank=True, verbose_name='اطلاع بله ارسال شد')
+    bale_notify_error = models.CharField(max_length=255, blank=True, verbose_name='خطای اطلاع بله')
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

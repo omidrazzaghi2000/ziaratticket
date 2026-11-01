@@ -8,6 +8,9 @@
 
 import logging
 
+from django.db import connection
+from django.utils import timezone
+
 from core import bale
 
 logger = logging.getLogger(__name__)
@@ -62,9 +65,25 @@ def build_booking_summary(booking) -> str:
     return '\n'.join(lines)
 
 
+def _record(booking_id, ok, error=''):
+    """نتیجه را روی رزرو می‌نویسد؛ update تا با ذخیره‌های هم‌زمان رزرو تداخل نکند."""
+    from .models import Booking
+
+    Booking.objects.filter(pk=booking_id).update(
+        bale_notified_at=timezone.now() if ok else None,
+        bale_notify_error='' if ok else (error or 'دلیل نامشخص')[:255],
+    )
+
+
 def notify_leader_of_booking(booking) -> bool:
-    """خلاصه‌ی رزرو را به مدیر کاروان در بله می‌فرستد (بدون معطل‌کردن پاسخ کاربر)."""
+    """
+    خلاصه‌ی رزرو را به مدیر کاروان در بله می‌فرستد (بدون معطل‌کردن پاسخ کاربر).
+
+    هر نتیجه‌ای — رسید، رد شد، یا اصلاً فرستاده نشد — روی همان رزرو ثبت
+    می‌شود. True یعنی ارسال شروع شد، نه این‌که رسید.
+    """
     if not bale.is_configured():
+        _record(booking.pk, False, 'توکن ربات بله روی سرور تنظیم نشده است')
         return False
 
     chat_id = booking.caravan.notification_chat_id
@@ -73,6 +92,7 @@ def notify_leader_of_booking(booking) -> bool:
             'بله: کاروان %s شناسه‌ی چت ندارد؛ اطلاع رزرو %s ارسال نشد.',
             booking.caravan_id, booking.booking_code or booking.id,
         )
+        _record(booking.pk, False, 'نه کاروان و نه مدیرش شناسه‌ی چت بله ندارند')
         return False
 
     try:
@@ -80,7 +100,17 @@ def notify_leader_of_booking(booking) -> bool:
     except Exception:
         # ساختن متن هم نباید ثبت رزرو را خراب کند
         logger.exception('بله: ساختن خلاصه‌ی رزرو %s ناموفق بود.', booking.id)
+        _record(booking.pk, False, 'ساختن متن خلاصه‌ی رزرو ناموفق بود')
         return False
 
-    bale.send_message_async(chat_id, text)
+    booking_id = booking.pk
+
+    def on_done(ok, error):
+        try:
+            _record(booking_id, ok, error)
+        finally:
+            # این در ترد جداست و اتصال دیتابیس خودش را دارد
+            connection.close()
+
+    bale.send_message_async(chat_id, text, on_done=on_done)
     return True

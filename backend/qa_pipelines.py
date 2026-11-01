@@ -75,7 +75,7 @@ payload = {
     "name": "[QA] کاروان تست زمینی",
     "destination": "karbala",
     "description": "کاروان تستی",
-    "departure_date": "۱۴۰۵/۰۶/۱۵",
+    "departure_date": "۱۴۹۹/۰۶/۱۵",
     "duration": 5,
     "start_date": start.isoformat(),
     "end_date": (start + datetime.timedelta(days=5)).isoformat(),
@@ -181,7 +181,7 @@ if booking_id:
     code = b.booking_code
     check("کد رزرو تولید شد", bool(code), code)
     check("کد شامل شناسه کاروان است", code.startswith(f"C{caravan_id}-"), code)
-    check("کد شامل تاریخ حرکت است", "14050615" in code, code)
+    check("کد شامل تاریخ حرکت است", "14990615" in code, code)
     check("کد شامل مدت سفر است", "-D5-" in code, code)
     others = Booking.objects.filter(caravan_id=caravan_id).values_list("booking_code", flat=True)
     check("کدهای رزرو یکتا هستند", len(set(others)) == len(list(others)), list(others))
@@ -493,7 +493,7 @@ if ls.is_valid():
 start2 = timezone.now() + datetime.timedelta(days=45)
 cs = CaravanCreateSerializer(data={
     "name": "کاروان تست ۱۴۰۵", "destination": "karbala",
-    "departure_date": "۱۴۰۵/۰۶/۱۵", "duration": "۵",
+    "departure_date": "۱۴۹۹/۰۶/۱۵", "duration": "۵",
     "start_date": start2.isoformat(), "end_date": (start2 + datetime.timedelta(days=5)).isoformat(),
     "transportation_type": "bus", "bus_type": "۳۲", "origin_city": "تهران",
     "accommodation_type": "hotel", "accommodation_distance": "۳۰۰",
@@ -510,7 +510,7 @@ if ok_cs:
     check("فاصله تا حرم فارسی درست خوانده شد", d["accommodation_distance"] == 300, d["accommodation_distance"])
     check("مدت سفر فارسی درست خوانده شد", d["duration"] == 5, d["duration"])
     check("نام کاروان دست‌نخورده می‌ماند (متن آزاد)", d["name"] == "کاروان تست ۱۴۰۵", d["name"])
-    check("تاریخ شمسی نمایشی دست‌نخورده می‌ماند", d["departure_date"] == "۱۴۰۵/۰۶/۱۵", d["departure_date"])
+    check("تاریخ شمسی نمایشی دست‌نخورده می‌ماند", d["departure_date"] == "۱۴۹۹/۰۶/۱۵", d["departure_date"])
     check("شماره تماس به لاتین تبدیل شد", d["contact_phone"] == "09121110000", d["contact_phone"])
 
 # ارقام مخلوط فارسی و لاتین
@@ -531,25 +531,25 @@ if caravan_id:
 pipeline("۱۴) وضعیت ثبت‌نام کاروان (باز، به‌زودی، بسته)")
 _open = Caravan.objects.create(
     name="[QA] ثبت‌نام باز", destination="karbala", status="approved",
-    departure_date="1405/09/01", duration=4, transportation_type="bus", bus_type=25,
+    departure_date="1499/09/01", duration=4, transportation_type="bus", bus_type=25,
     accommodation_type="hotel", price=1000000, capacity=10, remaining_capacity=10,
     registration_state="open",
 )
 _soon = Caravan.objects.create(
     name="[QA] به‌زودی", destination="karbala", status="approved",
-    departure_date="1405/09/05", duration=4, transportation_type="bus", bus_type=25,
+    departure_date="1499/09/05", duration=4, transportation_type="bus", bus_type=25,
     accommodation_type="hotel", price=1000000, capacity=10, remaining_capacity=10,
-    registration_state="soon", registration_opens_on="۱۴۰۵/۰۸/۱۵",
+    registration_state="soon", registration_opens_on="۱۴۹۹/۰۸/۱۵",
 )
 _closed = Caravan.objects.create(
     name="[QA] بسته", destination="karbala", status="approved",
-    departure_date="1405/09/09", duration=4, transportation_type="bus", bus_type=25,
+    departure_date="1499/09/09", duration=4, transportation_type="bus", bus_type=25,
     accommodation_type="hotel", price=1000000, capacity=10, remaining_capacity=10,
     registration_state="closed",
 )
 _full = Caravan.objects.create(
     name="[QA] تکمیل", destination="karbala", status="approved",
-    departure_date="1405/09/12", duration=4, transportation_type="bus", bus_type=25,
+    departure_date="1499/09/12", duration=4, transportation_type="bus", bus_type=25,
     accommodation_type="hotel", price=1000000, capacity=10, remaining_capacity=0,
     registration_state="open",
 )
@@ -562,7 +562,7 @@ check("کاروان پرشده قابل رزرو نیست", _full.is_bookable is
 check("برچسب باز عدد ظرفیت را نشان می‌دهد",
       _open.availability_label == "10 نفر ظرفیت", _open.availability_label)
 check("برچسب به‌زودی تاریخ را نشان می‌دهد",
-      _soon.availability_label == "ثبت‌نام از ۱۴۰۵/۰۸/۱۵", _soon.availability_label)
+      _soon.availability_label == "ثبت‌نام از ۱۴۹۹/۰۸/۱۵", _soon.availability_label)
 check("برچسب بسته", _closed.availability_label == "ثبت‌نام بسته است", _closed.availability_label)
 check("برچسب تکمیل بر وضعیت ثبت‌نام اولویت دارد", _full.availability_label == "تکمیل شده", _full.availability_label)
 check("رنگ برچسب‌ها درست است",
@@ -575,7 +575,7 @@ _payload = {"passenger_count": 1, "first_name": "تستی", "last_name": "وضع
 r = c.post("/api/bookings/step1", json.dumps(dict(_payload, caravan_id=_soon.id)),
            content_type="application/json", **zaer_h)
 check("سرور رزرو کاروان «به‌زودی» را رد می‌کند", r.status_code == 400, f"{r.status_code} {r.content[:120]}")
-check("پیام رد شامل تاریخ بازشدن است", "۱۴۰۵/۰۸/۱۵" in r.content.decode(), r.content[:160])
+check("پیام رد شامل تاریخ بازشدن است", "۱۴۹۹/۰۸/۱۵" in r.content.decode(), r.content[:160])
 
 r = c.post("/api/bookings/step1", json.dumps(dict(_payload, caravan_id=_closed.id)),
            content_type="application/json", **zaer_h)
@@ -590,7 +590,7 @@ r = c.get(f"/api/caravans/{_soon.id}")
 if r.status_code == 200:
     d = r.json()
     check("API برچسب و رنگ وضعیت را برمی‌گرداند",
-          d.get("availability_label") == "ثبت‌نام از ۱۴۰۵/۰۸/۱۵" and d.get("availability_tone") == "soon",
+          d.get("availability_label") == "ثبت‌نام از ۱۴۹۹/۰۸/۱۵" and d.get("availability_tone") == "soon",
           (d.get("availability_label"), d.get("availability_tone")))
     check("API is_bookable را برمی‌گرداند", d.get("is_bookable") is False, d.get("is_bookable"))
 

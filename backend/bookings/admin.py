@@ -9,7 +9,7 @@ class BookingAdmin(admin.ModelAdmin):
     list_display = (
         'id', 'booking_code', 'main_passenger_name', 'main_passenger_id',
         'caravan', 'passenger_count', 'formatted_total_price',
-        'status_badge', 'is_paid', 'created_at'
+        'status_badge', 'is_paid', 'bale_badge', 'created_at'
     )
     list_display_links = ('id', 'booking_code', 'main_passenger_name')
     list_filter = ('status', 'is_paid', 'is_completed', 'transportation_type')
@@ -18,7 +18,10 @@ class BookingAdmin(admin.ModelAdmin):
         'main_passenger_passport_no', 'caravan__name', 'user__phone'
     )
     ordering = ('-created_at',)
-    readonly_fields = ('booking_code', 'created_at', 'updated_at', 'companions_display', 'selected_seats_display')
+    readonly_fields = (
+        'booking_code', 'created_at', 'updated_at', 'companions_display', 'selected_seats_display',
+        'bale_notified_at', 'bale_notify_error',
+    )
     date_hierarchy = 'created_at'
 
     fieldsets = (
@@ -52,6 +55,9 @@ class BookingAdmin(admin.ModelAdmin):
         ('پرداخت', {
             'fields': ('total_price', 'is_paid', 'payment_date', 'payment_reference', 'payment_link'),
         }),
+        ('اطلاع به مدیر کاروان در بله', {
+            'fields': ('bale_notified_at', 'bale_notify_error'),
+        }),
         ('تاریخ‌های سیستمی', {
             'fields': ('created_at', 'updated_at'),
             'classes': ('collapse',),
@@ -59,6 +65,17 @@ class BookingAdmin(admin.ModelAdmin):
     )
 
     actions = ['mark_as_confirmed', 'mark_as_cancelled', 'mark_as_paid', 'resend_bale_notification']
+
+    @admin.display(description='بله')
+    def bale_badge(self, obj):
+        """رسید، رد شد (با دلیل در راهنمای موس)، یا هنوز تلاشی نشده."""
+        if obj.bale_notified_at:
+            return format_html('<span title="{}" style="color:#10b981;">✔</span>',
+                               obj.bale_notified_at.strftime('%Y-%m-%d %H:%M'))
+        if obj.bale_notify_error:
+            return format_html('<span title="{}" style="color:#ef4444;cursor:help;">✘ {}</span>',
+                               obj.bale_notify_error, obj.bale_notify_error[:40])
+        return '—'
 
     def formatted_total_price(self, obj):
         return f"{obj.total_price:,} تومان"
@@ -126,7 +143,7 @@ class BookingAdmin(admin.ModelAdmin):
         sent = sum(1 for booking in queryset.select_related('caravan', 'caravan__leader')
                    if notify_leader_of_booking(booking))
         skipped = queryset.count() - sent
-        message = f"اطلاع {sent} رزرو برای مدیر کاروان در بله ارسال شد."
+        message = f"ارسال اطلاع {sent} رزرو به بله شروع شد؛ نتیجه چند ثانیه بعد در ستون «بله» دیده می‌شود."
         if skipped:
             message += f" {skipped} رزرو ارسال نشد (توکن ربات یا شناسه‌ی چت مدیر تنظیم نشده است)."
         self.message_user(request, message)

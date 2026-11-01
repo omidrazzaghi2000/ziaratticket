@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from core.jalali import parse_jalali_date
 from core.digits import NormalizeDigitsMixin
 from .models import Caravan, CaravanPhoto, CaravanReview
 
@@ -71,6 +72,12 @@ class CaravanCreateSerializer(NormalizeDigitsMixin, serializers.ModelSerializer)
     class Meta:
         model = Caravan
         exclude = ['leader', 'status', 'created_at', 'updated_at']
+
+    def validate_departure_date(self, value):
+        # کاروانی که تاریخ حرکتش خوانا نباشد، بعد از حرکت از سایت برداشته نمی‌شود
+        if parse_jalali_date(value) is None:
+            raise serializers.ValidationError("تاریخ حرکت را به شکل ۱۴۰۵/۰۸/۰۹ وارد کنید.")
+        return value
 
     def validate_duration(self, value):
         if value not in range(3, 10):
