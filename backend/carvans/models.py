@@ -8,6 +8,11 @@ import uuid
 from core.bale import validate_bale_chat_id
 from core.jalali import jalali_moment, parse_jalali_date
 
+# جداکننده‌ی شهرها: ویرگول فارسی و لاتین، «؛»، «/»، یا «و» با فاصله (یا نیم‌فاصله) دو طرف
+_CITY_SEPARATOR = re.compile(r'\s*[،,؛;/]\s*|[\s\u200c]+و[\s\u200c]+')
+# پیشوند توضیحی که مدیرها جلوی فهرست شهرها نوشته‌اند
+_ROUTE_PREFIX = re.compile(r'^شهر(?:\u200c?های|ها)?[\s\u200c]*(?:در[\s\u200c]*)?(?:مسیر|بین[\s\u200c]*راهی)[\s\u200c]*:?[\s\u200c]*')
+
 
 class Caravan(models.Model):
     DESTINATION_CHOICES = [
@@ -215,17 +220,22 @@ class Caravan(models.Model):
         """
         شهرهایی که زائر می‌تواند از آن‌ها سوار شود: مبدأ و شهرهای بین‌راهی.
 
-        مبدأ گاهی چند شهر را با هم نوشته («قم و تهران»)، پس از هم جدا می‌شوند.
-        «و» فقط وقتی جداکننده است که دو طرفش فاصله باشد، تا «ورامین» نشکند.
+        داده‌ی واقعی تمیز نیست: مدیرها نوشته‌اند «قم و تهران»، «اراک ، ساوه ،
+        همدان» یا «شهرهای در مسیر اراک ، ساوه» — گاهی همه در یک خانه‌ی
+        transit_cities. هر کدام جدا می‌شود تا زائر از بین شهرها انتخاب کند، نه
+        از بین جمله‌ها. «و» فقط با فاصله دو طرفش جداکننده است تا «ورامین» نشکند.
+        فاصله‌ی تنها جدا نمی‌کند، چون «اسلام‌آباد غرب» هم در همین مسیر است.
         """
-        parts = re.split(r'\s*(?:،|,|/|\sو\s)\s*', self.origin_city or '')
-        cities = [p.strip() for p in parts if p and p.strip()]
-        cities += [c.strip() for c in (self.transit_cities or []) if isinstance(c, str) and c.strip()]
-        unique = []
-        for city in cities:
-            if city not in unique:
-                unique.append(city)
-        return unique
+        cities = []
+        for chunk in [self.origin_city or ''] + list(self.transit_cities or []):
+            if not isinstance(chunk, str):
+                continue
+            chunk = _ROUTE_PREFIX.sub('', chunk.strip())
+            for part in _CITY_SEPARATOR.split(chunk):
+                part = part.strip(' \u200c.:-')
+                if part and part not in cities:
+                    cities.append(part)
+        return cities
 
     # ── زمان‌بندی ثبت‌نام ─────────────────────────────────────────────────
     # همه‌چیز از روی ساعت سرور (تهران) حساب می‌شود و هیچ‌جا ذخیره نمی‌شود؛

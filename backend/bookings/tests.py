@@ -222,6 +222,20 @@ class BoardingCityTests(TestCase):
         # «و» داخل اسم شهر جداکننده نیست
         self.assertEqual(self.make(origin_city='ورامین').boarding_options, ['ورامین'])
 
+    def test_messy_transit_entries_from_the_live_site(self):
+        """عین متن‌هایی که مدیرها روی سایت نوشته‌اند؛ زائر باید شهر ببیند، نه جمله."""
+        route = ['قم', 'تهران', 'اراک', 'ساوه', 'همدان', 'کرمانشاه']
+        for transit in (
+            ['شهرهای در مسیر اراک ، ساوه ، همدان ، کرمانشاه'],
+            ['اراک ، ساوه ، همدان ، کرمانشاه'],
+            ['اراک و ساوه و همدان و کرمانشاه'],
+            ['اراک و ساوه و\u200c همدان و کرمانشاه'],   # نیم‌فاصله‌ی پنهان بعد از «و»
+        ):
+            self.assertEqual(self.make(origin_city='قم و تهران', transit_cities=transit).boarding_options, route)
+        self.assertEqual(self.make(origin_city='قم و تهران', transit_cities=['']).boarding_options, ['قم', 'تهران'])
+        # فاصله‌ی تنها جدا نمی‌کند — «اسلام‌آباد غرب» یک شهر است
+        self.assertEqual(self.make(origin_city='اسلام\u200cآباد غرب').boarding_options, ['اسلام\u200cآباد غرب'])
+
     def test_choice_is_stored(self):
         c = self.make(origin_city='قم و تهران')
         r = self.step1(c, boarding_city='تهران')
