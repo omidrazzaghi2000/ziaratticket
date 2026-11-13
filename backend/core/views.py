@@ -90,9 +90,9 @@ class BaleWebhookView(APIView):
     """
     درگاه آپدیت‌های ربات بله.
 
-    بله هر پیامی که به ربات برسد را با POST به این آدرس می‌فرستد. تنها کاری که
-    اینجا انجام می‌شود، وصل‌کردن حساب مدیر کاروان با «کد اتصال» است
-    (``core/bale_link.py``).
+    بله هر پیام و هر دکمه‌ای که در ربات زده شود را با POST به این آدرس
+    می‌فرستد. گفتگوی ثبت‌نام زائر در ``bookings/bale_bot.py`` است؛ همان‌جا کد
+    اتصال مدیر کاروان را هم به ``core/bale_link.py`` می‌سپارد.
 
     امنیت: رمز وب‌هوک در خودِ مسیر است و جز بله کسی آن را ندارد؛ هر مسیر دیگری
     ۴۰۴ می‌گیرد. تا وقتی ``BALE_WEBHOOK_SECRET`` خالی باشد، وب‌هوک بسته است.
@@ -108,7 +108,9 @@ class BaleWebhookView(APIView):
 
         # پاسخ همیشه ۲۰۰ است؛ اگر خطا بدهیم بله همان آپدیت را دوباره می‌فرستد.
         try:
-            bale_link.handle_update(request.data)
+            # ایمپورت داخلی: bookings به core تکیه دارد، نه برعکس
+            from bookings import bale_bot
+            bale_bot.handle_update(request.data)
         except Exception:
             logger.exception('بله: پردازش آپدیت وب‌هوک ناموفق بود.')
         return Response({'ok': True})

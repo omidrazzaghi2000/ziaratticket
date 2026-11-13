@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Booking
+from .models import BaleChat, Booking
 from .notifications import notify_leader_of_booking
 
 
@@ -12,7 +12,7 @@ class BookingAdmin(admin.ModelAdmin):
         'status_badge', 'is_paid', 'bale_badge', 'created_at'
     )
     list_display_links = ('id', 'booking_code', 'main_passenger_name')
-    list_filter = ('status', 'is_paid', 'is_completed', 'transportation_type', 'boarding_city')
+    list_filter = ('status', 'is_paid', 'is_completed', 'source', 'transportation_type', 'boarding_city')
     search_fields = (
         'booking_code', 'main_passenger_name', 'main_passenger_id', 'main_passenger_phone',
         'main_passenger_passport_no', 'caravan__name', 'user__phone'
@@ -26,7 +26,7 @@ class BookingAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ('اطلاعات رزرو', {
-            'fields': ('booking_code', 'user', 'caravan', 'status', 'current_step', 'is_completed'),
+            'fields': ('booking_code', 'user', 'caravan', 'status', 'current_step', 'is_completed', 'source'),
         }),
         ('اطلاعات سرپرست', {
             'fields': (
@@ -155,3 +155,14 @@ class BookingAdmin(admin.ModelAdmin):
             message += f" {skipped} رزرو ارسال نشد (توکن ربات یا شناسه‌ی چت مدیر تنظیم نشده است)."
         self.message_user(request, message)
     resend_bale_notification.short_description = "📣 ارسال مجدد اطلاع رزرو در بله"
+
+
+@admin.register(BaleChat)
+class BaleChatAdmin(admin.ModelAdmin):
+    """فقط برای دیدن؛ گفتگوها را خود ربات می‌سازد و جلو می‌برد."""
+    list_display = ('chat_id', 'user', 'state', 'updated_at')
+    search_fields = ('chat_id', 'user__phone')
+    readonly_fields = ('chat_id', 'user', 'state', 'data', 'last_update_id', 'created_at', 'updated_at')
+
+    def has_add_permission(self, request):
+        return False

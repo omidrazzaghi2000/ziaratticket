@@ -1,76 +1,17 @@
-from django.db import transaction
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status
 from .models import Booking
-from .notifications import notify_leader_of_booking
+from .services import (
+    BookingError, boarding_city_for, finalize_booking, occupied_seats_for,
+    opening_error, registration_error, validate_seats,
+)
 from carvans.models import Caravan
 from .serializers import (
     BookingStep1Serializer, BookingStep2Serializer,
     BookingStep3Serializer, BookingSerializer, CompanionSerializer
 )
-
-
-def occupied_seats_for(caravan, exclude_booking_id=None):
-    """صندلی‌های اشغال‌شده توسط سایر رزروهای فعال همین کاروان."""
-    qs = Booking.objects.filter(
-        caravan=caravan,
-        status__in=['pending', 'confirmed', 'completed'],
-    )
-    if exclude_booking_id:
-        qs = qs.exclude(id=exclude_booking_id)
-    occupied = {}
-    for b in qs:
-        for seat_num in (b.selected_seats or []):
-            occupied[seat_num] = b.main_passenger_name
-    return occupied
-
-
-def registration_error(caravan):
-    """پیام فارسی اگر ثبت‌نام این کاروان همین الان باز نیست، وگرنه None."""
-    if caravan.has_departed():
-        return "تاریخ حرکت این کاروان گذشته است."
-    state = caravan.registration_status()
-    if state == 'soon':
-        when = ''
-        if caravan.registration_opens_on:
-            when = f' از {caravan.registration_opens_on}'
-            if caravan.registration_opens_time:
-                when += f' ساعت {caravan.registration_opens_time:%H:%M}'
-        return f"ثبت‌نام این کاروان هنوز باز نشده است{when}."
-    if state == 'closed':
-        return "ثبت‌نام این کاروان بسته شده است."
-    return None
-
-
-def validate_seats(booking, seats):
-    """اعتبارسنجی صندلی‌های انتخابی. در صورت خطا پیام فارسی برمی‌گرداند، در غیر این صورت None."""
-    caravan = booking.caravan
-    # وقتی کاروان انتخاب صندلی را روشن نکرده، رزرو بدون صندلی ثبت می‌شود
-    if not caravan.seat_selection_active:
-        return None
-
-    seats = [int(s) for s in (seats or [])]
-    if len(seats) != booking.passenger_count:
-        return (
-            f"باید دقیقاً {booking.passenger_count} صندلی انتخاب کنید "
-            f"({len(seats)} صندلی انتخاب شده است)."
-        )
-    if len(set(seats)) != len(seats):
-        return "هر صندلی فقط یک بار قابل انتخاب است."
-
-    capacity = caravan.capacity or 0
-    invalid = [s for s in seats if s < 1 or s > capacity]
-    if invalid:
-        return "شماره صندلی انتخاب‌شده خارج از ظرفیت کاروان است."
-
-    occupied = occupied_seats_for(caravan, exclude_booking_id=booking.id)
-    taken = [s for s in seats if s in occupied]
-    if taken:
-        nums = '، '.join(str(s) for s in taken)
-        return f"صندلی‌های {nums} توسط زائر دیگری رزرو شده است. لطفاً صندلی دیگری انتخاب کنید."
-    return None
 
 
 class BookingStep1View(APIView):
@@ -85,33 +26,14 @@ class BookingStep1View(APIView):
         except Caravan.DoesNotExist:
             return Response({"message": "کاروان یافت نشد."}, status=status.HTTP_404_NOT_FOUND)
 
-        if caravan.status != 'approved':
-            return Response({"message": "این کاروان هنوز تأیید نشده است."}, status=status.HTTP_400_BAD_REQUEST)
-
-        # «به‌زودی» و «بسته» فقط برچسب روی کارت نیستند؛ سرور هم باید جلویشان را
-        # بگیرد — و از روی تاریخ‌ها، نه فقط وضعیتی که دستی انتخاب شده.
-        error = registration_error(caravan)
+        passenger_count = serializer.validated_data['passenger_count']
+        error = opening_error(caravan, passenger_count)
         if error:
             return Response({"message": error}, status=status.HTTP_400_BAD_REQUEST)
-
-        passenger_count = serializer.validated_data['passenger_count']
-        if caravan.remaining_capacity < passenger_count:
-            return Response(
-                {"message": f"ظرفیت باقیمانده کاروان ({caravan.remaining_capacity} نفر) کافی نیست."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # محل سوار شدن باید یکی از شهرهای همین کاروان باشد؛ اگر کاروان فقط یک
-        # مبدأ دارد، همان است و از زائر پرسیده نمی‌شود.
-        options = caravan.boarding_options
-        boarding_city = (serializer.validated_data.get('boarding_city') or '').strip()
-        if len(options) == 1 and not boarding_city:
-            boarding_city = options[0]
-        if boarding_city and options and boarding_city not in options:
-            return Response(
-                {"message": "محل سوار شدن باید یکی از این شهرها باشد: " + '، '.join(options)},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        try:
+            boarding_city = boarding_city_for(caravan, serializer.validated_data.get('boarding_city'))
+        except BookingError as exc:
+            return Response({"message": exc.message}, status=status.HTTP_400_BAD_REQUEST)
 
         total_price = caravan.price * passenger_count
         first_name = serializer.validated_data['first_name'].strip()
@@ -303,42 +225,11 @@ class CompleteBookingView(APIView):
                 "bookingCode": booking.booking_code,
             })
 
-        expected_companions = max(0, booking.passenger_count - 1)
-        if len(booking.companions or []) != expected_companions:
-            return Response(
-                {"message": f"اطلاعات {expected_companions} همراه باید ثبت شود."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
         selected_seats = request.data.get('selected_seats', booking.selected_seats or [])
-        error = validate_seats(booking, selected_seats)
-        if error:
-            return Response({"message": error}, status=status.HTTP_400_BAD_REQUEST)
-
-        caravan = booking.caravan
-        # مهلت ممکن است بین شروع و پایان فرم تمام شده باشد
-        error = registration_error(caravan)
-        if error:
-            return Response({"message": error}, status=status.HTTP_400_BAD_REQUEST)
-        if caravan.remaining_capacity < booking.passenger_count:
-            return Response(
-                {"message": "ظرفیت کاروان تکمیل شده است."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        with transaction.atomic():
-            booking.selected_seats = [int(s) for s in (selected_seats or [])]
-            booking.status = 'completed'
-            booking.is_completed = True
-            booking.current_step = 4
-            booking.save()
-
-            caravan.remaining_capacity -= booking.passenger_count
-            caravan.save(update_fields=['remaining_capacity'])
-
-            # اطلاع به مدیر کاروان در بله، فقط بعد از commit شدن رزرو؛ اگر
-            # تراکنش برگردد نباید خبر رزروی داده شود که ثبت نشده است.
-            transaction.on_commit(lambda: notify_leader_of_booking(booking))
+        try:
+            finalize_booking(booking, selected_seats)
+        except BookingError as exc:
+            return Response({"message": exc.message}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({
             "message": "رزرو تکمیل شد.",

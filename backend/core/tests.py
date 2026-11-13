@@ -67,10 +67,13 @@ class BaleWebhookTests(TestCase):
         return {'update_id': 1, 'message': {'chat': {'id': chat_id}, 'text': text}}
 
     def _post(self, payload, url=None):
-        with mock.patch('core.bale.send_message', return_value=True) as send:
+        # send_message مسیر کد اتصال مدیر است؛ call بقیه‌ی گفتگوی ربات (منو و فرم)
+        with mock.patch('core.bale.send_message', return_value=True) as send, \
+                mock.patch('core.bale.call', return_value={'ok': True}) as call:
             response = self.client.post(
                 url or self.url, data=json.dumps(payload), content_type='application/json',
             )
+        self.bot_calls = call.call_args_list
         return response, send
 
     def test_leader_code_links_chat(self):
@@ -144,13 +147,18 @@ class BaleWebhookTests(TestCase):
         self.assertEqual(other.bale_chat_id, '')
         self.assertEqual(self.leader.bale_chat_id, '4242')
 
-    def test_start_sends_the_guide(self):
-        _, send = self._post(self._message('/start'))
-        self.assertIn('کد اتصال', send.call_args.args[1])
+    def test_start_shows_the_menu_with_a_way_in_for_leaders(self):
+        self._post(self._message('/start'))
+        method, payload = self.bot_calls[-1].args
+        self.assertEqual(method, 'sendMessage')
+        buttons = [b['callback_data'] for row in payload['reply_markup']['inline_keyboard'] for b in row]
+        self.assertIn('ld', buttons)   # «مدیر کاروان هستم» → راهنمای کد اتصال
+        self.assertIn('my', buttons)
 
-    def test_ordinary_chat_is_ignored_silently(self):
+    def test_ordinary_chat_gets_the_menu_not_a_link_attempt(self):
         _, send = self._post(self._message('سلام، کاروان نجف کِی حرکت می‌کند؟'))
         send.assert_not_called()
+        self.assertEqual(self.bot_calls[-1].args[0], 'sendMessage')
 
     def test_update_without_message_is_ignored(self):
         _, send = self._post({'update_id': 2, 'channel_post': {'text': 'x'}})

@@ -56,6 +56,11 @@ class Booking(models.Model):
     is_completed = models.BooleanField(default=False)
     transportation_type = models.CharField(max_length=50, verbose_name='نوع حمل‌ونقل')
 
+    SOURCE_CHOICES = [('site', 'سایت'), ('bale', 'ربات بله')]
+    source = models.CharField(
+        max_length=10, choices=SOURCE_CHOICES, default='site', verbose_name='ثبت از',
+    )
+
     # نتیجه‌ی اطلاع به مدیر کاروان در بله — تا اگر پیامی نرسید، دلیلش همین‌جا
     # در پنل دیده شود و نیازی به گشتن در لاگ سرور نباشد.
     bale_notified_at = models.DateTimeField(null=True, blank=True, verbose_name='اطلاع بله ارسال شد')
@@ -130,3 +135,32 @@ class Booking(models.Model):
             # بعد از ذخیره اولیه تولید می‌شود تا pk موجود باشد
             Booking.objects.filter(pk=self.pk).update(booking_code=self.build_booking_code())
             self.refresh_from_db(fields=['booking_code'])
+
+
+class BaleChat(models.Model):
+    """
+    یک گفتگوی ربات بله با یک زائر.
+
+    ربات بی‌حافظه است: هر پیام جداگانه به وب‌هوک می‌رسد. این ردیف یادش نگه
+    می‌دارد که این چت متعلق به کدام حساب است (بعد از تأیید شماره) و زائر در
+    کدام مرحله‌ی فرم رزرو است. تا آخر کار هیچ رزروی ساخته نمی‌شود؛ جواب‌های
+    نیمه‌کاره فقط همین‌جا در ``data`` می‌مانند.
+    """
+    chat_id = models.CharField(max_length=40, unique=True, verbose_name='شناسه چت')
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='bale_chats', verbose_name='حساب کاربر',
+    )
+    state = models.CharField(max_length=30, blank=True, default='', verbose_name='مرحله')
+    data = models.JSONField(default=dict, blank=True, verbose_name='پاسخ‌های نیمه‌کاره')
+    last_update_id = models.BigIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='آخرین پیام')
+
+    class Meta:
+        verbose_name = 'گفتگوی ربات بله'
+        verbose_name_plural = 'گفتگوهای ربات بله'
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f"چت {self.chat_id} — {self.user or 'ناشناس'}"

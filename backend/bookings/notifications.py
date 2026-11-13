@@ -29,7 +29,7 @@ def build_booking_summary(booking) -> str:
     """متن خلاصه‌ی رزرو برای ارسال در بله."""
     caravan = booking.caravan
     lines = [
-        '🕋 رزرو جدید ثبت شد',
+        '🕋 رزرو جدید ثبت شد' + (' (از ربات بله)' if booking.source == 'bale' else ''),
         '',
         f'کاروان: {caravan.name}',
         f'مقصد: {caravan.get_destination_display()}',
