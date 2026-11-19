@@ -152,6 +152,10 @@ def finalize_booking(booking, selected_seats):
         caravan.remaining_capacity -= booking.passenger_count
         caravan.save(update_fields=['remaining_capacity'])
 
+        # هر مسافر یک ردیف در دفتر کاروان؛ مدیر فقط پرداختی و توضیح را پر می‌کند
+        from .ledger import add_booking_rows
+        add_booking_rows(booking)
+
         # اطلاع به مدیر کاروان در بله، فقط بعد از commit شدن رزرو؛ اگر تراکنش
         # برگردد نباید خبر رزروی داده شود که ثبت نشده است.
         transaction.on_commit(lambda: notify_leader_of_booking(booking))

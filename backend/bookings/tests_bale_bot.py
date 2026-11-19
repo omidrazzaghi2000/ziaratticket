@@ -431,3 +431,104 @@ class LeaderCodeStillWorksTests(BotCase):
         self.leader.refresh_from_db()
         self.assertEqual(self.leader.bale_chat_id, '')
         self.assertEqual(self.chat().data['special'], code)
+
+
+class LeaderLedgerInBaleTests(BotCase):
+    """مدیری که چتش وصل است، دفتر کاروانش را در بله دارد."""
+
+    def setUp(self):
+        super().setUp()
+        User.objects.filter(pk=self.leader.pk).update(bale_chat_id=str(CHAT))
+
+    def rows(self):
+        from bookings.models import LedgerRow
+        return LedgerRow.objects.filter(caravan=self.caravan).order_by('id')
+
+    def add(self, name='حسن محمدی', phone='۰۹۱۲۳۳۳۴۴۵۵', origin='mehran', paid='۱٬۰۰۰٬۰۰۰', notes=None):
+        self.tap(f'La:{self.caravan.id}')
+        self.say(name)
+        self.say(phone) if phone else self.tap('Lskip')
+        self.tap(f'Lao:{origin}')
+        self.tap('Lcd')
+        self.say(paid) if paid else self.tap('Lp0')
+        self.say(notes) if notes else self.tap('Lskip')
+
+    def test_menu_shows_the_ledger_only_to_a_linked_leader(self):
+        self.say('/start')
+        self.assertIn('L', self.buttons())
+        self.assertNotIn('ld', self.buttons())
+        self.say('/start', chat=CHAT + 1)            # چت دیگری که وصل نیست
+        self.assertNotIn('L', self.buttons())
+
+    def test_add_a_pilgrim_step_by_step(self):
+        self.add(notes='بیعانه نقد')
+        row = self.rows().get()
+        self.assertEqual((row.full_name, row.phone, row.origin), ('حسن محمدی', '09123334455', 'mehran'))
+        self.assertEqual((int(row.cost), int(row.paid), row.remaining), (4_000_000, 1_000_000, 3_000_000))
+        self.assertEqual(row.notes, 'بیعانه نقد')
+        self.caravan.refresh_from_db()
+        self.assertEqual(self.caravan.remaining_capacity, 24)
+        self.assertIn('Ln:', ' '.join(self.buttons()))
+
+    def test_next_person_keeps_origin_and_cost(self):
+        self.add()
+        self.tap(f'Ln:{self.caravan.id}')
+        self.say('زینب کریمی')
+        self.tap('Lskip')                             # بدون شماره
+        self.assertEqual(self.chat().state, 'L_paid')  # مبدأ و هزینه دوباره پرسیده نشد
+        self.tap('Lp0')
+        self.tap('Lskip')
+        second = self.rows().last()
+        self.assertEqual((second.origin, int(second.cost), int(second.paid)), ('mehran', 4_000_000, 0))
+
+    def test_ledger_shows_totals(self):
+        self.add(paid='۱٬۰۰۰٬۰۰۰')
+        self.add(name='زینب کریمی', phone=None, origin='qom', paid=None)
+        self.tap(f'Lc:{self.caravan.id}:0')
+        text = self.text()
+        self.assertIn('نفرات: ۲', text)
+        self.assertIn('جمع هزینه: ۸,۰۰۰,۰۰۰ تومان', text)
+        self.assertIn('پرداخت‌شده: ۱,۰۰۰,۰۰۰ تومان', text)
+        self.assertIn('الباقی: ۷,۰۰۰,۰۰۰ تومان', text)
+
+    def test_installments_add_up(self):
+        self.add(paid=None)
+        row = self.rows().get()
+        for amount in ('۱٬۰۰۰٬۰۰۰', '500000'):
+            self.tap(f'Lpay:{row.id}')
+            self.say(amount)
+        row.refresh_from_db()
+        self.assertEqual(int(row.paid), 1_500_000)
+        self.tap(f'Lpay:{row.id}')
+        self.say('دو میلیون')                          # متن به‌جای عدد
+        self.assertEqual(self.chat().state, 'L_pay')
+        row.refresh_from_db()
+        self.assertEqual(int(row.paid), 1_500_000)
+
+    def test_origin_and_delete(self):
+        self.add()
+        row = self.rows().get()
+        self.tap(f'Lo2:{row.id}:qom')
+        row.refresh_from_db()
+        self.assertEqual(row.origin, 'qom')
+        self.tap(f'Ldel:{row.id}')
+        self.tap(f'Ldx:{row.id}')
+        self.assertFalse(self.rows().exists())
+        self.caravan.refresh_from_db()
+        self.assertEqual(self.caravan.remaining_capacity, 25)
+
+    def test_another_leaders_rows_are_out_of_reach(self):
+        self.add()
+        row = self.rows().get()
+        stranger = User.objects.create_user(
+            phone='09129999999', role='caravan_leader', is_leader_approved=True, bale_chat_id=str(CHAT + 5))
+        for data in (f'Lr:{row.id}', f'Lpay:{row.id}', f'Ldx:{row.id}', f'Lc:{self.caravan.id}:0', f'La:{self.caravan.id}'):
+            self.tap(data, chat=CHAT + 5)
+            self.assertEqual(self.messages(), [], data)
+        self.assertTrue(self.rows().exists())
+        self.assertIsNotNone(stranger)
+
+    def test_pilgrim_chat_cannot_open_a_ledger(self):
+        self.tap(f'Lc:{self.caravan.id}:0', chat=CHAT + 7)
+        self.assertEqual(self.messages(), [])
+        self.assertIn('مدیر کاروان', self.toast())

@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import BaleChat, Booking
+from .models import BaleChat, Booking, LedgerRow
 from .notifications import notify_leader_of_booking
 
 
@@ -166,3 +166,15 @@ class BaleChatAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return False
+
+
+@admin.register(LedgerRow)
+class LedgerRowAdmin(admin.ModelAdmin):
+    list_display = ('full_name', 'caravan', 'phone', 'cost', 'paid', 'remaining_display', 'origin', 'is_cancelled')
+    list_filter = ('caravan', 'origin', 'is_cancelled')
+    search_fields = ('full_name', 'phone', 'caravan__name')
+    readonly_fields = ('booking', 'companion_index', 'created_at', 'updated_at')
+
+    @admin.display(description='الباقی')
+    def remaining_display(self, obj):
+        return f"{obj.remaining:,}"

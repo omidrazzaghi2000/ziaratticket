@@ -270,7 +270,10 @@ def show_menu(turn, greet=False, edit=False):
         count = sum(1 for c in caravans if c.destination == dest)
         rows.append([btn(f'🕌 کاروان‌های {labels.get(dest, dest)} ({fa(count)})', f'd:{dest}')])
     rows.append([btn('🧾 رزروهای من', 'my')])
-    rows.append([btn('مدیر کاروان هستم', 'ld')])
+    if leader_for(turn):
+        rows.insert(0, [btn('📒 دفتر کاروان‌های من', 'L')])
+    else:
+        rows.append([btn('مدیر کاروان هستم', 'ld')])
     if turn.chat.user_id:
         rows.append([btn(f'خروج از حساب {fa(turn.chat.user.phone)}', 'out')])
 
@@ -1002,3 +1005,446 @@ CALLBACKS = {
     'ok': cb_confirm, 'x': cb_cancel_form,
     'my': cb_my, 'r': cb_booking, 'out': cb_logout,
 }
+
+
+# ─── دفتر کاروان برای مدیر ───────────────────────────────────────────────────
+#
+# مدیری که چتش را با «کد اتصال» داشبورد وصل کرده، همان دفتر صفحه‌ی سایت را
+# اینجا دارد: جمع‌ها، فهرست نفرات، افزودن زائر، ثبت قسط، مبدأ و توضیح. هویت
+# مدیر از همان اتصال می‌آید (User.bale_chat_id)، نه از ورود زائر در همین چت؛
+# و هر دکمه دوباره بررسی می‌کند که کاروان یا ردیف واقعاً مال همین مدیر باشد.
+
+from . import ledger as ledger_service  # noqa: E402
+from .models import LedgerRow  # noqa: E402
+
+LEDGER_PAGE = 12
+ORIGIN_LABELS = dict(LedgerRow.ORIGIN_CHOICES)
+
+
+def leader_for(turn):
+    from accounts.models import User
+    return User.objects.filter(
+        bale_chat_id=turn.chat.chat_id, role='caravan_leader', is_leader_approved=True,
+    ).first()
+
+
+def _leader_or_toast(turn):
+    leader = leader_for(turn)
+    if leader is None:
+        turn.toast('این بخش فقط برای مدیر کاروانی است که حسابش را به ربات وصل کرده.')
+    return leader
+
+
+def _leader_caravan(turn, raw_id):
+    leader = _leader_or_toast(turn)
+    if leader is None:
+        return None
+    caravan = Caravan.objects.filter(pk=int(raw_id) if str(raw_id).isdigit() else 0, leader=leader).first()
+    if caravan is None:
+        turn.toast('این کاروان پیدا نشد.')
+    return caravan
+
+
+def _leader_row(turn, raw_id):
+    leader = _leader_or_toast(turn)
+    if leader is None:
+        return None
+    row = LedgerRow.objects.select_related('caravan', 'booking').filter(
+        pk=int(raw_id) if str(raw_id).isdigit() else 0, caravan__leader=leader).first()
+    if row is None:
+        turn.toast('این ردیف پیدا نشد.')
+    return row
+
+
+def cb_leader_caravans(turn, arg):
+    turn.reset()
+    leader = _leader_or_toast(turn)
+    if leader is None:
+        return
+    caravans = list(Caravan.objects.filter(leader=leader).exclude(status='rejected'))
+    if not caravans:
+        return turn.edit('هنوز کاروانی به نام شما ثبت نشده است.', [[btn('منو', 'm')]])
+    now = timezone.now()
+    far = timezone.localdate() + timedelta(days=36500)
+    # کاروان‌های پیش رو اول، نزدیک‌ترین حرکت اول؛ رفته‌ها آخر
+    caravans.sort(key=lambda c: (c.has_departed(now), c.departure_day or far, c.id))
+    rows = [[btn(f'{c.name[:34]} · {fa(c.departure_date)}', f'Lc:{c.id}:0')] for c in caravans[:20]]
+    rows.append([btn('منو', 'm')])
+    turn.edit('دفتر کدام کاروان را می‌خواهید؟', rows)
+
+
+def ledger_text(caravan, rows, page):
+    t = ledger_service.totals(rows)
+    active = [r for r in rows if not r.is_cancelled]
+    lines = [
+        f'📒 دفتر «{caravan.name}»',
+        f'حرکت {fa(caravan.departure_date)} · ظرفیت باقیمانده {fa(caravan.remaining_capacity)} از {fa(caravan.capacity)}',
+        '',
+        f'نفرات: {fa(t["count"])}',
+        f'جمع هزینه: {money(t["cost"])}',
+        f'پرداخت‌شده: {money(t["paid"])}',
+        f'الباقی: {money(t["remaining"])}',
+    ]
+    chunk = active[page * LEDGER_PAGE:(page + 1) * LEDGER_PAGE]
+    if chunk:
+        lines.append('')
+    for i, r in enumerate(chunk, start=page * LEDGER_PAGE + 1):
+        where = ORIGIN_LABELS.get(r.origin, '')
+        head = ' · '.join(x for x in (r.full_name, fa(r.phone) if r.phone else '', where) if x)
+        rest = 'تسویه ✓' if r.remaining == 0 else (
+            f'الباقی {money(r.remaining)}' if r.remaining > 0 else f'اضافه پرداخت {money(-r.remaining)}')
+        lines += [f'{fa(i)}) {head}', f'   پرداخت {fa(f"{int(r.paid):,}")} از {fa(f"{int(r.cost):,}")} · {rest}']
+    if not active:
+        lines += ['', 'هنوز کسی در این کاروان نیست.']
+    return '\n'.join(lines), active
+
+
+def show_ledger(turn, caravan, page=0, edit=True):
+    rows = ledger_service.rows_for(caravan)
+    active = [r for r in rows if not r.is_cancelled]
+    pages = max(1, -(-len(active) // LEDGER_PAGE))
+    page = min(max(page, 0), pages - 1)
+    text, active = ledger_text(caravan, rows, page)
+    chunk = active[page * LEDGER_PAGE:(page + 1) * LEDGER_PAGE]
+    buttons = [btn(f'{fa(i)}) {r.full_name[:22]}', f'Lr:{r.id}')
+               for i, r in enumerate(chunk, start=page * LEDGER_PAGE + 1)]
+    kb = [[btn('➕ افزودن زائر', f'La:{caravan.id}')]]
+    kb += [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
+    if pages > 1:
+        nav = []
+        if page > 0:
+            nav.append(btn('◀️ قبلی', f'Lc:{caravan.id}:{page - 1}'))
+        nav.append(btn(f'صفحه {fa(page + 1)} از {fa(pages)}', f'Lc:{caravan.id}:{page}'))
+        if page < pages - 1:
+            nav.append(btn('بعدی ▶️', f'Lc:{caravan.id}:{page + 1}'))
+        kb.append(nav)
+    kb.append([btn('کاروان‌های من', 'L'), btn('منو', 'm')])
+    (turn.edit if edit else turn.say)(text, kb)
+
+
+def cb_ledger(turn, arg):
+    turn.reset()
+    raw_id, _, raw_page = arg.partition(':')
+    caravan = _leader_caravan(turn, raw_id)
+    if caravan is None:
+        return
+    show_ledger(turn, caravan, int(raw_page) if raw_page.isdigit() else 0)
+
+
+def row_text(r):
+    source = 'ثبت دستی' if r.is_manual else f'رزرو {r.booking.booking_code if r.booking else ""} ' + (
+        '(بله)' if r.booking and r.booking.source == 'bale' else '(سایت)')
+    remaining = 'تسویه ✓' if r.remaining == 0 else (
+        money(r.remaining) if r.remaining > 0 else f'{money(-r.remaining)} اضافه پرداخت')
+    return '\n'.join([
+        f'👤 {r.full_name}' + (' — لغو شده' if r.is_cancelled else ''),
+        f'شماره تماس: {fa(r.phone) if r.phone else "—"}',
+        f'مبدأ: {ORIGIN_LABELS.get(r.origin, "—")}',
+        '',
+        f'هزینه کاروان: {money(r.cost)}',
+        f'پرداخت‌شده: {money(r.paid)}',
+        f'الباقی: {remaining}',
+        '',
+        f'توضیحات: {r.notes or "—"}',
+        f'منبع: {source}',
+    ])
+
+
+def show_row(turn, r, edit=True):
+    kb = []
+    if not r.is_cancelled:
+        kb.append([btn('💰 ثبت پرداخت', f'Lpay:{r.id}'), btn('📝 توضیحات', f'Lnote:{r.id}')])
+        kb.append([btn('🧭 تغییر مبدأ', f'Lorg:{r.id}'), btn('✏️ هزینه', f'Lcst:{r.id}')])
+        if r.is_manual:
+            kb.append([btn('🗑 حذف این نفر', f'Ldel:{r.id}')])
+    kb.append([btn('بازگشت به دفتر', f'Lc:{r.caravan_id}:0')])
+    (turn.edit if edit else turn.say)(row_text(r), kb)
+
+
+def cb_row(turn, raw_id):
+    turn.reset()
+    r = _leader_row(turn, raw_id)
+    if r:
+        show_row(turn, r)
+
+
+def _row_prompt(turn, raw_id, state, prompt, kb=None):
+    turn.reset()
+    r = _leader_row(turn, raw_id)
+    if r is None or r.is_cancelled:
+        return
+    turn.data['row'] = r.id
+    turn.go(state)
+    turn.say(prompt.format(name=r.full_name), (kb or []) + [[btn('❌ انصراف', f'Lr:{r.id}')]])
+
+
+def cb_pay(turn, raw_id):
+    _row_prompt(turn, raw_id, 'L_pay', 'مبلغی که «{name}» تازه پرداخت کرده را به تومان بفرستید.\nبه پرداختی قبلی اضافه می‌شود.')
+
+
+def cb_note(turn, raw_id):
+    _row_prompt(turn, raw_id, 'L_note', 'توضیحات تازه‌ی «{name}» را بفرستید (جای قبلی را می‌گیرد).')
+
+
+def cb_row_cost(turn, raw_id):
+    _row_prompt(turn, raw_id, 'L_rcost', 'هزینه‌ی کاروان برای «{name}» را به تومان بفرستید.')
+
+
+def _current_row(turn):
+    leader = leader_for(turn)
+    row = LedgerRow.objects.select_related('caravan', 'booking').filter(
+        pk=turn.data.get('row'), caravan__leader=leader).first() if leader else None
+    if row is None:
+        turn.reset()
+        turn.say('این ردیف دیگر در دسترس نیست.', [[btn('منو', 'm')]])
+    return row
+
+
+def text_pay(turn, text):
+    r = _current_row(turn)
+    if r is None:
+        return
+    try:
+        ledger_service.record_payment(r, text)
+    except ledger_service.LedgerError as exc:
+        return turn.say(exc.message + ' دوباره بفرستید:')
+    turn.reset()
+    turn.say(f'✅ {money(ledger_service.parse_amount(text))} برای «{r.full_name}» ثبت شد.')
+    show_row(turn, r, edit=False)
+
+
+def text_note(turn, text):
+    r = _current_row(turn)
+    if r is None:
+        return
+    ledger_service.update_row(r, {'notes': text[:1000]})
+    turn.reset()
+    show_row(turn, r, edit=False)
+
+
+def text_row_cost(turn, text):
+    r = _current_row(turn)
+    if r is None:
+        return
+    try:
+        ledger_service.update_row(r, {'cost': text})
+    except ledger_service.LedgerError as exc:
+        return turn.say(exc.message + ' دوباره بفرستید:')
+    turn.reset()
+    show_row(turn, r, edit=False)
+
+
+def cb_row_origin(turn, raw_id):
+    r = _leader_row(turn, raw_id)
+    if r is None or r.is_cancelled:
+        return
+    kb = [[btn(label, f'Lo2:{r.id}:{key}') for key, label in LedgerRow.ORIGIN_CHOICES[:2]],
+          [btn(label, f'Lo2:{r.id}:{key}') for key, label in LedgerRow.ORIGIN_CHOICES[2:]],
+          [btn('بازگشت', f'Lr:{r.id}')]]
+    turn.edit(f'مبدأ «{r.full_name}»؟', kb)
+
+
+def cb_row_origin_set(turn, arg):
+    raw_id, _, key = arg.partition(':')
+    r = _leader_row(turn, raw_id)
+    if r is None or r.is_cancelled:
+        return
+    try:
+        ledger_service.update_row(r, {'origin': key})
+    except ledger_service.LedgerError as exc:
+        return turn.toast(exc.message)
+    turn.toast(f'مبدأ: {ORIGIN_LABELS.get(key)}')
+    show_row(turn, r)
+
+
+def cb_delete(turn, raw_id):
+    r = _leader_row(turn, raw_id)
+    if r is None:
+        return
+    if not r.is_manual:
+        return turn.toast('این نفر از رزرو آمده؛ برای حذف، رزرو را از داشبورد لغو کنید.')
+    turn.edit(f'«{r.full_name}» از دفتر حذف شود؟ یک نفر به ظرفیت کاروان برمی‌گردد.',
+              [[btn('بله، حذف کن', f'Ldx:{r.id}'), btn('نه', f'Lr:{r.id}')]])
+
+
+def cb_delete_yes(turn, raw_id):
+    r = _leader_row(turn, raw_id)
+    if r is None:
+        return
+    caravan = r.caravan
+    try:
+        ledger_service.delete_manual_row(r)
+    except ledger_service.LedgerError as exc:
+        return turn.toast(exc.message)
+    caravan.refresh_from_db()
+    turn.toast('حذف شد.')
+    show_ledger(turn, caravan)
+
+
+# ── افزودن زائر: نام → تماس → مبدأ → هزینه → پرداختی → توضیح ──
+
+def cb_add(turn, raw_id, keep=False):
+    caravan = _leader_caravan(turn, raw_id)
+    if caravan is None:
+        return
+    if (caravan.remaining_capacity or 0) <= 0:
+        return turn.say('ظرفیت این کاروان تکمیل است. اول ظرفیت را در سایت بیشتر کنید.',
+                        [[btn('بازگشت به دفتر', f'Lc:{caravan.id}:0')]])
+    kept = {k: turn.data.get(k) for k in ('origin', 'cost')} if keep else {}
+    turn.reset()
+    turn.chat.data = {'add': caravan.id, **{k: v for k, v in kept.items() if v is not None}}
+    turn.go('L_name')
+    turn.say(f'➕ افزودن زائر به «{caravan.name}»\nنام و نام خانوادگی:',
+             [[btn('❌ انصراف', f'Lc:{caravan.id}:0')]])
+
+
+def cb_add_next(turn, raw_id):
+    """نفر بعدی با همان مبدأ و هزینه — فقط نام، تماس، پرداختی."""
+    cb_add(turn, raw_id, keep=True)
+
+
+def _adding(turn):
+    leader = leader_for(turn)
+    caravan = Caravan.objects.filter(pk=turn.data.get('add'), leader=leader).first() if leader else None
+    if caravan is None:
+        turn.reset()
+        turn.say('این کاروان دیگر در دسترس نیست.', [[btn('منو', 'm')]])
+    return caravan
+
+
+def text_add_name(turn, text):
+    if _adding(turn) is None:
+        return
+    name = ' '.join(text.split())
+    if len(name) < 2:
+        return turn.say('نام و نام خانوادگی را بنویسید:')
+    turn.data['full_name'] = name[:120]
+    turn.go('L_phone')
+    turn.say('شماره تماس:', [[btn('ندارد', 'Lskip')]])
+
+
+def text_add_phone(turn, text):
+    digits = ''.join(ch for ch in to_latin_digits(text) if ch.isdigit())
+    if not digits or len(digits) > 15:
+        return turn.say('شماره فقط عدد است. دوباره بفرستید یا «ندارد» را بزنید:', [[btn('ندارد', 'Lskip')]])
+    turn.data['phone'] = digits
+    _after_phone(turn)
+
+
+def _after_phone(turn):
+    caravan = _adding(turn)
+    if caravan is None:
+        return
+    if turn.data.get('origin') is not None and turn.data.get('cost') is not None:
+        return _ask_paid(turn)                       # «نفر بعدی»: مبدأ و هزینه از قبل
+    turn.go('L_origin')
+    kb = [[btn(label, f'Lao:{key}') for key, label in LedgerRow.ORIGIN_CHOICES[:2]],
+          [btn(label, f'Lao:{key}') for key, label in LedgerRow.ORIGIN_CHOICES[2:]],
+          [btn('مشخص نیست', 'Lao:')]]
+    turn.say('مبدأ:', kb)
+
+
+def cb_add_origin(turn, key):
+    if turn.chat.state != 'L_origin' or _adding(turn) is None:
+        return turn.toast('این دکمه دیگر فعال نیست.')
+    turn.data['origin'] = key if key in ORIGIN_LABELS else ''
+    caravan = _adding(turn)
+    turn.go('L_cost')
+    turn.say('هزینه‌ی کاروان برای این نفر (به تومان):',
+             [[btn(f'همان قیمت کاروان: {fa(f"{caravan.price:,}")}', 'Lcd')]])
+
+
+def cb_add_cost_default(turn, arg):
+    caravan = _adding(turn) if turn.chat.state == 'L_cost' else None
+    if caravan is None:
+        return turn.toast('این دکمه دیگر فعال نیست.')
+    turn.data['cost'] = caravan.price
+    _ask_paid(turn)
+
+
+def text_add_cost(turn, text):
+    try:
+        turn.data['cost'] = ledger_service.parse_amount(text, 'هزینه')
+    except ledger_service.LedgerError as exc:
+        return turn.say(exc.message + ' دوباره بفرستید:')
+    _ask_paid(turn)
+
+
+def _ask_paid(turn):
+    turn.go('L_paid')
+    turn.say('چقدر پرداخت کرده؟ (به تومان)', [[btn('هنوز چیزی نداده', 'Lp0')]])
+
+
+def cb_add_paid_zero(turn, arg):
+    if turn.chat.state != 'L_paid':
+        return turn.toast('این دکمه دیگر فعال نیست.')
+    turn.data['paid'] = 0
+    _ask_notes(turn)
+
+
+def text_add_paid(turn, text):
+    try:
+        turn.data['paid'] = ledger_service.parse_amount(text, 'مبلغ پرداخت‌شده')
+    except ledger_service.LedgerError as exc:
+        return turn.say(exc.message + ' دوباره بفرستید:')
+    _ask_notes(turn)
+
+
+def _ask_notes(turn):
+    turn.go('L_notes')
+    turn.say('توضیحات:', [[btn('ندارد — ثبت کن', 'Lskip')]])
+
+
+def text_add_notes(turn, text):
+    turn.data['notes'] = text[:1000]
+    _save_added(turn)
+
+
+def cb_leader_skip(turn, arg):
+    state = turn.chat.state
+    if state == 'L_phone':
+        turn.data['phone'] = ''
+        return _after_phone(turn)
+    if state == 'L_notes':
+        turn.data['notes'] = ''
+        return _save_added(turn)
+    turn.toast('این دکمه دیگر فعال نیست.')
+
+
+def _save_added(turn):
+    caravan = _adding(turn)
+    if caravan is None:
+        return
+    d = turn.data
+    try:
+        row = ledger_service.add_manual_row(
+            caravan, full_name=d.get('full_name'), phone=d.get('phone', ''), origin=d.get('origin', ''),
+            cost=d.get('cost'), paid=d.get('paid', 0), notes=d.get('notes', ''),
+        )
+    except ledger_service.LedgerError as exc:
+        turn.reset()
+        return turn.say(f'اضافه نشد: {exc.message}', [[btn('بازگشت به دفتر', f'Lc:{caravan.id}:0')]])
+    keep = {'origin': row.origin, 'cost': int(row.cost)}
+    turn.reset()
+    turn.chat.data.update(keep)     # برای «نفر بعدی»
+    turn.say(
+        f'✅ «{row.full_name}» اضافه شد — ظرفیت باقیمانده {fa(caravan.remaining_capacity)} نفر.\n'
+        f'هزینه {money(row.cost)} · پرداخت {money(row.paid)} · الباقی {money(max(row.remaining, 0))}',
+        [[btn('➕ نفر بعدی (همان مبدأ و هزینه)', f'Ln:{caravan.id}')],
+         [btn('📒 دیدن دفتر', f'Lc:{caravan.id}:0')]],
+    )
+
+
+TEXT_STATES |= {'L_name', 'L_phone', 'L_cost', 'L_paid', 'L_notes', 'L_pay', 'L_note', 'L_rcost'}
+TEXT_HANDLERS.update({
+    'L_name': text_add_name, 'L_phone': text_add_phone, 'L_cost': text_add_cost,
+    'L_paid': text_add_paid, 'L_notes': text_add_notes,
+    'L_pay': text_pay, 'L_note': text_note, 'L_rcost': text_row_cost,
+})
+CALLBACKS.update({
+    'L': cb_leader_caravans, 'Lc': cb_ledger, 'Lr': cb_row,
+    'Lpay': cb_pay, 'Lnote': cb_note, 'Lcst': cb_row_cost,
+    'Lorg': cb_row_origin, 'Lo2': cb_row_origin_set, 'Ldel': cb_delete, 'Ldx': cb_delete_yes,
+    'La': cb_add, 'Ln': cb_add_next, 'Lao': cb_add_origin, 'Lcd': cb_add_cost_default,
+    'Lp0': cb_add_paid_zero, 'Lskip': cb_leader_skip,
+})

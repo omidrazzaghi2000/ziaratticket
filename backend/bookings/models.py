@@ -118,6 +118,9 @@ class Booking(models.Model):
                 return None
             booking.status = 'cancelled'
             booking.save(update_fields=['status', 'updated_at'])
+            # ردیف‌های دفتر کاروان پاک نمی‌شوند، چون پولی که داده شده باید پیدا
+            # بماند؛ فقط خط می‌خورند و از جمع‌ها بیرون می‌روند.
+            LedgerRow.objects.filter(booking=booking).update(is_cancelled=True)
             returned = 0
             if booking.is_completed:
                 caravan = Caravan.objects.select_for_update().get(pk=booking.caravan_id)
@@ -164,3 +167,54 @@ class BaleChat(models.Model):
 
     def __str__(self):
         return f"چت {self.chat_id} — {self.user or 'ناشناس'}"
+
+
+class LedgerRow(models.Model):
+    """
+    یک نفر در دفتر کاروان: نام، تماس، هزینه، پرداختی، الباقی، مبدأ، توضیح.
+
+    مدیر کاروان حساب هر مسافر را اینجا نگه می‌دارد. رزروهای سایت و ربات بله
+    خودشان ردیف می‌سازند (سرپرست و هر همراه جدا)؛ ثبت‌نام تلفنی و حضوری را مدیر
+    دستی اضافه می‌کند. الباقی ذخیره نمی‌شود و همیشه «هزینه − پرداختی» است، تا
+    هیچ‌وقت با دو عدد دیگر ناهمخوان نشود.
+    """
+    ORIGIN_CHOICES = [
+        ('tehran', 'تهران'),
+        ('qom', 'قم'),
+        ('mehran', 'مرز مهران'),
+        ('transit', 'بین‌راهی'),
+    ]
+
+    caravan = models.ForeignKey(
+        Caravan, on_delete=models.CASCADE, related_name='ledger_rows', verbose_name='کاروان')
+    booking = models.ForeignKey(
+        'Booking', on_delete=models.SET_NULL, null=True, blank=True, related_name='ledger_rows',
+        verbose_name='رزرو', help_text='خالی یعنی مدیر کاروان این نفر را دستی اضافه کرده است.')
+    # None = سرپرست رزرو؛ ۰، ۱، … = همراه چندم
+    companion_index = models.PositiveSmallIntegerField(null=True, blank=True)
+    full_name = models.CharField(max_length=120, verbose_name='نام و نام خانوادگی')
+    phone = models.CharField(max_length=20, blank=True, verbose_name='شماره تماس')
+    cost = models.PositiveBigIntegerField(default=0, verbose_name='هزینه کاروان (تومان)')
+    paid = models.PositiveBigIntegerField(default=0, verbose_name='مبلغ پرداخت‌شده (تومان)')
+    origin = models.CharField(max_length=10, choices=ORIGIN_CHOICES, blank=True, verbose_name='مبدأ')
+    notes = models.TextField(blank=True, verbose_name='توضیحات')
+    is_cancelled = models.BooleanField(default=False, verbose_name='لغو شده')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'ردیف دفتر کاروان'
+        verbose_name_plural = 'دفتر کاروان‌ها'
+        ordering = ['created_at', 'id']
+
+    def __str__(self):
+        return f"{self.full_name} — {self.caravan.name}"
+
+    @property
+    def remaining(self):
+        """منفی یعنی بیش از هزینه پرداخت کرده است."""
+        return int(self.cost) - int(self.paid)
+
+    @property
+    def is_manual(self):
+        return self.booking_id is None

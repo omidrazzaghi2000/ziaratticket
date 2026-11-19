@@ -12,6 +12,7 @@ import CaravanList from "@/pages/CaravanList";
 import CaravanLeaderRegister from "@/pages/CaravanLeaderRegister";
 import CaravanLeaderDashboard from "@/pages/CaravanLeaderDashboard";
 import CaravanLeaderAddCaravan from "@/pages/CaravanLeaderAddCaravan";
+import CaravanLedger from "@/pages/CaravanLedger";
 import ReviewPage from "@/pages/ReviewPage";
 // فونت‌های میزبانی‌شده روی خود سایت — باید پیش از fonts.css بیایند
 import "@fontsource-variable/vazirmatn";
@@ -31,6 +32,7 @@ function Router() {
       <Route path="/leader/add-caravan" component={CaravanLeaderAddCaravan} />
       {/* همان فرم، در حالت ویرایش */}
       <Route path="/leader/caravan/:caravanId/edit" component={CaravanLeaderAddCaravan} />
+      <Route path="/leader/caravan/:caravanId/ledger" component={CaravanLedger} />
       <Route path="/review/:token" component={ReviewPage} />
       <Route component={NotFound} />
     </Switch>

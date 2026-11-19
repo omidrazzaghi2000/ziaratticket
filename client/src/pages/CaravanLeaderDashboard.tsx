@@ -6,7 +6,7 @@ import {
   Bus, Plus, Users, CalendarCheck, Download, Eye, Edit2, Trash2,
   ChevronLeft, TrendingUp, Clock, CheckCircle2, XCircle, AlertCircle,
   Phone, Armchair, X, Image, Upload, Link2, Copy, CreditCard,
-  MessageCircle, Send, RefreshCw, Unlink, ExternalLink, MapPin,
+  MessageCircle, Send, RefreshCw, Unlink, ExternalLink, MapPin, BookOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -742,6 +742,14 @@ export default function CaravanLeaderDashboard() {
                           >
                             <Image className="h-3.5 w-3.5" />
                             عکس
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="rounded-xl text-xs gap-1 bg-gold-600 hover:bg-gold-700 text-white"
+                            onClick={() => navigate(`/leader/caravan/${caravan.id}/ledger`)}
+                          >
+                            <BookOpen className="h-3.5 w-3.5" />
+                            دفتر و پرداخت‌ها
                           </Button>
                           <Button
                             variant="outline"
