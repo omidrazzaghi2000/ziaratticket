@@ -107,6 +107,37 @@ def send_message_async(chat_id, text: str, on_done=None) -> None:
     thread.start()
 
 
+def download_file(file_id, max_bytes=10 * 1024 * 1024):
+    """
+    فایلی که کاربر برای ربات فرستاده (مثلاً عکس کاروان) را دانلود می‌کند: bytes یا None.
+
+    مثل ``_call`` متن استثنا لاگ نمی‌شود، چون آدرس دانلود هم توکن ربات را دارد.
+    """
+    info = call('getFile', {'file_id': file_id})
+    path = (info or {}).get('file_path')
+    if not path:
+        return None
+    if (info.get('file_size') or 0) > max_bytes:
+        logger.info('بله: فایل %s بزرگ‌تر از حد مجاز بود.', file_id)
+        return None
+    base = getattr(settings, 'BALE_API_BASE', 'https://tapi.bale.ai').rstrip('/')
+    try:
+        response = requests.get(f'{base}/file/bot{settings.BALE_BOT_TOKEN}/{path}',
+                                timeout=TIMEOUT_SECONDS * 3, stream=True)
+        if response.status_code != 200:
+            logger.warning('بله: دانلود فایل ناموفق بود (کد %s).', response.status_code)
+            return None
+        data = b''
+        for chunk in response.iter_content(64 * 1024):
+            data += chunk
+            if len(data) > max_bytes:
+                return None
+        return data
+    except requests.RequestException as exc:
+        logger.warning('بله: دانلود فایل ناموفق بود — %s', exc.__class__.__name__)
+        return None
+
+
 def validate_bale_chat_id(value):
     """
     شناسه‌ی چت بله یک عدد است. رایج‌ترین اشتباه، نوشتن شماره موبایل مدیر به

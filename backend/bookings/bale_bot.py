@@ -211,6 +211,9 @@ def _on_message(turn, update, message, sender):
     contact = message.get('contact')
     if isinstance(contact, dict):
         return _on_contact(turn, contact, sender)
+    file_id = _image_file_id(message)
+    if file_id and turn.chat.state in MEDIA_HANDLERS:
+        return MEDIA_HANDLERS[turn.chat.state](turn, file_id)
 
     text = message.get('text')
     if not isinstance(text, str) or not text.strip():
@@ -271,7 +274,7 @@ def show_menu(turn, greet=False, edit=False):
         rows.append([btn(f'🕌 کاروان‌های {labels.get(dest, dest)} ({fa(count)})', f'd:{dest}')])
     rows.append([btn('🧾 رزروهای من', 'my')])
     if leader_for(turn):
-        rows.insert(0, [btn('📒 دفتر کاروان‌های من', 'L')])
+        rows.insert(0, [btn('📒 دفتر کاروان‌های من', 'L'), btn('➕ ثبت کاروان جدید', 'K')])
     else:
         rows.append([btn('مدیر کاروان هستم', 'ld')])
     if turn.chat.user_id:
@@ -1063,13 +1066,15 @@ def cb_leader_caravans(turn, arg):
         return
     caravans = list(Caravan.objects.filter(leader=leader).exclude(status='rejected'))
     if not caravans:
-        return turn.edit('هنوز کاروانی به نام شما ثبت نشده است.', [[btn('منو', 'm')]])
+        return turn.edit('هنوز کاروانی به نام شما ثبت نشده است.',
+                         [[btn('➕ ثبت کاروان جدید', 'K')], [btn('منو', 'm')]])
     now = timezone.now()
     far = timezone.localdate() + timedelta(days=36500)
     # کاروان‌های پیش رو اول، نزدیک‌ترین حرکت اول؛ رفته‌ها آخر
     caravans.sort(key=lambda c: (c.has_departed(now), c.departure_day or far, c.id))
-    rows = [[btn(f'{c.name[:34]} · {fa(c.departure_date)}', f'Lc:{c.id}:0')] for c in caravans[:20]]
-    rows.append([btn('منو', 'm')])
+    rows = [[btn(('⏳ ' if c.status == 'pending' else '') + f'{c.name[:34]} · {fa(c.departure_date)}',
+                 f'Lc:{c.id}:0')] for c in caravans[:20]]
+    rows.append([btn('➕ ثبت کاروان جدید', 'K'), btn('منو', 'm')])
     turn.edit('دفتر کدام کاروان را می‌خواهید؟', rows)
 
 
@@ -1108,7 +1113,7 @@ def show_ledger(turn, caravan, page=0, edit=True):
     chunk = active[page * LEDGER_PAGE:(page + 1) * LEDGER_PAGE]
     buttons = [btn(f'{fa(i)}) {r.full_name[:22]}', f'Lr:{r.id}')
                for i, r in enumerate(chunk, start=page * LEDGER_PAGE + 1)]
-    kb = [[btn('➕ افزودن زائر', f'La:{caravan.id}')]]
+    kb = [[btn('➕ افزودن زائر', f'La:{caravan.id}'), btn('⚙️ تنظیمات کاروان', f'Ks:{caravan.id}')]]
     kb += [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
     if pages > 1:
         nav = []
@@ -1447,4 +1452,678 @@ CALLBACKS.update({
     'Lorg': cb_row_origin, 'Lo2': cb_row_origin_set, 'Ldel': cb_delete, 'Ldx': cb_delete_yes,
     'La': cb_add, 'Ln': cb_add_next, 'Lao': cb_add_origin, 'Lcd': cb_add_cost_default,
     'Lp0': cb_add_paid_zero, 'Lskip': cb_leader_skip,
+})
+
+
+# ─── ثبت کاروان تازه و تنظیمات کاروان، برای مدیر ─────────────────────────────
+#
+# همان مدیر وصل‌شده‌ی بخش دفتر، از بله کاروان تازه می‌سازد: یا از اول با چند
+# سؤال ضروری، یا «کپی از کاروان قبلی» که فقط تاریخ، ظرفیت و قیمت را می‌پرسد.
+# ساخت آخر کار از همان CaravanCreateSerializer سایت رد می‌شود و مثل سایت با
+# وضعیت «در انتظار تأیید» ذخیره می‌شود. جزئیات (برنامه‌ی سفر، قوانین، گالری)
+# در داشبورد سایت می‌ماند.
+#
+# تنظیمات کاروان موجود: باز/بستن ثبت‌نام و ظرفیت فوری اعمال می‌شوند؛ قیمت،
+# تاریخ حرکت و مدت سفر چیزی است که زائر بر اساسش رزرو می‌کند، پس مثل ویرایش در
+# سایت کاروان را به «در انتظار تأیید» برمی‌گرداند.
+
+import io  # noqa: E402
+
+from django.conf import settings as django_settings  # noqa: E402
+from django.core.files.base import ContentFile  # noqa: E402
+
+from carvans.serializers import CaravanCreateSerializer  # noqa: E402
+from core.jalali import gregorian_to_jalali, parse_jalali_date  # noqa: E402
+
+DEST_LABELS = dict(Caravan.DESTINATION_CHOICES)
+TRANSPORT_LABELS = dict(Caravan.TRANSPORT_CHOICES)
+BUS_LABELS = dict(Caravan.BUS_TYPE_CHOICES)
+TRAIN_LABELS = dict(Caravan.TRAIN_TYPE_CHOICES)
+ACC_LABELS = dict(Caravan.ACCOMMODATION_CHOICES)
+APPROVAL_LABELS = {'pending': '⏳ در انتظار تأیید', 'approved': '✅ تأییدشده', 'rejected': '⛔️ ردشده'}
+REG_LABELS = {'open': '🟢 ثبت‌نام باز', 'soon': '🟡 ثبت‌نام به‌زودی', 'closed': '🔴 ثبت‌نام بسته'}
+MEALS = [('meal_breakfast', 'صبحانه'), ('meal_lunch', 'ناهار'), ('meal_dinner', 'شام'), ('has_insurance', 'بیمه')]
+MAX_PRICE = 2_000_000_000
+MAX_CAPACITY = 2000
+
+NEW_STEPS = ['name', 'destination', 'date', 'duration', 'transport', 'vehicle', 'origin',
+             'price', 'capacity', 'acc_type', 'acc_name', 'meals', 'photo']
+COPY_STEPS = ['date', 'capacity', 'price']
+
+# فیلدهایی که «کپی از کاروان قبلی» برمی‌دارد؛ تاریخ‌ها، ظرفیت باقیمانده، وضعیت و
+# گالری نه (گالری فایل‌هایش را موقع حذف پاک می‌کند و نباید بین دو کاروان مشترک شود)
+COPY_FIELDS = (
+    'name', 'destination', 'description', 'contact_phone', 'leader_messaging_apps',
+    'duration', 'transportation_type', 'bus_type', 'train_type', 'seat_selection_enabled',
+    'origin_city', 'transit_cities', 'accommodation_type', 'accommodation_name',
+    'accommodation_city', 'accommodation_distance', 'meal_breakfast', 'meal_lunch',
+    'meal_dinner', 'has_insurance', 'itinerary', 'price', 'price_text', 'capacity', 'rules',
+    'image_url',
+)
+
+
+def _image_file_id(message):
+    """عکسی که فرستاده شده (یا فایل تصویری): شناسه‌ی بزرگ‌ترین اندازه."""
+    photos = message.get('photo')
+    if isinstance(photos, list) and photos and isinstance(photos[-1], dict):
+        return photos[-1].get('file_id')
+    doc = message.get('document')
+    if isinstance(doc, dict) and str(doc.get('mime_type') or '').startswith('image/'):
+        return doc.get('file_id')
+    return None
+
+
+def jalali_text(day):
+    jy, jm, jd = gregorian_to_jalali(day)
+    return f'{jy:04d}/{jm:02d}/{jd:02d}'
+
+
+def _future_date(text):
+    """تاریخ شمسی که امروز یا بعد از آن باشد → «1405/09/04»؛ وگرنه پیام خطا."""
+    day = parse_jalali_date(text)
+    if day is None:
+        return None, 'تاریخ را به شکل ۱۴۰۵/۰۹/۰۴ بفرستید:'
+    if day < timezone.localdate():
+        return None, 'این تاریخ گذشته است. تاریخ حرکت را دوباره بفرستید:'
+    return jalali_text(day), ''
+
+
+def _int(text, low, high):
+    digits = to_latin_digits(str(text)).replace(',', '').replace('٬', '').strip()
+    if not digits.isdigit():
+        return None
+    value = int(digits)
+    return value if low <= value <= high else None
+
+
+def _price(text):
+    try:
+        value = ledger_service.parse_amount(text, 'قیمت')
+    except ledger_service.LedgerError as exc:
+        return None, exc.message
+    if not 0 < value <= MAX_PRICE:
+        return None, 'قیمت هر نفر باید عددی بیشتر از صفر (به تومان) باشد.'
+    return value, ''
+
+
+# ── شروع: از اول یا کپی ──
+
+def cb_new_caravan(turn, arg):
+    turn.reset()
+    leader = _leader_or_toast(turn)
+    if leader is None:
+        return
+    if Caravan.objects.filter(leader=leader).exclude(status='rejected').exists():
+        return turn.edit('کاروان تازه را چطور بسازیم؟', [
+            [btn('📋 کپی از یکی از کاروان‌های قبلی', 'Kcp')],
+            [btn('🆕 از اول', 'Kn')],
+            [btn('منو', 'm')],
+        ])
+    cb_new_blank(turn, '')
+
+
+def cb_new_blank(turn, arg):
+    turn.reset()
+    if _leader_or_toast(turn) is None:
+        return
+    turn.chat.data = {'cv': {}, 'mode': 'new', 'done': []}
+    turn.say('🆕 ثبت کاروان تازه — هر وقت خواستید «انصراف» را بفرستید.')
+    _next(turn)
+
+
+def cb_copy_list(turn, arg):
+    turn.reset()
+    leader = _leader_or_toast(turn)
+    if leader is None:
+        return
+    caravans = Caravan.objects.filter(leader=leader).exclude(status='rejected').order_by('-created_at')[:15]
+    rows = [[btn(f'{c.name[:34]} · {fa(c.departure_date)}', f'Kcf:{c.id}')] for c in caravans]
+    rows.append([btn('🆕 از اول', 'Kn'), btn('منو', 'm')])
+    turn.edit('از کدام کاروان کپی کنم؟ همه‌چیز برداشته می‌شود و فقط تاریخ حرکت، ظرفیت و قیمت پرسیده می‌شود.', rows)
+
+
+def cb_copy_from(turn, raw_id):
+    source = _leader_caravan(turn, raw_id)
+    if source is None:
+        return
+    turn.reset()
+    cv = {f: getattr(source, f) for f in COPY_FIELDS}
+    if source.image:
+        cv['image_from'] = source.id
+    turn.chat.data = {'cv': cv, 'mode': 'copy', 'done': []}
+    turn.say(f'📋 کپی از «{source.name}»')
+    _next(turn)
+
+
+# ── مرحله‌ها ──
+
+def _cv(turn):
+    return turn.data.setdefault('cv', {})
+
+
+def _done(turn, step):
+    done = turn.data.setdefault('done', [])
+    if step not in done:
+        done.append(step)
+    if turn.data.get('redo') == step:
+        turn.data.pop('redo')
+    _next(turn)
+
+
+def _next(turn):
+    """اولین مرحله‌ی جواب‌داده‌نشده را می‌پرسد؛ همه که پر شد، خلاصه."""
+    cv, done = _cv(turn), turn.data.get('done', [])
+    steps = NEW_STEPS if turn.data.get('mode') == 'new' else COPY_STEPS
+    pending = turn.data.get('redo') or next((s for s in steps if s not in done), None)
+    if pending is None:
+        return show_draft(turn)
+    cancel = [btn('❌ انصراف', 'Kx')]
+
+    if pending == 'name':
+        turn.go('K_name')
+        return turn.say('نام کاروان؟ (مثلاً «کاروان ۴ آذر کربلا»)', [cancel])
+    if pending == 'destination':
+        turn.go('K_dest')
+        keys = list(DEST_LABELS)
+        return turn.say('مقصد:', [[btn(DEST_LABELS[k], f'Kd:{k}') for k in keys[:2]],
+                                  [btn(DEST_LABELS[k], f'Kd:{k}') for k in keys[2:]], cancel])
+    if pending == 'date':
+        turn.go('K_date')
+        return turn.say('تاریخ حرکت (شمسی)، مثلاً ۱۴۰۵/۰۹/۰۴:', [cancel])
+    if pending == 'duration':
+        turn.go('K_dur')
+        days = [btn(fa(n), f'Ku:{n}') for n in range(3, 10)]
+        return turn.say('مدت سفر چند روز است؟', [days[:4], days[4:], cancel])
+    if pending == 'transport':
+        turn.go('K_trans')
+        return turn.say('وسیله‌ی سفر:', [[btn(label, f'Kt:{k}') for k, label in Caravan.TRANSPORT_CHOICES[:2]],
+                                          [btn(label, f'Kt:{k}') for k, label in Caravan.TRANSPORT_CHOICES[2:]],
+                                          cancel])
+    if pending == 'vehicle':
+        kind = cv.get('transportation_type')
+        if kind == 'bus':
+            turn.go('K_bus')
+            return turn.say('نوع اتوبوس:', [[btn(label, f'Kb:{k}')] for k, label in Caravan.BUS_TYPE_CHOICES] + [cancel])
+        if kind == 'train':
+            turn.go('K_train')
+            return turn.say('نوع واگن قطار:', [[btn(label, f'Ktr:{k}') for k, label in Caravan.TRAIN_TYPE_CHOICES], cancel])
+        return _done(turn, 'vehicle')
+    if pending == 'origin':
+        turn.go('K_origin')
+        return turn.say('مبدأ حرکت؟ (شهر را بنویسید یا یکی را بزنید)',
+                        [[btn('تهران', 'Ko:تهران'), btn('قم', 'Ko:قم'), btn('قم و تهران', 'Ko:قم و تهران')], cancel])
+    if pending == 'price':
+        turn.go('K_price')
+        old = fa(f'{int(cv.get("price") or 0):,}')
+        kb = [[btn(f'همان قبلی: {old}', 'Kkeep:price')]] if turn.data.get('mode') == 'copy' and cv.get('price') else []
+        return turn.say('قیمت هر نفر به تومان (مثلاً ۴٬۵۰۰٬۰۰۰):', kb + [cancel])
+    if pending == 'capacity':
+        turn.go('K_cap')
+        kb = [[btn(f'همان قبلی: {fa(cv.get("capacity"))} نفر', 'Kkeep:capacity')]] if turn.data.get('mode') == 'copy' and cv.get('capacity') else []
+        return turn.say('ظرفیت کل کاروان (چند نفر)؟', kb + [cancel])
+    if pending == 'acc_type':
+        turn.go('K_acc')
+        return turn.say('محل اقامت:', [[btn(label, f'Ka:{k}') for k, label in Caravan.ACCOMMODATION_CHOICES[:2]],
+                                       [btn(label, f'Ka:{k}') for k, label in Caravan.ACCOMMODATION_CHOICES[2:]],
+                                       cancel])
+    if pending == 'acc_name':
+        turn.go('K_accname')
+        return turn.say('نام هتل یا اقامتگاه؟', [[btn('بعداً در سایت', 'Kskip')], cancel])
+    if pending == 'meals':
+        turn.go('K_meals')
+        return turn.say(*_meals_prompt(cv))
+    if pending == 'photo':
+        turn.go('K_photo')
+        return turn.say('یک عکس برای کاروان بفرستید (اختیاری؛ عکس‌های بیشتر را در سایت اضافه کنید).',
+                        [[btn('بدون عکس', 'Kskip')], cancel])
+
+
+def _meals_prompt(cv):
+    marks = [btn(('✅ ' if cv.get(field) else '◻️ ') + label, f'Km:{field}') for field, label in MEALS]
+    return ('چه چیزهایی در هزینه هست؟ روی هر کدام بزنید، بعد «ادامه».',
+            [marks[:2], marks[2:], [btn('ادامه ◀️', 'Km:ok')], [btn('❌ انصراف', 'Kx')]])
+
+
+def _at(turn, state):
+    """دکمه‌ی پیام قدیمی‌تر، وقتی گفتگو جلوتر رفته، کاری نکند."""
+    if turn.chat.state != state:
+        turn.toast('این دکمه دیگر فعال نیست.')
+        return False
+    return True
+
+
+def text_cv_name(turn, text):
+    name = ' '.join(text.split())
+    if not 3 <= len(name) <= 200:
+        return turn.say('نام کاروان را بنویسید (دست‌کم ۳ حرف):')
+    _cv(turn)['name'] = name
+    _done(turn, 'name')
+
+
+def cb_cv_dest(turn, key):
+    if not _at(turn, 'K_dest') or key not in DEST_LABELS:
+        return
+    _cv(turn)['destination'] = key
+    _done(turn, 'destination')
+
+
+def text_cv_date(turn, text):
+    value, error = _future_date(text)
+    if value is None:
+        return turn.say(error)
+    _cv(turn)['departure_date'] = value
+    _done(turn, 'date')
+
+
+def cb_cv_duration(turn, arg):
+    if not _at(turn, 'K_dur') or not arg.isdigit() or int(arg) not in range(3, 10):
+        return
+    _cv(turn)['duration'] = int(arg)
+    _done(turn, 'duration')
+
+
+def cb_cv_transport(turn, key):
+    if not _at(turn, 'K_trans') or key not in TRANSPORT_LABELS:
+        return
+    cv = _cv(turn)
+    cv['transportation_type'] = key
+    if key != 'train':
+        cv['train_type'] = ''
+    _done(turn, 'transport')
+
+
+def cb_cv_bus(turn, arg):
+    if not _at(turn, 'K_bus') or not arg.isdigit() or int(arg) not in BUS_LABELS:
+        return
+    _cv(turn)['bus_type'] = int(arg)
+    _done(turn, 'vehicle')
+
+
+def cb_cv_train(turn, key):
+    if not _at(turn, 'K_train') or key not in TRAIN_LABELS:
+        return
+    _cv(turn)['train_type'] = key
+    _done(turn, 'vehicle')
+
+
+def text_cv_origin(turn, text):
+    city = ' '.join(text.split())
+    if not 2 <= len(city) <= 100:
+        return turn.say('نام شهر مبدأ را بنویسید:')
+    _cv(turn)['origin_city'] = city
+    _done(turn, 'origin')
+
+
+def cb_cv_origin(turn, city):
+    if not _at(turn, 'K_origin'):
+        return
+    text_cv_origin(turn, city)
+
+
+def text_cv_price(turn, text):
+    value, error = _price(text)
+    if value is None:
+        return turn.say(error + ' دوباره بفرستید:')
+    cv = _cv(turn)
+    if value != cv.get('price'):
+        cv['price_text'] = ''        # متن قیمت قدیمی دیگر با عدد تازه جور نیست
+    cv['price'] = value
+    _done(turn, 'price')
+
+
+def text_cv_capacity(turn, text):
+    value = _int(text, 1, MAX_CAPACITY)
+    if value is None:
+        return turn.say('ظرفیت را به عدد بفرستید (مثلاً ۴۴):')
+    _cv(turn)['capacity'] = value
+    _done(turn, 'capacity')
+
+
+def cb_cv_keep(turn, step):
+    state = {'price': 'K_price', 'capacity': 'K_cap'}.get(step)
+    if state is None or not _at(turn, state) or not _cv(turn).get(step):
+        return
+    _done(turn, step)
+
+
+def cb_cv_acc(turn, key):
+    if not _at(turn, 'K_acc') or key not in ACC_LABELS:
+        return
+    _cv(turn)['accommodation_type'] = key
+    _done(turn, 'acc_type')
+
+
+def text_cv_acc_name(turn, text):
+    _cv(turn)['accommodation_name'] = ' '.join(text.split())[:200]
+    _done(turn, 'acc_name')
+
+
+def cb_cv_meal(turn, field):
+    if not _at(turn, 'K_meals'):
+        return
+    cv = _cv(turn)
+    if field == 'ok':
+        return _done(turn, 'meals')
+    if field in dict(MEALS):
+        cv[field] = not cv.get(field)
+        turn.edit(*_meals_prompt(cv))
+
+
+def text_cv_photo(turn, text):
+    turn.say('یک عکس بفرستید، یا «بدون عکس» را بزنید.', [[btn('بدون عکس', 'Kskip')]])
+
+
+def media_cv_photo(turn, file_id):
+    cv = _cv(turn)
+    cv['photo'] = file_id
+    cv.pop('image_from', None)
+    turn.say('🖼 عکس دریافت شد.')
+    _done(turn, 'photo')
+
+
+def cb_cv_skip(turn, arg):
+    state = turn.chat.state
+    if state == 'K_accname':
+        _cv(turn)['accommodation_name'] = ''
+        return _done(turn, 'acc_name')
+    if state == 'K_photo':
+        _cv(turn).pop('photo', None)
+        return _done(turn, 'photo')
+    turn.toast('این دکمه دیگر فعال نیست.')
+
+
+# ── خلاصه و ثبت ──
+
+def draft_text(cv):
+    vehicle = ''
+    if cv.get('transportation_type') == 'bus' and cv.get('bus_type'):
+        vehicle = f' ({BUS_LABELS.get(cv["bus_type"], "")})'
+    elif cv.get('transportation_type') == 'train' and cv.get('train_type'):
+        vehicle = f' ({TRAIN_LABELS.get(cv["train_type"], "")})'
+    meals = '، '.join(label for field, label in MEALS if cv.get(field)) or '—'
+    acc = ACC_LABELS.get(cv.get('accommodation_type'), '—')
+    if cv.get('accommodation_name'):
+        acc += f' — {cv["accommodation_name"]}'
+    photo = 'دارد' if cv.get('photo') or cv.get('image_from') else 'ندارد'
+    return '\n'.join([
+        f'🕌 {cv.get("name", "")}',
+        f'مقصد: {DEST_LABELS.get(cv.get("destination"), "—")}',
+        f'حرکت: {fa(cv.get("departure_date", ""))} · {fa(cv.get("duration", ""))} روز',
+        f'وسیله: {TRANSPORT_LABELS.get(cv.get("transportation_type"), "—")}{vehicle}',
+        f'مبدأ: {cv.get("origin_city") or "—"}',
+        f'قیمت هر نفر: {(cv.get("price_text") or "").strip() or money(cv.get("price"))}',
+        f'ظرفیت: {fa(cv.get("capacity", ""))} نفر',
+        f'اقامت: {acc}',
+        f'شامل: {meals}',
+        f'عکس: {photo}',
+    ])
+
+
+def show_draft(turn):
+    turn.go('K_confirm')
+    turn.say('خلاصه‌ی کاروان:\n\n' + draft_text(_cv(turn)) +
+             '\n\nبعد از ثبت، کاروان تا تأیید ادمین «در انتظار تأیید» می‌ماند.', [
+                 [btn('✅ ثبت کاروان', 'Kok')],
+                 [btn('✏️ نام', 'Kre:name'), btn('📅 تاریخ', 'Kre:date'),
+                  btn('💵 قیمت', 'Kre:price'), btn('👥 ظرفیت', 'Kre:capacity')],
+                 [btn('❌ انصراف', 'Kx')],
+             ])
+
+
+def cb_cv_redo(turn, step):
+    if not _at(turn, 'K_confirm') or step not in ('name', 'date', 'price', 'capacity'):
+        return
+    turn.data['redo'] = step
+    _next(turn)
+
+
+def _attach_photo(caravan, cv):
+    """عکس فرستاده‌شده را دانلود و ذخیره می‌کند؛ عکس نامعتبر یا دانلودنشده نادیده."""
+    if cv.get('image_from'):
+        source = Caravan.objects.filter(pk=cv['image_from'], leader=caravan.leader).first()
+        if source and source.image:
+            caravan.image = source.image.name
+            caravan.save(update_fields=['image'])
+        return True
+    if not cv.get('photo'):
+        return True
+    data = bale.download_file(cv['photo'])
+    if not data:
+        return False
+    try:
+        from PIL import Image
+        Image.open(io.BytesIO(data)).verify()
+    except Exception:
+        return False
+    caravan.image.save(f'bale_{caravan.id}_{random.randint(1000, 9999)}.jpg', ContentFile(data), save=True)
+    return True
+
+
+def cb_cv_confirm(turn, arg):
+    if not _at(turn, 'K_confirm'):
+        return
+    leader = _leader_or_toast(turn)
+    if leader is None:
+        return
+    cv = dict(_cv(turn))
+    fields = {k: v for k, v in cv.items() if k in COPY_FIELDS or k == 'departure_date'}
+    fields.setdefault('contact_phone', leader.phone or '')
+    fields['registration_state'] = 'open'
+    fields['remaining_capacity'] = fields.get('capacity')
+    serializer = CaravanCreateSerializer(data=fields)
+    if not serializer.is_valid():
+        field, errors = next(iter(serializer.errors.items()))
+        return turn.say(f'ثبت نشد: {errors[0] if errors else field}')
+    caravan = serializer.save(
+        leader=leader, manager=leader.full_name or leader.phone, status='pending',
+        remaining_capacity=serializer.validated_data.get('capacity', 0),
+    )
+    photo_ok = _attach_photo(caravan, cv)
+    turn.reset()
+    lines = [
+        f'✅ «{caravan.name}» ثبت شد و منتظر تأیید ادمین است.',
+        'بعد از تأیید، در سایت و همین ربات برای زائرها نمایش داده می‌شود.',
+        '',
+        'برنامه‌ی سفر، قوانین و عکس‌های بیشتر را از داشبورد سایت اضافه کنید.',
+    ]
+    if not photo_ok:
+        lines.insert(1, '⚠️ عکس دریافت نشد؛ از داشبورد سایت اضافه کنید.')
+    turn.say('\n'.join(lines), [
+        [btn('⚙️ تنظیمات کاروان', f'Ks:{caravan.id}'), btn('📒 دفتر', f'Lc:{caravan.id}:0')],
+        [btn('منو', 'm')],
+    ])
+    support = getattr(django_settings, 'BALE_FALLBACK_CHAT_ID', '') or ''
+    if support and str(support) != str(turn.chat.chat_id):
+        turn.out.append(('sendMessage', {'chat_id': str(support), 'text': (
+            f'🆕 کاروان تازه از ربات بله، منتظر تأیید:\n«{caravan.name}» · حرکت {fa(caravan.departure_date)}\n'
+            f'مدیر: {caravan.manager} ({fa(leader.phone or "")})\nاز پنل ادمین تأیید کنید.')}))
+
+
+def cb_cv_cancel(turn, arg):
+    turn.reset()
+    turn.edit('ثبت کاروان کنار گذاشته شد؛ چیزی ذخیره نشد.', [[btn('منو', 'm')]])
+
+
+# ── تنظیمات کاروان موجود ──
+
+def settings_text(c):
+    booked = (c.capacity or 0) - (c.remaining_capacity or 0)
+    lines = [
+        f'⚙️ «{c.name}»',
+        f'وضعیت: {APPROVAL_LABELS.get(c.status, c.status)}',
+        f'{REG_LABELS.get(c.registration_status(), "")}',
+        '',
+        f'حرکت: {fa(c.departure_date)} · {fa(c.duration)} روز',
+        f'قیمت هر نفر: {price_label(c)}',
+        f'ظرفیت: {fa(c.capacity)} نفر · رزروشده {fa(booked)} · خالی {fa(c.remaining_capacity)}',
+    ]
+    if c.registration_opens_on:
+        lines.append(f'باز شدن ثبت‌نام: {fa(c.registration_opens_on)}')
+    if c.registration_closes_on:
+        lines.append(f'پایان ثبت‌نام: {fa(c.registration_closes_on)}')
+    return '\n'.join(lines)
+
+
+def show_settings(turn, c, edit=True):
+    kb = [
+        [btn('🟢 باز', f'Kr:{c.id}:open'), btn('🟡 به‌زودی', f'Kr:{c.id}:soon'), btn('🔴 بسته', f'Kr:{c.id}:closed')],
+        [btn('💵 قیمت', f'Kep:{c.id}'), btn('👥 ظرفیت', f'Kec:{c.id}')],
+        [btn('📅 تاریخ حرکت', f'Ked:{c.id}'), btn('⏱ مدت سفر', f'Keu:{c.id}')],
+        [btn('📒 دفتر', f'Lc:{c.id}:0'), btn('کاروان‌های من', 'L')],
+    ]
+    (turn.edit if edit else turn.say)(settings_text(c), kb)
+
+
+def cb_settings(turn, raw_id):
+    turn.reset()
+    c = _leader_caravan(turn, raw_id)
+    if c:
+        show_settings(turn, c)
+
+
+def cb_registration(turn, arg):
+    raw_id, _, state = arg.partition(':')
+    c = _leader_caravan(turn, raw_id)
+    if c is None or state not in REG_LABELS:
+        return
+    now = timezone.now()
+    fields = ['registration_state']
+    c.registration_state = state
+    if state in ('open', 'soon') and c.registration_opens_at and c.registration_opens_at > now:
+        # دکمه باید همان کاری را بکند که رویش نوشته؛ تاریخ بازشدن آینده جلویش را می‌گرفت
+        c.registration_opens_on, c.registration_opens_time = '', None
+        fields += ['registration_opens_on', 'registration_opens_time']
+    if state == 'open' and c.registration_closes_at and c.registration_closes_at <= now:
+        c.registration_closes_on, c.registration_closes_time = '', None
+        fields += ['registration_closes_on', 'registration_closes_time']
+    c.save(update_fields=fields + ['updated_at'])
+    actual = c.registration_status(now)
+    turn.toast(REG_LABELS[actual] if actual == state else f'{REG_LABELS[actual]} — به خاطر تاریخ‌های کاروان.')
+    show_settings(turn, c)
+
+
+REVIEW_NOTE = '\n⚠️ تغییر این مورد کاروان را تا تأیید دوباره‌ی ادمین از سایت برمی‌دارد.'
+
+
+def _edit_prompt(turn, raw_id, state, prompt):
+    turn.reset()
+    c = _leader_caravan(turn, raw_id)
+    if c is None:
+        return
+    turn.chat.data = {'edit': c.id}
+    turn.go(state)
+    turn.say(prompt.format(c=c, price=fa(f'{c.price:,}'), date=fa(c.departure_date), cap=fa(c.capacity)),
+             [[btn('❌ انصراف', f'Ks:{c.id}')]])
+
+
+def cb_edit_price(turn, raw_id):
+    _edit_prompt(turn, raw_id, 'K_eprice', 'قیمت فعلی هر نفر {price} تومان است. قیمت تازه را به تومان بفرستید:' + REVIEW_NOTE)
+
+
+def cb_edit_capacity(turn, raw_id):
+    _edit_prompt(turn, raw_id, 'K_ecap', 'ظرفیت فعلی {cap} نفر است. ظرفیت کل تازه را بفرستید:')
+
+
+def cb_edit_date(turn, raw_id):
+    _edit_prompt(turn, raw_id, 'K_edate', 'تاریخ حرکت فعلی {date} است. تاریخ تازه را بفرستید (مثلاً ۱۴۰۵/۰۹/۰۴):' + REVIEW_NOTE)
+
+
+def cb_edit_duration(turn, raw_id):
+    c = _leader_caravan(turn, raw_id)
+    if c is None:
+        return
+    days = [btn(('✓ ' if n == c.duration else '') + fa(n), f'Keu2:{c.id}:{n}') for n in range(3, 10)]
+    turn.edit(f'مدت سفر «{c.name}» چند روز است؟' + REVIEW_NOTE, [days[:4], days[4:], [btn('بازگشت', f'Ks:{c.id}')]])
+
+
+def _editing(turn):
+    leader = leader_for(turn)
+    c = Caravan.objects.select_for_update().filter(pk=turn.data.get('edit'), leader=leader).first() if leader else None
+    if c is None:
+        turn.reset()
+        turn.say('این کاروان دیگر در دسترس نیست.', [[btn('منو', 'm')]])
+    return c
+
+
+def _save_reviewed(turn, c, fields):
+    """تغییری که زائر بر اساسش رزرو می‌کند: مثل سایت دوباره منتظر تأیید."""
+    was_approved = c.status == 'approved'
+    c.status = 'pending'
+    c.save(update_fields=fields + ['status', 'updated_at'])
+    turn.reset()
+    if was_approved:
+        turn.say('ذخیره شد. کاروان تا تأیید دوباره‌ی ادمین از سایت برداشته شد.')
+    show_settings(turn, c, edit=False)
+
+
+def text_edit_price(turn, text):
+    value, error = _price(text)
+    if value is None:
+        return turn.say(error + ' دوباره بفرستید:')
+    c = _editing(turn)
+    if c is None:
+        return
+    if value == c.price:
+        turn.reset()
+        return show_settings(turn, c, edit=False)
+    c.price, c.price_text = value, ''
+    _save_reviewed(turn, c, ['price', 'price_text'])
+
+
+def text_edit_date(turn, text):
+    value, error = _future_date(text)
+    if value is None:
+        return turn.say(error)
+    c = _editing(turn)
+    if c is None:
+        return
+    c.departure_date = value
+    _save_reviewed(turn, c, ['departure_date'])
+
+
+def cb_edit_duration_set(turn, arg):
+    raw_id, _, n = arg.partition(':')
+    c = _leader_caravan(turn, raw_id)
+    if c is None or not n.isdigit() or int(n) not in range(3, 10):
+        return
+    if int(n) == c.duration:
+        return show_settings(turn, c)
+    c.duration = int(n)
+    turn.chat.data = {'edit': c.id}
+    _save_reviewed(turn, c, ['duration'])
+
+
+def text_edit_capacity(turn, text):
+    value = _int(text, 1, MAX_CAPACITY)
+    if value is None:
+        return turn.say('ظرفیت را به عدد بفرستید:')
+    c = _editing(turn)
+    if c is None:
+        return
+    booked = (c.capacity or 0) - (c.remaining_capacity or 0)
+    if value < booked:
+        return turn.say(f'ظرفیت نمی‌تواند کمتر از {fa(booked)} نفری باشد که الان در کاروان‌اند. عدد دیگری بفرستید:')
+    c.capacity, c.remaining_capacity = value, value - booked
+    c.save(update_fields=['capacity', 'remaining_capacity', 'updated_at'])
+    turn.reset()
+    turn.say(f'✅ ظرفیت {fa(value)} نفر شد · خالی {fa(c.remaining_capacity)}')
+    show_settings(turn, c, edit=False)
+
+
+MEDIA_HANDLERS = {'K_photo': media_cv_photo}
+TEXT_STATES |= {'K_name', 'K_date', 'K_origin', 'K_price', 'K_cap', 'K_accname', 'K_photo',
+                'K_eprice', 'K_ecap', 'K_edate'}
+TEXT_HANDLERS.update({
+    'K_name': text_cv_name, 'K_date': text_cv_date, 'K_origin': text_cv_origin,
+    'K_price': text_cv_price, 'K_cap': text_cv_capacity, 'K_accname': text_cv_acc_name,
+    'K_photo': text_cv_photo,
+    'K_eprice': text_edit_price, 'K_ecap': text_edit_capacity, 'K_edate': text_edit_date,
+})
+CALLBACKS.update({
+    'K': cb_new_caravan, 'Kn': cb_new_blank, 'Kcp': cb_copy_list, 'Kcf': cb_copy_from,
+    'Kd': cb_cv_dest, 'Ku': cb_cv_duration, 'Kt': cb_cv_transport, 'Kb': cb_cv_bus,
+    'Ktr': cb_cv_train, 'Ko': cb_cv_origin, 'Kkeep': cb_cv_keep, 'Ka': cb_cv_acc,
+    'Km': cb_cv_meal, 'Kskip': cb_cv_skip, 'Kre': cb_cv_redo, 'Kok': cb_cv_confirm, 'Kx': cb_cv_cancel,
+    'Ks': cb_settings, 'Kr': cb_registration, 'Kep': cb_edit_price, 'Kec': cb_edit_capacity,
+    'Ked': cb_edit_date, 'Keu': cb_edit_duration, 'Keu2': cb_edit_duration_set,
 })

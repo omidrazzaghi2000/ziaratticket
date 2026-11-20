@@ -532,3 +532,191 @@ class LeaderLedgerInBaleTests(BotCase):
         self.tap(f'Lc:{self.caravan.id}:0', chat=CHAT + 7)
         self.assertEqual(self.messages(), [])
         self.assertIn('مدیر کاروان', self.toast())
+
+
+class LeaderCaravanInBaleTests(BotCase):
+    """مدیر وصل‌شده از بله کاروان تازه ثبت می‌کند و کاروان‌هایش را تنظیم می‌کند."""
+
+    def setUp(self):
+        super().setUp()
+        User.objects.filter(pk=self.leader.pk).update(bale_chat_id=str(CHAT), full_name='حاج رضا')
+
+    def mine(self):
+        return Caravan.objects.filter(leader=self.leader).order_by('-id')
+
+    def build_from_scratch(self, photo=False):
+        self.tap('Kn')
+        self.say('کاروان ۴ آذر کربلا')
+        self.tap('Kd:karbala')
+        self.say('۱۴۹۹/۰۹/۰۴')
+        self.tap('Ku:7')
+        self.tap('Kt:bus')
+        self.tap('Kb:32')
+        self.tap('Ko:قم و تهران')
+        self.say('۴٬۵۰۰٬۰۰۰')
+        self.say('۴۴')
+        self.tap('Ka:hotel')
+        self.say('هتل الزهرا')
+        self.tap('Km:meal_breakfast')
+        self.tap('Km:meal_dinner')
+        self.tap('Km:ok')
+        if photo:
+            self._post({'message': {
+                'message_id': 3, 'chat': {'id': CHAT, 'type': 'private'}, 'from': {'id': CHAT},
+                'photo': [{'file_id': 'small'}, {'file_id': 'big'}],
+            }})
+        else:
+            self.tap('Kskip')
+
+    def test_menu_offers_a_new_caravan_only_to_a_linked_leader(self):
+        self.say('/start')
+        self.assertIn('K', self.buttons())
+        self.say('/start', chat=CHAT + 1)
+        self.assertNotIn('K', self.buttons())
+        self.tap('Kn', chat=CHAT + 1)
+        self.assertIn('مدیر کاروان', self.toast())
+
+    def test_build_a_caravan_from_scratch(self):
+        before = self.mine().count()
+        self.build_from_scratch()
+        self.assertEqual(self.chat().state, 'K_confirm')
+        self.assertIn('کاروان ۴ آذر کربلا', self.text())
+        self.assertEqual(self.mine().count(), before)          # تا «ثبت» چیزی ساخته نشده
+        with override_settings(BALE_FALLBACK_CHAT_ID='999'):
+            self.tap('Kok')
+        c = self.mine().first()
+        self.assertEqual((c.name, c.destination, c.departure_date, c.duration), ('کاروان ۴ آذر کربلا', 'karbala', '1499/09/04', 7))
+        self.assertEqual((c.transportation_type, c.bus_type, c.origin_city), ('bus', 32, 'قم و تهران'))
+        self.assertEqual((c.price, c.capacity, c.remaining_capacity), (4_500_000, 44, 44))
+        self.assertEqual((c.accommodation_type, c.accommodation_name), ('hotel', 'هتل الزهرا'))
+        self.assertEqual((c.meal_breakfast, c.meal_lunch, c.meal_dinner, c.has_insurance), (True, False, True, False))
+        self.assertEqual((c.status, c.manager, c.contact_phone), ('pending', 'حاج رضا', '09120000001'))
+        self.assertEqual(self.chat().state, '')
+        to_support = [p for m, p in self.new if m == 'sendMessage' and p['chat_id'] == '999']
+        self.assertEqual(len(to_support), 1)
+        self.assertIn('منتظر تأیید', to_support[0]['text'])
+        # تا تأیید ادمین به زائرها نشان داده نمی‌شود
+        self.say('/start', chat=CHAT + 1)
+        self.assertNotIn('۴ آذر', self.text())
+
+    def test_bad_answers_are_asked_again(self):
+        self.tap('Kn')
+        self.say('کاروان تست')
+        self.tap('Kd:mashhad')
+        self.say('۱۴۰۰/۰۱/۰۱')                       # گذشته
+        self.assertEqual(self.chat().state, 'K_date')
+        self.say('چهارم آذر')
+        self.assertEqual(self.chat().state, 'K_date')
+        self.say('1499/9/4')
+        self.tap('Kt:bus')                            # دکمه‌ی مرحله‌ی دیگر
+        self.assertIn('فعال نیست', self.toast())
+        self.assertEqual(self.chat().state, 'K_dur')
+        self.tap('Ku:5')
+        self.tap('Kt:airplane')                       # هواپیما نوع اتوبوس نمی‌پرسد
+        self.assertEqual(self.chat().state, 'K_origin')
+        self.say('مشهد')
+        self.say('چهار میلیون')
+        self.assertEqual(self.chat().state, 'K_price')
+        self.say('0')
+        self.assertEqual(self.chat().state, 'K_price')
+        self.say('4000000')
+        self.say('۰')
+        self.assertEqual(self.chat().state, 'K_cap')
+
+    def test_cancel_saves_nothing(self):
+        before = self.mine().count()
+        self.tap('Kn')
+        self.say('کاروان نیمه‌کاره')
+        self.say('انصراف')
+        self.assertEqual(self.chat().state, '')
+        self.assertEqual(self.mine().count(), before)
+
+    def test_copy_a_previous_caravan(self):
+        self.caravan.meal_lunch = True
+        self.caravan.itinerary = [{'day': 1, 'title': 'حرکت'}]
+        self.caravan.image = 'caravans/old.jpg'
+        self.caravan.save()
+        self.tap('K')
+        self.assertIn('Kcp', self.buttons())
+        self.tap('Kcp')
+        self.tap(f'Kcf:{self.caravan.id}')
+        self.say('۱۴۹۹/۱۰/۰۱')
+        self.tap('Kkeep:capacity')
+        self.say('۵٬۰۰۰٬۰۰۰')
+        self.assertEqual(self.chat().state, 'K_confirm')
+        self.tap('Kre:name')
+        self.say('کاروان دی')
+        self.assertEqual(self.chat().state, 'K_confirm')
+        self.tap('Kok')
+        c = self.mine().first()
+        self.assertNotEqual(c.id, self.caravan.id)
+        self.assertEqual((c.name, c.departure_date, c.capacity, c.remaining_capacity, c.price),
+                         ('کاروان دی', '1499/10/01', 25, 25, 5_000_000))
+        self.assertEqual((c.origin_city, c.bus_type, c.duration, c.meal_lunch), ('قم و تهران', 25, 5, True))
+        self.assertEqual(c.itinerary, [{'day': 1, 'title': 'حرکت'}])
+        self.assertEqual((c.image.name, c.status), ('caravans/old.jpg', 'pending'))
+
+    def test_photo_is_downloaded_and_saved(self):
+        import io
+        import tempfile
+        from PIL import Image
+        buf = io.BytesIO()
+        Image.new('RGB', (4, 4), 'red').save(buf, 'JPEG')
+        self.build_from_scratch(photo=True)
+        self.assertEqual(self.chat().state, 'K_confirm')
+        with tempfile.TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media), \
+                mock.patch('core.bale.download_file', return_value=buf.getvalue()) as dl:
+            self.tap('Kok')
+            dl.assert_called_once_with('big')
+            self.assertTrue(self.mine().first().image.name.startswith('caravans/bale_'))
+
+    def test_broken_photo_still_saves_the_caravan(self):
+        self.build_from_scratch(photo=True)
+        with mock.patch('core.bale.download_file', return_value=b'not an image'):
+            self.tap('Kok')
+        self.assertFalse(self.mine().first().image)
+        self.assertIn('عکس دریافت نشد', self.text())
+
+    def test_open_and_close_registration(self):
+        self.caravan.registration_opens_on = '1499/08/01'
+        self.caravan.save()
+        self.tap(f'Ks:{self.caravan.id}')
+        self.assertIn(f'Kr:{self.caravan.id}:closed', self.buttons())
+        self.tap(f'Kr:{self.caravan.id}:closed')
+        self.caravan.refresh_from_db()
+        self.assertEqual(self.caravan.registration_status(), 'closed')
+        self.tap(f'Kr:{self.caravan.id}:open')
+        self.caravan.refresh_from_db()
+        self.assertEqual(self.caravan.registration_status(), 'open')   # تاریخ بازشدن آینده کنار رفت
+        self.assertEqual(self.caravan.registration_opens_on, '')
+        self.assertEqual(self.caravan.status, 'approved')
+
+    def test_capacity_change_keeps_booked_seats(self):
+        Caravan.objects.filter(pk=self.caravan.pk).update(remaining_capacity=20)   # ۵ نفر در کاروان
+        self.tap(f'Kec:{self.caravan.id}')
+        self.say('۳')
+        self.assertIn('کمتر از ۵', self.text())
+        self.say('۳۰')
+        self.caravan.refresh_from_db()
+        self.assertEqual((self.caravan.capacity, self.caravan.remaining_capacity, self.caravan.status), (30, 25, 'approved'))
+
+    def test_price_date_and_duration_need_approval_again(self):
+        self.tap(f'Kep:{self.caravan.id}')
+        self.say('۶٬۰۰۰٬۰۰۰')
+        self.caravan.refresh_from_db()
+        self.assertEqual((self.caravan.price, self.caravan.status), (6_000_000, 'pending'))
+        self.assertIn('تأیید دوباره', self.text())
+        self.tap(f'Ked:{self.caravan.id}')
+        self.say('۱۴۹۹/۰۹/۱۰')
+        self.tap(f'Keu2:{self.caravan.id}:9')
+        self.caravan.refresh_from_db()
+        self.assertEqual((self.caravan.departure_date, self.caravan.duration), ('1499/09/10', 9))
+
+    def test_another_leaders_caravan_is_off_limits(self):
+        other = User.objects.create_user(phone='09120000002', role='caravan_leader', is_leader_approved=True)
+        theirs = self.make_caravan(leader=other, name='کاروان دیگر')
+        for data in (f'Ks:{theirs.id}', f'Kr:{theirs.id}:closed', f'Kcf:{theirs.id}', f'Kep:{theirs.id}'):
+            self.tap(data)
+            self.assertIn('پیدا نشد', self.toast())
+        theirs.refresh_from_db()
+        self.assertEqual((theirs.registration_state, theirs.price), ('open', 4_000_000))

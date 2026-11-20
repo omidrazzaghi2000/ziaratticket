@@ -33,6 +33,24 @@ class BaleClientTests(SimpleTestCase):
             with self.assertLogs('core.bale', level='WARNING'):
                 self.assertFalse(bale.send_message('555', 'سلام'))
 
+    def test_download_file_follows_get_file(self):
+        info = mock.Mock(status_code=200)
+        info.json.return_value = {'ok': True, 'result': {'file_path': 'photos/a.jpg', 'file_size': 3}}
+        body = mock.Mock(status_code=200)
+        body.iter_content.return_value = [b'abc']
+        with mock.patch('core.bale.requests.post', return_value=info), \
+                mock.patch('core.bale.requests.get', return_value=body) as get:
+            self.assertEqual(bale.download_file('f1'), b'abc')
+        self.assertEqual(get.call_args.args[0], 'https://tapi.bale.ai/file/botabc123/photos/a.jpg')
+
+    def test_download_file_refuses_oversized_files(self):
+        info = mock.Mock(status_code=200)
+        info.json.return_value = {'ok': True, 'result': {'file_path': 'p.jpg', 'file_size': 50_000_000}}
+        with mock.patch('core.bale.requests.post', return_value=info), \
+                mock.patch('core.bale.requests.get') as get, self.assertLogs('core.bale', level='INFO'):
+            self.assertIsNone(bale.download_file('f1'))
+        get.assert_not_called()
+
     @override_settings(BALE_BOT_TOKEN='')
     def test_no_request_without_token(self):
         with mock.patch('core.bale.requests.post') as post:
